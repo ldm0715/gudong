@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../core/ipc/sidecar_supervisor.dart';
 import '../../core/log.dart';
+import '../weather/weather.dart';
 
 class UnreadItem {
   const UnreadItem({
@@ -81,6 +82,8 @@ class IslandController extends ChangeNotifier {
   String _wechatStatus = '正在检测微信';
   bool _notificationsOk = false;
   String _notificationsStatus = '正在检测系统通知';
+  WeatherSnapshot? _weather;
+  String _weatherStatus = '正在获取天气';
 
   bool get expanded => _expanded;
   bool get pulse => _pulse;
@@ -88,6 +91,8 @@ class IslandController extends ChangeNotifier {
   String get wechatStatus => _wechatStatus;
   bool get notificationsOk => _notificationsOk;
   String get notificationsStatus => _notificationsStatus;
+  WeatherSnapshot? get weather => _weather;
+  String get weatherStatus => _weatherStatus;
   bool get ready => supervisor.ready;
   String get connectionDetail => supervisor.detail;
   List<UnreadItem> get unread => _unread.values.toList(growable: false);
@@ -102,6 +107,7 @@ class IslandController extends ChangeNotifier {
     }
     return latest;
   }
+
   int get unreadCount =>
       _unread.values.fold(0, (sum, item) => sum + item.count);
   bool get hasQq => _unread.values.any((item) => item.source == 'qq');
@@ -193,6 +199,9 @@ class IslandController extends ChangeNotifier {
               : (event['message']?.toString() ?? '系统通知监听异常');
           notifyListeners();
         }
+      case 'weather.updated':
+        _applyWeather(event);
+        notifyListeners();
       case 'sidecar.snapshot':
         _applySnapshot(event);
         notifyListeners();
@@ -215,6 +224,15 @@ class IslandController extends ChangeNotifier {
           item.source == source &&
           (account == 0 || item.account == account || item.account == 0),
     );
+  }
+
+  void _applyWeather(Map<String, dynamic> event) {
+    final raw = event['snapshot'];
+    if (raw is Map<String, dynamic>) {
+      _weather = WeatherSnapshot.fromJson(raw);
+    }
+    final status = event['status']?.toString() ?? '';
+    if (status.isNotEmpty) _weatherStatus = status;
   }
 
   void _applySnapshot(Map<String, dynamic> event) {
@@ -249,6 +267,10 @@ class IslandController extends ChangeNotifier {
       _notificationsStatus = _notificationsOk
           ? '微信 / QQ 通知监听中'
           : (message.isEmpty ? '系统通知监听异常' : message);
+    }
+    final weather = event['weather'];
+    if (weather is Map<String, dynamic>) {
+      _applyWeather(weather);
     }
   }
 

@@ -12,6 +12,7 @@
 | `messages.seen` | `{id}` / `{source, account}` / `{}`（空对象 = 全部） | `{ok, removed}` |
 | `messages.open` | `{id}` 或 `{source, account}` | `{ok, message?}`；成功后客户端切到前台并清除该提醒 |
 | `media.get` | `{}` | `{title, artist, position, playing, available}`（Phase 0 为占位） |
+| `weather.get` | `{}` | `{snapshot, status}`；`snapshot` 可能为 `null` |
 | `settings.get` | `{}` | 占位 |
 | `settings.set` | `{...}` | `{ok}` |
 | `app.shutdown` | `{}` | `{ok}`，随后进程退出 |
@@ -52,6 +53,40 @@
 | `system.status` | `component` 为 `wechat` 或 `notifications`，带 `ok`、`message` |
 | `message.unread` | 新增或更新一条提醒；同一账号 5 秒内的重复闪动合并 |
 | `message.cleared` | 提醒已失效，带 `id`，或 `source` + 可选 `account`；清空该来源时只带 `source` |
+| `weather.updated` | 实况刷新成功或失败，带 `snapshot`（可能为 `null`）与 `status` |
+
+`WeatherSnapshot`：
+
+```json
+{
+  "place": "广州",
+  "temp_c": 19.0,
+  "kind": "cloudy",
+  "description": "阴",
+  "is_day": false,
+  "updated_at_ms": 1794997775244,
+  "feels_like_c": 17.0,
+  "humidity": 68,
+  "wind_kph": 19.0,
+  "high_c": 24.0,
+  "low_c": 18.0,
+  "days": [
+    {
+      "date": "2026-11-18",
+      "kind": "rain",
+      "description": "附近有零星降雨",
+      "high_c": 24.0,
+      "low_c": 18.0,
+      "precip_probability": 20
+    }
+  ]
+}
+```
+
+- `kind` 为 `clear` / `partly` / `cloudy` / `fog` / `drizzle` / `rain` / `snow` / `thunder`，由 sidecar 统一归一化，客户端只负责映射图标。
+- `feels_like_c` / `humidity` / `wind_kph` / `precip_probability` 可能缺省；`days` 最多 5 天。
+- 定位与抓取都在 sidecar 内完成：定位优先 ipwho.is，失败退 freeipapi；天气优先 wttr.in，失败退 Open-Meteo；wttr.in 只有 3 天预报，不足 5 天时用 7Timer 补齐。日志不记录 IP 与坐标。
+- 刷新间隔 15 分钟，失败后 2 分钟重试；刷新失败时保留上一次 `snapshot`。
 
 `message.cleared` 的触发条件：
 

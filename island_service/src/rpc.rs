@@ -31,6 +31,8 @@ pub struct State {
     pub listener_message: Mutex<String>,
     pub notifications_ok: Mutex<bool>,
     pub notifications_message: Mutex<String>,
+    pub weather: Mutex<Option<crate::weather::WeatherSnapshot>>,
+    pub weather_status: Mutex<String>,
 }
 
 impl Default for State {
@@ -42,6 +44,8 @@ impl Default for State {
             listener_message: Mutex::new("starting".into()),
             notifications_ok: Mutex::new(false),
             notifications_message: Mutex::new("starting".into()),
+            weather: Mutex::new(None),
+            weather_status: Mutex::new("正在获取天气".into()),
         }
     }
 }
@@ -85,6 +89,7 @@ pub fn handle(state: &State, method: &str, params: &Value) -> Result<Action, Rpc
                     "messages.clear",
                     "messages.list",
                     "messages.open",
+                    "weather.current",
                 ],
             })))
         }
@@ -130,6 +135,22 @@ pub fn handle(state: &State, method: &str, params: &Value) -> Result<Action, Rpc
             "playing": false,
             "available": false,
         }))),
+        "weather.get" => {
+            let snapshot = state
+                .weather
+                .lock()
+                .ok()
+                .and_then(|slot| slot.clone());
+            let status = state
+                .weather_status
+                .lock()
+                .map(|value| value.clone())
+                .unwrap_or_default();
+            Ok(Action::Respond(json!({
+                "snapshot": snapshot,
+                "status": status,
+            })))
+        }
         "settings.get" => Ok(Action::Respond(json!({}))),
         "settings.set" => Ok(Action::Respond(json!({ "ok": true }))),
         "app.shutdown" => Ok(Action::Shutdown(json!({ "ok": true }))),

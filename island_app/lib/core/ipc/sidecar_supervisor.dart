@@ -94,6 +94,14 @@ class SidecarSupervisor extends ChangeNotifier {
       final snapshot = await client
           .call('messages.list')
           .timeout(const Duration(seconds: 4));
+      Map<String, dynamic> weather = const {};
+      try {
+        weather = await client
+            .call('weather.get')
+            .timeout(const Duration(seconds: 4));
+      } catch (error) {
+        AppLog.write('[sidecar] weather.get failed: $error');
+      }
       if (_disposed) return;
       _heartbeatFailures = 0;
       _restartAttempt = 0;
@@ -103,6 +111,7 @@ class SidecarSupervisor extends ChangeNotifier {
         'type': 'sidecar.snapshot',
         'items': snapshot['items'] ?? const [],
         'listener': snapshot['listener'] ?? const {},
+        'weather': weather,
       });
       _startHeartbeat();
     } catch (error) {

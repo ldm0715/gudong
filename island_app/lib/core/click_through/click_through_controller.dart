@@ -18,7 +18,8 @@ import '../log.dart';
 /// 轮询频率 16ms，只在命中状态变化时修改扩展样式。
 class ClickThroughController {
   static const Size windowSize = Size(420, 300);
-  static const Rect collapsedRect = Rect.fromLTWH(156, 8, 108, 36);
+  // 收起态宽 156，与 island_view.dart 的 _collapsedWidth 保持一致。
+  static const Rect collapsedRect = Rect.fromLTWH(132, 8, 156, 36);
   static const Rect notificationRect = Rect.fromLTWH(30, 8, 360, 80);
   static const Rect expandedRect = Rect.fromLTWH(20, 8, 380, 260);
   static const int _wsExTransparent = 0x00000020;

@@ -6,6 +6,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod rpc;
+mod weather;
 #[cfg(windows)]
 mod clients;
 #[cfg(windows)]
@@ -46,8 +47,11 @@ fn main() {
             "messages.clear",
             "messages.list",
             "messages.open",
+            "weather.current",
         ],
     })));
+
+    weather::start(state.clone(), tx.clone());
 
     #[cfg(windows)]
     {
@@ -103,7 +107,7 @@ fn write_line(value: &Value) {
     let _ = out.flush();
 }
 
-fn log(line: &str) {
+pub fn log(line: &str) {
     let Some(dir) = log_dir() else { return };
     let _ = std::fs::create_dir_all(&dir);
     let path = dir.join("island_service.log");
