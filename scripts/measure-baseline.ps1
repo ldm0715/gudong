@@ -1,0 +1,93 @@
+param(
+  [string]$Exe = "",
+  [int]$IdleSeconds = 15
+)
+
+$ErrorActionPreference = "Stop"
+$root = Split-Path -Parent $PSScriptRoot
+if (-not $Exe) {
+  $Exe = Join-Path $root "island_app\build\windows\x64\runner\Release\island_app.exe"
+}
+if (-not (Test-Path $Exe)) {
+  throw "Not found: $Exe. Run scripts\build.ps1 first."
+}
+
+$release = Split-Path -Parent $Exe
+$sidecar = Join-Path $root "island_service\target\release\island_service.exe"
+if (Test-Path $sidecar) {
+  Copy-Item $sidecar $release -Force
+}
+
+if (Get-Process island_app -ErrorAction SilentlyContinue) {
+  throw "island_app is already running. Quit it from the tray first."
+}
+
+function Get-CpuPercent($delta, $elapsedSeconds) {
+  return [math]::Round($delta.TotalSeconds / ($elapsedSeconds * [Environment]::ProcessorCount) * 100, 3)
+}
+
+Write-Host "==> launching $Exe"
+$sw = [Diagnostics.Stopwatch]::StartNew()
+$app = Start-Process -FilePath $Exe -PassThru
+$windowMs = $null
+for ($i = 0; $i -lt 300; $i++) {
+  Start-Sleep -Milliseconds 50
+  $app.Refresh()
+  if ($app.MainWindowHandle -ne 0) {
+    $windowMs = $sw.ElapsedMilliseconds
+    break
+  }
+}
+Start-Sleep -Seconds 5
+$app.Refresh()
+$svc = Get-Process island_service -ErrorAction SilentlyContinue
+if (-not $svc) {
+  Write-Warning "island_service.exe did not start"
+}
+
+Write-Host "==> sampling idle for $IdleSeconds s (leave mouse and keyboard alone)"
+$appCpu0 = $app.TotalProcessorTime
+$svcCpu0 = if ($svc) { $svc.TotalProcessorTime } else { [TimeSpan]::Zero }
+$sample = [Diagnostics.Stopwatch]::StartNew()
+Start-Sleep -Seconds $IdleSeconds
+$sample.Stop()
+$app.Refresh()
+if ($svc) { $svc.Refresh() }
+$appCpu1 = $app.TotalProcessorTime
+$svcCpu1 = if ($svc) { $svc.TotalProcessorTime } else { [TimeSpan]::Zero }
+
+$appCpu = Get-CpuPercent ($appCpu1 - $appCpu0) $sample.Elapsed.TotalSeconds
+$svcCpu = Get-CpuPercent ($svcCpu1 - $svcCpu0) $sample.Elapsed.TotalSeconds
+
+$log = Join-Path $env:LOCALAPPDATA "guduo\logs\app.log"
+function Get-LastLogTime([string]$pattern) {
+  if (-not (Test-Path $log)) { return $null }
+  $line = Get-Content $log -Tail 300 | Where-Object { $_ -match $pattern } | Select-Object -Last 1
+  if (-not $line) { return $null }
+  try { return [datetime]::Parse($line.Substring(0, 23)) } catch { return $null }
+}
+$bootstrap = Get-LastLogTime "bootstrap start"
+$ready = Get-LastLogTime "sidecar\] ready"
+$shown = Get-LastLogTime "window shown"
+
+Write-Host ""
+Write-Host "=== Phase 0 baseline ==="
+Write-Host ("launch -> window shown : {0} ms" -f $windowMs)
+if ($bootstrap -and $shown) {
+  Write-Host ("in-app bootstrap -> first frame : {0} ms" -f [int]($shown - $bootstrap).TotalMilliseconds)
+}
+if ($bootstrap -and $ready) {
+  Write-Host ("in-app bootstrap -> sidecar ready : {0} ms" -f [int]($ready - $bootstrap).TotalMilliseconds)
+}
+Write-Host ""
+Write-Host ("{0,-16} {1,10} {2,12}" -f "process", "working", "private")
+Write-Host ("{0,-16} {1,10} {2,12}" -f "island_app", ("{0:N1} MB" -f ($app.WorkingSet64 / 1MB)), ("{0:N1} MB" -f ($app.PrivateMemorySize64 / 1MB)))
+if ($svc) {
+  Write-Host ("{0,-16} {1,10} {2,12}" -f "island_service", ("{0:N1} MB" -f ($svc.WorkingSet64 / 1MB)), ("{0:N1} MB" -f ($svc.PrivateMemorySize64 / 1MB)))
+  Write-Host ("{0,-16} {1,10} {2,12}" -f "total", ("{0:N1} MB" -f (($app.WorkingSet64 + $svc.WorkingSet64) / 1MB)), ("{0:N1} MB" -f (($app.PrivateMemorySize64 + $svc.PrivateMemorySize64) / 1MB)))
+}
+Write-Host ""
+Write-Host ("idle CPU over {0}s: island_app {1:N3}%  island_service {2:N3}%  total {3:N3}% (of all cores)" -f $IdleSeconds, $appCpu, $svcCpu, ($appCpu + $svcCpu))
+Write-Host ""
+Write-Host "Animation FPS must be measured with: flutter run --profile -d windows, then DevTools Performance."
+Write-Host "Budget: idle memory <= 80MB total, idle CPU <= 0.5%, cold start <= 1.5s, 60fps."

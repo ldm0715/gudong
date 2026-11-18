@@ -1,0 +1,20 @@
+# Rust
+/island_service/target/
+
+# Flutter / Dart
+/island_app/build/
+/island_app/.dart_tool/
+/island_app/.flutter-plugins
+/island_app/.flutter-plugins-dependencies
+/island_app/windows/flutter/ephemeral/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Local
+*.log
+
+# Reference project (separate git repo)
+/xiaotang-daozai/
