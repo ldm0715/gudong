@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:island_app/features/island/island_controller.dart';
+import 'package:island_app/features/messages/unread_item.dart';
 
 void main() {
   test('parses a message.unread event', () {

@@ -5,7 +5,9 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod config;
 mod rpc;
+mod single_instance;
 mod weather;
 #[cfg(windows)]
 mod clients;
@@ -23,7 +25,22 @@ use std::io::{BufRead, Write};
 use std::sync::{mpsc, Arc};
 
 fn main() {
-    let state = Arc::new(rpc::State::default());
+    std::panic::set_hook(Box::new(|info| {
+        let backtrace = std::backtrace::Backtrace::force_capture();
+        log(&format!("panic: {info}\nbacktrace: {backtrace}"));
+    }));
+
+    if !single_instance::try_acquire() {
+        log("another island_service instance is running, exiting");
+        return;
+    }
+    log(&format!(
+        "service {} starting (pid {})",
+        env!("CARGO_PKG_VERSION"),
+        std::process::id()
+    ));
+
+    let state = Arc::new(rpc::State::with_config(config::Config::load()));
     let (tx, rx) = mpsc::channel::<Value>();
 
     // 事件写线程：监听线程和主线程都不直接写 stdout，避免交错。
@@ -40,15 +57,7 @@ fn main() {
         "type": "service.ready",
         "version": env!("CARGO_PKG_VERSION"),
         "apiVersion": rpc::API_VERSION,
-        "capabilities": [
-            "wechat.unread",
-            "qq.unread",
-            "messages.preview",
-            "messages.clear",
-            "messages.list",
-            "messages.open",
-            "weather.current",
-        ],
+        "capabilities": rpc::CAPABILITIES,
     })));
 
     weather::start(state.clone(), tx.clone());
@@ -76,12 +85,21 @@ fn main() {
         }
         let Ok(message) = serde_json::from_str::<Value>(line) else {
             log(&format!("invalid json: {line}"));
-            continue;
-        };
-        let Some(method) = message.get("method").and_then(Value::as_str) else {
+            write_line(&rpc::error(
+                &Value::Null,
+                rpc::RpcError::new(rpc::ERR_PARSE, "parse error"),
+            ));
             continue;
         };
         let id = message.get("id").cloned().unwrap_or(Value::Null);
+        let Some(method) = message.get("method").and_then(Value::as_str) else {
+            log(&format!("invalid request: {line}"));
+            write_line(&rpc::error(
+                &id,
+                rpc::RpcError::new(rpc::ERR_INVALID_REQUEST, "method is required"),
+            ));
+            continue;
+        };
         let params = message.get("params").cloned().unwrap_or(Value::Null);
         match rpc::handle(&state, method, &params) {
             Ok(rpc::Action::Respond(result)) => write_line(&rpc::response(&id, result)),

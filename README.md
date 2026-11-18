@@ -1,6 +1,6 @@
 # Guduo
 
-Windows 顶部的灵动岛：Flutter 负责岛体与动画，Rust sidecar 负责系统集成。当前处于 Phase 0 Walking Skeleton，微信未读与点击穿透已可验证。
+Windows 顶部的灵动岛：Flutter 负责岛体与动画，Rust sidecar 负责系统集成。当前处于 Phase 1 骨架阶段，窗口、IPC、主题与独立设置窗口已可用。
 
 ## 快速开始
 
@@ -40,6 +40,7 @@ cd island_app && flutter run -d windows
 
 ## 文档
 
+- [Phase 1 报告与验收清单](docs/phase1-report.md)
 - [Phase 0 报告与验收清单](docs/phase0-report.md)
 - [Sidecar IPC 协议](protocol/README.md)
 - [完整执行计划](dynamic-island-plan.md)

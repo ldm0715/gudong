@@ -8,6 +8,25 @@ use std::time::Instant;
 
 pub const API_VERSION: u32 = 1;
 
+pub const ERR_PARSE: i64 = -32700;
+pub const ERR_INVALID_REQUEST: i64 = -32600;
+pub const ERR_METHOD_NOT_FOUND: i64 = -32601;
+pub const ERR_INVALID_PARAMS: i64 = -32602;
+pub const ERR_INTERNAL: i64 = -32603;
+pub const ERR_VERSION_MISMATCH: i64 = -32000;
+
+/// 能力声明的唯一来源，`service.ready` 事件与 `app.hello` 都读这里。
+pub const CAPABILITIES: &[&str] = &[
+    "wechat.unread",
+    "qq.unread",
+    "messages.preview",
+    "messages.clear",
+    "messages.list",
+    "messages.open",
+    "weather.current",
+    "settings.persist",
+];
+
 /// 一条未读提醒。`id` 是稳定键：任务栏提醒按账号，系统通知按通知编号。
 #[derive(Clone, Serialize)]
 pub struct UnreadInfo {
@@ -33,10 +52,17 @@ pub struct State {
     pub notifications_message: Mutex<String>,
     pub weather: Mutex<Option<crate::weather::WeatherSnapshot>>,
     pub weather_status: Mutex<String>,
+    pub config: crate::config::Config,
 }
 
 impl Default for State {
     fn default() -> Self {
+        Self::with_config(crate::config::Config::in_memory())
+    }
+}
+
+impl State {
+    pub fn with_config(config: crate::config::Config) -> Self {
         Self {
             started: Instant::now(),
             unread: Mutex::new(HashMap::new()),
@@ -46,17 +72,19 @@ impl Default for State {
             notifications_message: Mutex::new("starting".into()),
             weather: Mutex::new(None),
             weather_status: Mutex::new("正在获取天气".into()),
+            config,
         }
     }
 }
 
+#[derive(Debug)]
 pub struct RpcError {
     pub code: i64,
     pub message: String,
 }
 
 impl RpcError {
-    fn new(code: i64, message: impl Into<String>) -> Self {
+    pub fn new(code: i64, message: impl Into<String>) -> Self {
         Self {
             code,
             message: message.into(),
@@ -75,22 +103,14 @@ pub fn handle(state: &State, method: &str, params: &Value) -> Result<Action, Rpc
             let client_api = params.get("apiVersion").and_then(Value::as_u64).unwrap_or(0);
             if client_api != API_VERSION as u64 {
                 return Err(RpcError::new(
-                    -32000,
+                    ERR_VERSION_MISMATCH,
                     format!("apiVersion mismatch: client {client_api}, service {API_VERSION}"),
                 ));
             }
             Ok(Action::Respond(json!({
                 "version": env!("CARGO_PKG_VERSION"),
                 "apiVersion": API_VERSION,
-                "capabilities": [
-                    "wechat.unread",
-                    "qq.unread",
-                    "messages.preview",
-                    "messages.clear",
-                    "messages.list",
-                    "messages.open",
-                    "weather.current",
-                ],
+                "capabilities": CAPABILITIES,
             })))
         }
         "app.ping" => Ok(Action::Respond(json!({
@@ -151,10 +171,32 @@ pub fn handle(state: &State, method: &str, params: &Value) -> Result<Action, Rpc
                 "status": status,
             })))
         }
-        "settings.get" => Ok(Action::Respond(json!({}))),
-        "settings.set" => Ok(Action::Respond(json!({ "ok": true }))),
+        "settings.get" => Ok(Action::Respond(json!({
+            "settings": state.config.snapshot(),
+        }))),
+        "settings.set" => {
+            let Some(patch) = params.get("settings").and_then(Value::as_object) else {
+                return Err(RpcError::new(
+                    ERR_INVALID_PARAMS,
+                    "settings.set requires a settings object",
+                ));
+            };
+            match state.config.merge(patch) {
+                Ok(settings) => Ok(Action::Respond(json!({
+                    "ok": true,
+                    "settings": settings,
+                }))),
+                Err(message) => Err(RpcError::new(
+                    ERR_INTERNAL,
+                    format!("settings save failed: {message}"),
+                )),
+            }
+        }
         "app.shutdown" => Ok(Action::Shutdown(json!({ "ok": true }))),
-        other => Err(RpcError::new(-32601, format!("method not found: {other}"))),
+        other => Err(RpcError::new(
+            ERR_METHOD_NOT_FOUND,
+            format!("method not found: {other}"),
+        )),
     }
 }
 
@@ -407,6 +449,50 @@ mod tests {
 
         assert_eq!(clear_items(&state, None, None, None), 2);
         assert!(state.unread.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn settings_round_trip_merges_partial_updates() {
+        let state = State::default();
+        let set = handle(
+            &state,
+            "settings.set",
+            &json!({ "settings": { "themeId": "midnight", "windowX": 120.5 } }),
+        )
+        .unwrap();
+        let Action::Respond(result) = set else {
+            panic!("expected response");
+        };
+        assert_eq!(result["ok"], true);
+        assert_eq!(result["settings"]["themeId"], "midnight");
+
+        let Action::Respond(result) = handle(
+            &state,
+            "settings.set",
+            &json!({ "settings": { "showWeather": false } }),
+        )
+        .unwrap()
+        else {
+            panic!("expected response");
+        };
+        assert_eq!(result["settings"]["themeId"], "midnight");
+        assert_eq!(result["settings"]["showWeather"], false);
+
+        let Action::Respond(result) = handle(&state, "settings.get", &json!({})).unwrap()
+        else {
+            panic!("expected response");
+        };
+        assert_eq!(result["settings"]["windowX"], 120.5);
+    }
+
+    #[test]
+    fn settings_set_requires_object_params() {
+        let state = State::default();
+        let error = match handle(&state, "settings.set", &json!({})) {
+            Ok(_) => panic!("expected error"),
+            Err(error) => error,
+        };
+        assert_eq!(error.code, ERR_INVALID_PARAMS);
     }
 
     #[test]

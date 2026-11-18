@@ -6,7 +6,14 @@ import 'package:flutter/foundation.dart';
 import '../log.dart';
 import 'json_rpc_client.dart';
 
-enum SidecarPhase { starting, ready, reconnecting, unavailable, stopped }
+enum SidecarPhase {
+  starting,
+  ready,
+  reconnecting,
+  unavailable,
+  incompatible,
+  stopped,
+}
 
 /// sidecar 生命周期管理：启动、握手、心跳、崩溃退避重启、退出清理。
 class SidecarSupervisor extends ChangeNotifier {
@@ -37,10 +44,14 @@ class SidecarSupervisor extends ChangeNotifier {
   SidecarPhase _phase = SidecarPhase.starting;
   String _detail = '正在启动 sidecar';
   String? _binaryPath;
+  String _version = 'unknown';
+  Set<String> _capabilities = const {};
 
   SidecarPhase get phase => _phase;
   String get detail => _detail;
   String? get binaryPath => _binaryPath;
+  String get version => _version;
+  Set<String> get capabilities => _capabilities;
   bool get ready => _phase == SidecarPhase.ready;
   Stream<Map<String, dynamic>> get events => _events.stream;
 
@@ -90,34 +101,32 @@ class SidecarSupervisor extends ChangeNotifier {
       final hello = await client
           .call('app.hello', {'apiVersion': apiVersion})
           .timeout(const Duration(seconds: 4));
-      final version = hello['version'] ?? 'unknown';
-      final snapshot = await client
-          .call('messages.list')
-          .timeout(const Duration(seconds: 4));
-      Map<String, dynamic> weather = const {};
-      try {
-        weather = await client
-            .call('weather.get')
-            .timeout(const Duration(seconds: 4));
-      } catch (error) {
-        AppLog.write('[sidecar] weather.get failed: $error');
-      }
       if (_disposed) return;
+      _version = hello['version']?.toString() ?? 'unknown';
+      final capabilities = hello['capabilities'];
+      _capabilities = capabilities is List
+          ? capabilities.map((value) => value.toString()).toSet()
+          : const {};
       _heartbeatFailures = 0;
       _restartAttempt = 0;
-      AppLog.write('[sidecar] ready v$version');
-      _setPhase(SidecarPhase.ready, 'sidecar $version 已连接');
+      AppLog.write('[sidecar] ready v$_version');
+      _setPhase(SidecarPhase.ready, 'sidecar $_version 已连接');
+      // 只广播连接结果，功能数据由各自的 controller 主动拉取。
       _events.add({
-        'type': 'sidecar.snapshot',
-        'items': snapshot['items'] ?? const [],
-        'listener': snapshot['listener'] ?? const {},
-        'weather': weather,
+        'type': 'sidecar.connected',
+        'version': _version,
+        'capabilities': _capabilities.toList(growable: false),
       });
       _startHeartbeat();
     } catch (error) {
       AppLog.write('[sidecar] launch failed: $error');
       await _client?.dispose();
       _client = null;
+      // 版本不匹配重试也不会变好，停在不可恢复状态等用户升级。
+      if (error is RpcException && error.code == RpcErrorCode.versionMismatch) {
+        _setPhase(SidecarPhase.incompatible, 'sidecar 与客户端版本不兼容，请升级');
+        return;
+      }
       _setPhase(SidecarPhase.reconnecting, 'sidecar 启动失败：$error');
       _scheduleRestart(_backoff[0]);
     } finally {
@@ -181,6 +190,7 @@ class SidecarSupervisor extends ChangeNotifier {
   void _setPhase(SidecarPhase phase, String detail) {
     _phase = phase;
     _detail = detail;
+    AppLog.write('[sidecar] phase=${phase.name} $detail');
     if (!_disposed) notifyListeners();
   }
 

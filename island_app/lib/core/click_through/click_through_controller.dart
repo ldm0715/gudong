@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:win32/win32.dart';
 
 import '../log.dart';
+import '../window/island_window.dart';
 
 /// 逐像素命中：光标不在岛体形状内时给窗口加 WS_EX_TRANSPARENT，点击落到下层窗口。
 ///
@@ -17,11 +18,10 @@ import '../log.dart';
 ///
 /// 轮询频率 16ms，只在命中状态变化时修改扩展样式。
 class ClickThroughController {
-  static const Size windowSize = Size(420, 300);
-  // 收起态宽 156，与 island_view.dart 的 _collapsedWidth 保持一致。
-  static const Rect collapsedRect = Rect.fromLTWH(132, 8, 156, 36);
-  static const Rect notificationRect = Rect.fromLTWH(30, 8, 360, 80);
-  static const Rect expandedRect = Rect.fromLTWH(20, 8, 380, 260);
+  ClickThroughController({required this.windowSize});
+
+  /// 窗口画布尺寸，用于把屏幕坐标换算成布局坐标。
+  final Size windowSize;
   static const int _wsExTransparent = 0x00000020;
   static const int _wsExLayered = 0x00080000;
 
@@ -33,7 +33,7 @@ class ClickThroughController {
 
   HWND? _hwnd;
   Timer? _timer;
-  Rect _interactive = collapsedRect;
+  Rect _interactive = Rect.zero;
   bool _transparent = false;
   bool _disposed = false;
 
@@ -45,7 +45,7 @@ class ClickThroughController {
     if (!Platform.isWindows) return;
     try {
       for (var attempt = 0; attempt < 40 && !_disposed; attempt++) {
-        final hwnd = _findWindow();
+        final hwnd = findIslandWindow();
         if (hwnd != null) {
           _hwnd = hwnd;
           break;
@@ -65,18 +65,6 @@ class ClickThroughController {
       );
     } catch (error, stack) {
       AppLog.write('[click-through] start failed: $error\n$stack');
-    }
-  }
-
-  HWND? _findWindow() {
-    final className = 'FLUTTER_RUNNER_WIN32_WINDOW'.toPcwstr();
-    final windowName = 'guduo_island'.toPcwstr();
-    try {
-      final hwnd = FindWindow(className, windowName).value;
-      return hwnd.address == 0 ? null : hwnd;
-    } finally {
-      ffi_mem.malloc.free(className);
-      ffi_mem.malloc.free(windowName);
     }
   }
 

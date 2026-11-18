@@ -1,49 +1,109 @@
 import 'dart:async';
+import 'dart:io';
 
+import 'package:desktop_multi_window/desktop_multi_window.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:hotkey_manager/hotkey_manager.dart';
-import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
+import 'app.dart';
+import 'core/app_info.dart';
 import 'core/click_through/click_through_controller.dart';
 import 'core/ipc/sidecar_supervisor.dart';
 import 'core/log.dart';
+import 'core/logging/crash_handler.dart';
+import 'core/settings/settings_controller.dart';
+import 'core/window/app_window.dart';
+import 'core/window/single_instance.dart';
+import 'core/window/window_position.dart';
+import 'features/settings/settings_window.dart';
+import 'features/settings/settings_window_args.dart';
+import 'features/settings/settings_window_launcher.dart';
+import 'features/diagnostics/diagnostics_controller.dart';
 import 'features/island/island_controller.dart';
-import 'features/island/island_view.dart';
+import 'features/island/island_layout.dart';
+import 'features/media/media_controller.dart';
+import 'features/messages/messages_controller.dart';
+import 'features/weather/weather_controller.dart';
 
-Future<void> main() async {
+Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 多窗口：带 type=settings 参数的引擎是设置窗口，不跑岛体逻辑。
+  final settingsWindow = await _settingsWindowArguments();
+  if (settingsWindow != null) {
+    await runSettingsWindow(settingsWindow);
+    return;
+  }
+
+  // 单实例：已有实例就把它叫到前台后退出；热重启时互斥量属于本进程，继续启动。
+  // 这一步必须在 AppLog.init 之前，否则两个进程会同时写 app.log 导致内容交错。
+  if (!SingleInstance.acquire('Local\\guduo-island-app')) {
+    final focused = SingleInstance.focusExisting();
+    if (focused) {
+      AppLog.writeDetached('[app] another instance is running');
+      if (kDebugMode) {
+        // 否则 flutter run 只会报 service protocol 连接失败，看不出原因。
+        stderr.writeln('[guduo] 已有实例在运行，请先从托盘退出或结束 island_app.exe 再启动');
+      }
+      exit(0);
+    }
+  }
+
   AppLog.init();
-  AppLog.write('[app] bootstrap start');
+  AppLog.write('[app] bootstrap start v$appVersion');
+  CrashHandler.install();
+
   await windowManager.ensureInitialized();
 
-  await _prepareWindow();
+  await prepareAppWindow();
 
   final supervisor = SidecarSupervisor();
-  final controller = IslandController(supervisor);
-  final clickThrough = ClickThroughController();
-  clickThrough.setInteractiveRect(ClickThroughController.collapsedRect);
-  controller.addListener(() {
+  final messages = MessagesController(supervisor);
+  final weather = WeatherController(supervisor);
+  final media = MediaController(supervisor);
+  final diagnostics = DiagnosticsController(supervisor);
+  final settings = SettingsController(supervisor);
+  final settingsLauncher = SettingsWindowLauncher(settings);
+  final windowPosition = WindowPositionKeeper(settings);
+  final island = IslandController(supervisor: supervisor, messages: messages);
+  final clickThrough = ClickThroughController(windowSize: appWindowSize);
+
+  clickThrough.setInteractiveRect(
+    IslandLayout.centered(IslandLayout.collapsedSize),
+  );
+  // 命中区域跟随岛体状态切换。
+  island.addListener(() {
     clickThrough.setInteractiveRect(
-      controller.expanded
-          ? ClickThroughController.expandedRect
-          : controller.showBanner
-          ? ClickThroughController.notificationRect
-          : ClickThroughController.collapsedRect,
+      IslandLayout.centered(
+        island.expanded
+            ? IslandLayout.expandedSize
+            : island.showBanner
+            ? IslandLayout.bannerSize
+            : IslandLayout.collapsedSize,
+      ),
     );
   });
   // 悬停展开 / 收起：命中状态来自 16ms 的光标轮询，不依赖 Flutter 的
   // MouseRegion 事件，穿透状态下也能可靠触发。
   clickThrough.pointerInside.addListener(() {
-    controller.setExpanded(clickThrough.pointerInside.value);
+    island.setPointerInside(clickThrough.pointerInside.value);
   });
 
   runApp(
     GuduoApp(
-      supervisor: supervisor,
-      controller: controller,
-      clickThrough: clickThrough,
+      scope: AppScope(
+        supervisor: supervisor,
+        island: island,
+        messages: messages,
+        weather: weather,
+        media: media,
+        diagnostics: diagnostics,
+        settings: settings,
+        settingsWindow: settingsLauncher,
+        windowPosition: windowPosition,
+        clickThrough: clickThrough,
+      ),
     ),
   );
 
@@ -53,210 +113,11 @@ Future<void> main() async {
   });
 }
 
-/// 窗口只配置一次。热重启时窗口已存在且可见，再等 readyToShow 会永久挂起，
-/// 导致 runApp 永远不执行、界面卡死。
-Future<void> _prepareWindow() async {
-  if (await windowManager.isVisible()) {
-    AppLog.write('[app] window already visible, skip setup');
-    return;
-  }
-
-  const windowOptions = WindowOptions(
-    size: Size(420, 300),
-    center: false,
-    backgroundColor: Colors.transparent,
-    skipTaskbar: true,
-    alwaysOnTop: true,
-    title: 'guduo_island',
-    titleBarStyle: TitleBarStyle.hidden,
-    windowButtonVisibility: false,
-  );
-
-  // 配置必须在首帧之前完成，否则会闪出 1280x720 的默认窗口。
-  await windowManager.waitUntilReadyToShow(windowOptions, () async {
-    try {
-      await windowManager.setAsFrameless();
-      await windowManager.setResizable(false);
-      // Windows 版 window_manager 没有实现 setMovable，无边框窗口本身不可拖动。
-      await windowManager.setHasShadow(false);
-      await windowManager.setBackgroundColor(Colors.transparent);
-      await windowManager.setAlwaysOnTop(true);
-      await windowManager.setSkipTaskbar(true);
-      await windowManager.setTitle('guduo_island');
-      await windowManager.setSize(const Size(420, 300));
-      await windowManager.setAlignment(Alignment.topCenter);
-      final position = await windowManager.getPosition();
-      await windowManager.setPosition(Offset(position.dx, position.dy + 8));
-      await windowManager.setPreventClose(true);
-      await windowManager.show();
-      AppLog.write('[app] window shown');
-    } catch (error, stack) {
-      AppLog.write('[app] window setup failed: $error\n$stack');
-      try {
-        await windowManager.show();
-      } catch (_) {}
-    }
-  });
-}
-
-class GuduoApp extends StatefulWidget {
-  const GuduoApp({
-    super.key,
-    required this.supervisor,
-    required this.controller,
-    required this.clickThrough,
-  });
-
-  final SidecarSupervisor supervisor;
-  final IslandController controller;
-  final ClickThroughController clickThrough;
-
-  @override
-  State<GuduoApp> createState() => _GuduoAppState();
-}
-
-class _GuduoAppState extends State<GuduoApp> with WindowListener, TrayListener {
-  HotKey? _hotKey;
-  bool _quitting = false;
-
-  @override
-  void initState() {
-    super.initState();
-    windowManager.addListener(this);
-    trayManager.addListener(this);
-    unawaited(_setupTray());
-    unawaited(_setupHotKey());
-  }
-
-  Future<void> _setupTray() async {
-    try {
-      await trayManager.setIcon('assets/tray_icon.ico');
-      await trayManager.setToolTip('Guduo Island');
-      final menu = Menu(
-        items: [
-          MenuItem(
-            key: 'toggle',
-            label: '展开 / 收起',
-            onClick: (_) => _toggleFromTray(),
-          ),
-          MenuItem(
-            key: 'show',
-            label: '显示岛体',
-            onClick: (_) => unawaited(_showWindow()),
-          ),
-          MenuItem.separator(),
-          MenuItem(
-            key: 'exit',
-            label: '退出',
-            onClick: (_) => unawaited(_quit()),
-          ),
-        ],
-      );
-      await trayManager.setContextMenu(menu);
-    } catch (error) {
-      AppLog.write('[tray] setup failed: $error');
-    }
-  }
-
-  Future<void> _setupHotKey() async {
-    try {
-      final hotKey = HotKey(
-        identifier: 'guduo.toggle',
-        key: PhysicalKeyboardKey.space,
-        modifiers: [HotKeyModifier.control, HotKeyModifier.alt],
-        scope: HotKeyScope.system,
-      );
-      await HotKeyManager.instance.register(
-        hotKey,
-        keyDownHandler: (_) {
-          unawaited(_showWindow());
-          widget.controller.toggleExpanded();
-        },
-      );
-      _hotKey = hotKey;
-    } catch (error) {
-      AppLog.write('[hotkey] register failed: $error');
-    }
-  }
-
-  Future<void> _showWindow({bool expand = false}) async {
-    if (!await windowManager.isVisible()) {
-      await windowManager.show();
-    }
-    try {
-      await windowManager.focus();
-    } catch (error) {
-      AppLog.write('[app] focus failed: $error');
-    }
-    if (expand) widget.controller.setExpanded(true);
-  }
-
-  Future<void> _toggleFromTray() async {
-    await _showWindow();
-    widget.controller.toggleExpanded();
-  }
-
-  Future<void> _quit() async {
-    if (_quitting) return;
-    _quitting = true;
-    AppLog.write('[app] quitting');
-    final hotKey = _hotKey;
-    if (hotKey != null) {
-      try {
-        await HotKeyManager.instance.unregister(hotKey);
-      } catch (_) {}
-    }
-    try {
-      await trayManager.destroy();
-    } catch (_) {}
-    await widget.supervisor.close();
-    widget.controller.dispose();
-    widget.clickThrough.dispose();
-    await AppLog.close();
-    await windowManager.destroy();
-  }
-
-  @override
-  void onWindowClose() {
-    if (_quitting) return;
-    unawaited(windowManager.hide());
-  }
-
-  @override
-  void onTrayIconMouseDown() {
-    // 左键单击托盘图标：显示窗口并展开，避免第二次点击反而收起。
-    unawaited(_showWindow(expand: true));
-  }
-
-  @override
-  void onTrayIconRightMouseDown() {
-    unawaited(trayManager.popUpContextMenu());
-  }
-
-  @override
-  void dispose() {
-    windowManager.removeListener(this);
-    trayManager.removeListener(this);
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Guduo Island',
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: Colors.transparent,
-        fontFamily: 'Microsoft YaHei UI',
-        splashFactory: NoSplash.splashFactory,
-        highlightColor: Colors.transparent,
-        hoverColor: Colors.transparent,
-      ),
-      home: Scaffold(
-        backgroundColor: Colors.transparent,
-        body: IslandView(controller: widget.controller),
-      ),
-    );
+Future<SettingsWindowArguments?> _settingsWindowArguments() async {
+  try {
+    final controller = await WindowController.fromCurrentEngine();
+    return SettingsWindowArguments.tryParse(controller.arguments);
+  } catch (_) {
+    return null;
   }
 }

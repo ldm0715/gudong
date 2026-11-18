@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:island_app/features/weather/weather.dart';
+import 'package:island_app/features/weather/weather_models.dart';
 
 void main() {
   test('parses a weather.updated snapshot', () {

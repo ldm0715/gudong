@@ -13,9 +13,19 @@
 | `messages.open` | `{id}` 或 `{source, account}` | `{ok, message?}`；成功后客户端切到前台并清除该提醒 |
 | `media.get` | `{}` | `{title, artist, position, playing, available}`（Phase 0 为占位） |
 | `weather.get` | `{}` | `{snapshot, status}`；`snapshot` 可能为 `null` |
-| `settings.get` | `{}` | 占位 |
-| `settings.set` | `{...}` | `{ok}` |
+| `settings.get` | `{}` | `{settings}` |
+| `settings.set` | `{settings:{...}}` | `{ok, settings}`；按 key 合并后返回全量设置 |
 | `app.shutdown` | `{}` | `{ok}`，随后进程退出 |
+
+`settings` 是扁平 JSON 对象，当前键：
+
+| key | 类型 | 说明 |
+| --- | --- | --- |
+| `themeId` | string | 皮肤标识：`midnight`（午夜，默认）/ `daylight`（日光） |
+| `showWeather` | bool | 是否在岛体显示天气，默认 `true` |
+| `windowX` / `windowY` | number | 窗口左上角屏幕坐标（物理像素），缺省表示按默认位置摆放 |
+
+设置落盘到 `%APPDATA%\guduo\config.json`，先写临时文件再替换。`settings.set` 只合并传入的 key，未传的键保持不变；值必须是合法 JSON，空 key 返回 `-32602`。
 
 `Unread`：
 
@@ -97,6 +107,17 @@
 
 - 事件只推变化；媒体进度后续最高 1Hz，由 UI 本地插值。
 - 请求 5 秒超时；心跳由 Flutter 每 5 秒发 `app.ping`，连续 2 次失败即重启 sidecar。
-- `apiVersion` 不匹配时 `app.hello` 返回 `-32000`，客户端应提示升级而不是继续使用。
-- 错误码：`-32601` 方法不存在，`-32000` 版本不匹配。
+- `apiVersion` 不匹配时 `app.hello` 返回 `-32000`，客户端应停在“需升级”状态，不要退避重启。
+- 错误码：
+
+| code | 含义 |
+| --- | --- |
+| `-32700` | JSON 解析失败，`id` 为 `null` |
+| `-32600` | 请求结构不合法（缺少 `method`） |
+| `-32601` | 方法不存在 |
+| `-32602` | 参数不合法 |
+| `-32603` | 服务端内部错误（例如配置写盘失败） |
+| `-32000` | `apiVersion` 不匹配 |
+
+- 能力声明：`service.ready` 事件与 `app.hello` 结果里的 `capabilities` 来自 sidecar 内同一份常量。
 - 日志写 `%LOCALAPPDATA%\guduo\logs\island_service.log`，stdout 只输出协议数据。

@@ -46,8 +46,14 @@ class JsonRpcClient {
       'method': method,
       'params': params,
     });
-    process.stdin.add(utf8.encode('$line\n'));
-    process.stdin.flush().catchError((_) {});
+    // 不调 flush：IOSink.flush 在上一次 flush 未完成时会同步抛
+    // "StreamSink is bound to a stream"，并发请求必踩。
+    try {
+      process.stdin.add(utf8.encode('$line\n'));
+    } catch (error) {
+      _pending.remove(id);
+      return Future.error(StateError('sidecar stdin is closed: $error'));
+    }
     return completer.future.timeout(
       const Duration(seconds: 5),
       onTimeout: () {
@@ -118,6 +124,16 @@ class JsonRpcClient {
       process.kill();
     } catch (_) {}
   }
+}
+
+/// JSON-RPC 2.0 与协议自定义错误码。
+abstract final class RpcErrorCode {
+  static const parse = -32700;
+  static const invalidRequest = -32600;
+  static const methodNotFound = -32601;
+  static const invalidParams = -32602;
+  static const internal = -32603;
+  static const versionMismatch = -32000;
 }
 
 class RpcException implements Exception {
