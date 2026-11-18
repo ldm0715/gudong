@@ -18,6 +18,49 @@ Future<void> main() async {
   AppLog.write('[app] bootstrap start');
   await windowManager.ensureInitialized();
 
+  await _prepareWindow();
+
+  final supervisor = SidecarSupervisor();
+  final controller = IslandController(supervisor);
+  final clickThrough = ClickThroughController();
+  clickThrough.setInteractiveRect(ClickThroughController.collapsedRect);
+  controller.addListener(() {
+    clickThrough.setInteractiveRect(
+      controller.expanded
+          ? ClickThroughController.expandedRect
+          : controller.showBanner
+          ? ClickThroughController.notificationRect
+          : ClickThroughController.collapsedRect,
+    );
+  });
+  // 悬停展开 / 收起：命中状态来自 16ms 的光标轮询，不依赖 Flutter 的
+  // MouseRegion 事件，穿透状态下也能可靠触发。
+  clickThrough.pointerInside.addListener(() {
+    controller.setExpanded(clickThrough.pointerInside.value);
+  });
+
+  runApp(
+    GuduoApp(
+      supervisor: supervisor,
+      controller: controller,
+      clickThrough: clickThrough,
+    ),
+  );
+
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    unawaited(supervisor.start());
+    unawaited(clickThrough.start());
+  });
+}
+
+/// 窗口只配置一次。热重启时窗口已存在且可见，再等 readyToShow 会永久挂起，
+/// 导致 runApp 永远不执行、界面卡死。
+Future<void> _prepareWindow() async {
+  if (await windowManager.isVisible()) {
+    AppLog.write('[app] window already visible, skip setup');
+    return;
+  }
+
   const windowOptions = WindowOptions(
     size: Size(420, 300),
     center: false,
@@ -53,38 +96,6 @@ Future<void> main() async {
         await windowManager.show();
       } catch (_) {}
     }
-  });
-
-  final supervisor = SidecarSupervisor();
-  final controller = IslandController(supervisor);
-  final clickThrough = ClickThroughController();
-  clickThrough.setInteractiveRect(ClickThroughController.collapsedRect);
-  controller.addListener(() {
-    clickThrough.setInteractiveRect(
-      controller.expanded
-          ? ClickThroughController.expandedRect
-          : controller.showBanner
-          ? ClickThroughController.notificationRect
-          : ClickThroughController.collapsedRect,
-    );
-  });
-  // 悬停展开 / 收起：命中状态来自 16ms 的光标轮询，不依赖 Flutter 的
-  // MouseRegion 事件，穿透状态下也能可靠触发。
-  clickThrough.pointerInside.addListener(() {
-    controller.setExpanded(clickThrough.pointerInside.value);
-  });
-
-  runApp(
-    GuduoApp(
-      supervisor: supervisor,
-      controller: controller,
-      clickThrough: clickThrough,
-    ),
-  );
-
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    unawaited(supervisor.start());
-    unawaited(clickThrough.start());
   });
 }
 
