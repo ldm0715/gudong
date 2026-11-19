@@ -11,7 +11,9 @@
 | `messages.list` | `{}` | `{items:[Unread], listener:{ok, message}, notifications:{ok, message}}` |
 | `messages.seen` | `{id}` / `{source, account}` / `{}`（空对象 = 全部） | `{ok, removed}` |
 | `messages.open` | `{id}` 或 `{source, account}` | `{ok, message?}`；成功后客户端切到前台并清除该提醒 |
-| `media.get` | `{}` | `{title, artist, position, playing, available}`（Phase 0 为占位） |
+| `media.get` | `{}` | `{media: MediaSnapshot}` |
+| `media.control` | `{action, source?, position?}` | `{ok, message?}`；`action` 为 `toggle` / `next` / `previous` / `seek` |
+| `lyrics.get` | `{}` | `{lyrics: LyricsSnapshot \| null, pending}` |
 | `weather.get` | `{}` | `{snapshot, status}`；`snapshot` 可能为 `null` |
 | `settings.get` | `{}` | `{settings}` |
 | `settings.set` | `{settings:{...}}` | `{ok, settings}`；按 key 合并后返回全量设置 |
@@ -23,6 +25,10 @@
 | --- | --- | --- |
 | `themeId` | string | 皮肤标识：`midnight`（午夜，默认）/ `daylight`（日光） |
 | `showWeather` | bool | 是否在岛体显示天气，默认 `true` |
+| `mediaEnabled` | bool | 是否读取 SMTC 媒体会话，默认 `true` |
+| `showPlayingIndicator` | bool | 收起态播放时显示音波，默认 `true` |
+| `tabOrder` | string[] | 岛体 tab 顺序：`messages` / `weather` / `media` / `diagnostics` |
+| `hiddenTabs` | string[] | 隐藏的 tab；允许全部隐藏，此时岛体只显示标题栏与设置入口 |
 | `windowX` / `windowY` | number | 窗口左上角屏幕坐标（物理像素），缺省表示按默认位置摆放 |
 
 设置落盘到 `%APPDATA%\guduo\config.json`，先写临时文件再替换。`settings.set` 只合并传入的 key，未传的键保持不变；值必须是合法 JSON，空 key 返回 `-32602`。
@@ -64,6 +70,52 @@
 | `message.unread` | 新增或更新一条提醒；同一账号 5 秒内的重复闪动合并 |
 | `message.cleared` | 提醒已失效，带 `id`，或 `source` + 可选 `account`；清空该来源时只带 `source` |
 | `weather.updated` | 实况刷新成功或失败，带 `snapshot`（可能为 `null`）与 `status` |
+| `media.changed` | 媒体信息变化，带 `media`；播放中最多 1Hz 推送进度，客户端本地插值 |
+| `media.lyrics` | 当前曲目歌词，带 `lyrics` 与 `pending`；切歌时立即发 `lyrics:null, pending:true`，抓取结束再发结果 |
+
+`MediaSnapshot`：
+
+```json
+{
+  "available": true,
+  "title": "晴天",
+  "artist": "周杰伦",
+  "album": "叶惠美",
+  "source": "QQMusic.exe",
+  "kind": "music",
+  "playing": true,
+  "position": 42.5,
+  "duration": 269.0,
+  "artwork": "data:image/png;base64,..."
+}
+```
+
+- `kind` 为 `music` / `video` / `unknown`；`source` 是播放器的应用标识。
+- 封面只在曲目变化的那次事件中携带，之后的事件与心跳不带 `artwork`；重连后
+  `media.get` 返回的快照仍包含当前封面。
+- 无会话时 `available` 为 `false`，其余字段为零值。
+- `media.control` 的 `source` 缺省时控制当前会话；`seek` 需要 `position`（秒），
+  非法参数返回 `-32602`，播放器拒绝或超时返回 `ok:false`。
+
+`LyricsSnapshot`：
+
+```json
+{
+  "title": "晴天",
+  "artist": "周杰伦",
+  "source": "qqmusic",
+  "lines": [
+    { "time": 3.0, "text": "故事的小黄花" },
+    { "time": 7.5, "text": "从出生那年就飘着" }
+  ]
+}
+```
+
+- 只要有标题就尝试匹配；播放器上报的 `kind` 不参与判断，视频通常匹配不到歌词后自动放弃。
+- 按歌名精确匹配 QQ 音乐候选，歌手与时长用于同名词条排序。
+- 抓取在 sidecar 线程内完成，切歌后旧请求的结果会被丢弃。
+- `pending=true` 表示正在抓取；抓取失败或没有匹配时会发一次 `pending=false` 的空结果。
+- 客户端按播放位置在本地选行，不需要额外请求。
 
 `WeatherSnapshot`：
 

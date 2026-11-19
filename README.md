@@ -1,6 +1,6 @@
 # Guduo
 
-Windows 顶部的灵动岛：Flutter 负责岛体与动画，Rust sidecar 负责系统集成。当前处于 Phase 1 骨架阶段，窗口、IPC、主题与独立设置窗口已可用。
+Windows 顶部的灵动岛：Flutter 负责岛体与动画，Rust sidecar 负责系统集成。当前处于 Phase 2，窗口、IPC、消息提醒、SMTC 媒体与歌词、页面管理已可用。
 
 ## 快速开始
 
@@ -33,13 +33,17 @@ cd island_app && flutter run -d windows
 - QQ 消息预览：读取 Windows 通知正文，显示联系人和内容
 - 点击消息条目打开对应微信 / QQ 并切到前台
 - 已查看或忽略通知后自动清除提醒
-- 消息 / 媒体 / 诊断三个 tab，诊断页含输入法测试
-- 性能基线采集脚本
+- SMTC 媒体：封面、曲名、进度、当前歌词与播放控制
+- 播放时收起态右侧显示滚动音波，可在设置中关闭
+- 歌词按曲目名、歌手与时长在 QQ 音乐自动匹配
+- 消息 / 天气 / 媒体 / 诊断四个 tab，可在设置中显隐与排序
+- 诊断页含输入法测试，性能基线采集脚本
 
 > 微信 4.x 不使用 Windows 通知中心，因此只显示“微信有未读”，不显示联系人和内容。QQ 需要开启“新消息通知”才能显示预览。
 
 ## 文档
 
+- [Phase 2 报告与验收清单](docs/phase2-report.md)
 - [Phase 1 报告与验收清单](docs/phase1-report.md)
 - [Phase 0 报告与验收清单](docs/phase0-report.md)
 - [Sidecar IPC 协议](protocol/README.md)

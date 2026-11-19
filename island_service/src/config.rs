@@ -50,6 +50,15 @@ impl Config {
         }
     }
 
+    /// 读取布尔开关，缺省或类型不符时返回 `default`。后台线程会频繁读取，不做拷贝。
+    pub fn bool(&self, key: &str, default: bool) -> bool {
+        let values = match self.values.lock() {
+            Ok(values) => values,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        values.get(key).and_then(Value::as_bool).unwrap_or(default)
+    }
+
     /// 合并部分设置。写盘成功后才更新内存，失败时保持原值。
     pub fn merge(&self, patch: &Map<String, Value>) -> Result<Map<String, Value>, String> {
         let mut next = self.snapshot();

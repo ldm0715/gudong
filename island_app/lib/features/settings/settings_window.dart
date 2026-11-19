@@ -61,8 +61,6 @@ extension SettingsSectionMeta on SettingsSection {
   };
 
   String get placeholder => switch (this) {
-    SettingsSection.pages => 'tab 的显示、排序和自定义视图会放在这里。',
-    SettingsSection.music => 'SMTC 媒体信息、歌词显示和时间偏移会放在这里。',
     SettingsSection.focus => '专注计时与喝水提醒会放在这里。',
     SettingsSection.todos => '待办、置物架和快捷入口会放在这里。',
     SettingsSection.notifications => '通知聚合、邮箱与日程会放在这里。',
@@ -184,6 +182,14 @@ class _SettingsWindowAppState extends State<SettingsWindowApp> {
         onSave: _save,
       ),
       SettingsSection.weather => WeatherSettingsPage(
+        settings: _settings,
+        onSave: _save,
+      ),
+      SettingsSection.pages => PagesSettingsPage(
+        settings: _settings,
+        onSave: _save,
+      ),
+      SettingsSection.music => MusicSettingsPage(
         settings: _settings,
         onSave: _save,
       ),

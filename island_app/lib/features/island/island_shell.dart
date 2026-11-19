@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../core/settings/island_tabs.dart';
 import '../../core/settings/settings_controller.dart';
 import '../../core/theme/island_colors.dart';
 import '../../core/window/window_position.dart';
@@ -18,8 +19,6 @@ import 'collapsed_bar.dart';
 import 'island_controller.dart';
 import 'island_layout.dart';
 import 'notification_banner.dart';
-
-enum IslandTab { messages, weather, media, diagnostics }
 
 /// 岛体外壳：收起 / 横幅 / 展开三态的容器与 tab 切换。
 class IslandShell extends StatefulWidget {
@@ -77,6 +76,10 @@ class _IslandShellState extends State<IslandShell> {
                     final colors = context.islandColors;
                     final expanded = island.expanded;
                     final showBanner = island.showBanner;
+                    final tabs = widget.settings.settings.visibleTabs;
+                    final tab = tabs.contains(_tab)
+                        ? _tab
+                        : (tabs.isEmpty ? null : tabs.first);
                     final size = expanded
                         ? IslandLayout.expandedSize
                         : showBanner
@@ -123,7 +126,8 @@ class _IslandShellState extends State<IslandShell> {
                                 onDragStart: () => unawaited(
                                   widget.windowPosition.startDrag(),
                                 ),
-                                tab: _tab,
+                                tabs: tabs,
+                                tab: tab,
                                 onTab: (tab) => setState(() => _tab = tab),
                               )
                             : showBanner
@@ -131,8 +135,13 @@ class _IslandShellState extends State<IslandShell> {
                             : CollapsedBar(
                                 messages: widget.messages,
                                 weather: widget.weather,
+                                media: widget.media,
                                 showWeather:
                                     widget.settings.settings.showWeather,
+                                showPlayingIndicator: widget
+                                    .settings
+                                    .settings
+                                    .showPlayingIndicator,
                               ),
                       ),
                     );
@@ -157,6 +166,7 @@ class _ExpandedBody extends StatelessWidget {
     required this.onOpenSettings,
     required this.handleVisible,
     required this.onDragStart,
+    required this.tabs,
     required this.tab,
     required this.onTab,
   });
@@ -169,12 +179,14 @@ class _ExpandedBody extends StatelessWidget {
   final VoidCallback onOpenSettings;
   final bool handleVisible;
   final VoidCallback onDragStart;
-  final IslandTab tab;
+  final List<IslandTab> tabs;
+  final IslandTab? tab;
   final ValueChanged<IslandTab> onTab;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.islandColors;
+    final activeTab = tab;
     return SizedBox(
       width: IslandLayout.expandedSize.width,
       height: IslandLayout.expandedSize.height,
@@ -222,47 +234,42 @@ class _ExpandedBody extends StatelessWidget {
                   ],
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Row(
-                  children: [
-                    _TabButton(
-                      label: '消息',
-                      selected: tab == IslandTab.messages,
-                      onTap: () => onTab(IslandTab.messages),
-                    ),
-                    _TabButton(
-                      label: '天气',
-                      selected: tab == IslandTab.weather,
-                      onTap: () => onTab(IslandTab.weather),
-                    ),
-                    _TabButton(
-                      label: '媒体',
-                      selected: tab == IslandTab.media,
-                      onTap: () => onTab(IslandTab.media),
-                    ),
-                    _TabButton(
-                      label: '诊断',
-                      selected: tab == IslandTab.diagnostics,
-                      onTap: () => onTab(IslandTab.diagnostics),
-                    ),
-                  ],
+              if (tabs.isNotEmpty) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Row(
+                    children: [
+                      for (final item in tabs)
+                        _TabButton(
+                          label: item.label,
+                          selected: activeTab == item,
+                          onTap: () => onTab(item),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
+                const SizedBox(height: 4),
+              ],
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(14, 4, 14, 12),
-                  child: switch (tab) {
-                    IslandTab.messages => MessagesTab(controller: messages),
-                    IslandTab.weather => WeatherTab(controller: weather),
-                    IslandTab.media => MediaTab(controller: media),
-                    IslandTab.diagnostics => DiagnosticsTab(
-                      connectionDetail: island.connectionDetail,
-                      diagnostics: diagnostics,
-                      weather: weather,
-                    ),
-                  },
+                  child: activeTab == null
+                      ? _NoVisibleTabs(
+                          colors: colors,
+                          onOpenSettings: onOpenSettings,
+                        )
+                      : switch (activeTab) {
+                          IslandTab.messages => MessagesTab(
+                            controller: messages,
+                          ),
+                          IslandTab.weather => WeatherTab(controller: weather),
+                          IslandTab.media => MediaTab(controller: media),
+                          IslandTab.diagnostics => DiagnosticsTab(
+                            connectionDetail: island.connectionDetail,
+                            diagnostics: diagnostics,
+                            weather: weather,
+                          ),
+                        },
                 ),
               ),
             ],
@@ -295,6 +302,65 @@ class _ExpandedBody extends StatelessWidget {
                 ),
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 所有页面都被隐藏时的展开态内容，保留设置入口。
+class _NoVisibleTabs extends StatelessWidget {
+  const _NoVisibleTabs({required this.colors, required this.onOpenSettings});
+
+  final IslandColors colors;
+  final VoidCallback onOpenSettings;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.dashboard_outlined, size: 24, color: colors.muted),
+          const SizedBox(height: 8),
+          Text(
+            '未启用页面',
+            style: TextStyle(
+              color: colors.text,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              decoration: TextDecoration.none,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '在设置 → 页面管理中开启',
+            style: TextStyle(
+              color: colors.muted,
+              fontSize: 11,
+              decoration: TextDecoration.none,
+            ),
+          ),
+          const SizedBox(height: 10),
+          InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: onOpenSettings,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+              decoration: BoxDecoration(
+                color: colors.accent.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '打开设置',
+                style: TextStyle(
+                  color: colors.accent,
+                  fontSize: 11,
+                  decoration: TextDecoration.none,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );

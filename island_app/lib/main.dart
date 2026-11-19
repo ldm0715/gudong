@@ -28,6 +28,8 @@ import 'features/weather/weather_controller.dart';
 
 Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
+  // 封面已按显示尺寸解码；限制缓存上限，避免长时间播放后图片缓存持续累积。
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 32 << 20;
 
   // 多窗口：带 type=settings 参数的引擎是设置窗口，不跑岛体逻辑。
   final settingsWindow = await _settingsWindowArguments();
@@ -56,8 +58,6 @@ Future<void> main(List<String> args) async {
 
   await windowManager.ensureInitialized();
 
-  await prepareAppWindow();
-
   final supervisor = SidecarSupervisor();
   final messages = MessagesController(supervisor);
   final weather = WeatherController(supervisor);
@@ -65,7 +65,6 @@ Future<void> main(List<String> args) async {
   final diagnostics = DiagnosticsController(supervisor);
   final settings = SettingsController(supervisor);
   final settingsLauncher = SettingsWindowLauncher(settings);
-  final windowPosition = WindowPositionKeeper(settings);
   final island = IslandController(supervisor: supervisor, messages: messages);
   final clickThrough = ClickThroughController(windowSize: appWindowSize);
 
@@ -90,6 +89,12 @@ Future<void> main(List<String> args) async {
     island.setPointerInside(clickThrough.pointerInside.value);
   });
 
+  // sidecar 进程启动有几百毫秒到一秒多，和窗口初始化并行，缩短冷启动。
+  unawaited(supervisor.start());
+  await prepareAppWindow();
+  // 位置恢复放在窗口准备好之后，避免被窗口初始化覆盖。
+  final windowPosition = WindowPositionKeeper(settings);
+
   runApp(
     GuduoApp(
       scope: AppScope(
@@ -108,7 +113,7 @@ Future<void> main(List<String> args) async {
   );
 
   WidgetsBinding.instance.addPostFrameCallback((_) {
-    unawaited(supervisor.start());
+    AppLog.write('[app] first frame');
     unawaited(clickThrough.start());
   });
 }

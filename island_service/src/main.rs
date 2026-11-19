@@ -6,6 +6,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod config;
+mod lyrics;
+mod media;
 mod rpc;
 mod single_instance;
 mod weather;
@@ -61,6 +63,7 @@ fn main() {
     })));
 
     weather::start(state.clone(), tx.clone());
+    media::start(state.clone(), tx.clone());
 
     #[cfg(windows)]
     {

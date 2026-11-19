@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -160,17 +161,28 @@ class _GuduoAppState extends State<GuduoApp> with WindowListener, TrayListener {
     if (_quitting) return;
     _quitting = true;
     AppLog.write('[app] quitting');
+    // 任何清理步骤卡住都不能让进程挂着；2 秒后强制退出。
+    Timer(const Duration(seconds: 2), () => exit(0));
     final hotKey = _hotKey;
     if (hotKey != null) {
       try {
         await HotKeyManager.instance.unregister(hotKey);
       } catch (_) {}
     }
+    AppLog.write('[app] quit: hotkey');
     try {
       await trayManager.destroy();
     } catch (_) {}
+    AppLog.write('[app] quit: tray');
     await widget.scope.dispose();
-    await windowManager.destroy();
+    AppLog.write('[app] quit: scope');
+    try {
+      await windowManager.destroy().timeout(
+        const Duration(milliseconds: 800),
+      );
+    } catch (_) {}
+    AppLog.write('[app] quit: window');
+    exit(0);
   }
 
   @override

@@ -6,9 +6,10 @@ import 'package:flutter/material.dart';
 import '../../core/app_info.dart';
 import '../../core/log.dart';
 import '../../core/settings/app_settings.dart';
+import '../../core/settings/island_tabs.dart';
 import '../../core/theme/island_colors.dart';
 
-/// 设置窗口左侧每个栏目的内容。Phase 1 只实现常规、天气、关于。
+/// 设置窗口左侧每个栏目的内容。
 class SettingsSectionLabel extends StatelessWidget {
   const SettingsSectionLabel(this.text, {super.key});
 
@@ -189,19 +190,6 @@ class GeneralSettingsPage extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 18),
-        const SettingsSectionLabel('功能'),
-        SettingsCard(
-          children: [
-            SettingsSwitchRow(
-              title: '显示天气',
-              subtitle: '收起态在时间右侧显示当前天气',
-              value: settings.showWeather,
-              onChanged: (value) =>
-                  onSave(settings.copyWith(showWeather: value)),
-            ),
-          ],
-        ),
-        const SizedBox(height: 18),
         const SettingsSectionLabel('启动与快捷键'),
         const SettingsCard(
           children: [
@@ -265,6 +253,219 @@ class _ThemeOption extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class PagesSettingsPage extends StatelessWidget {
+  const PagesSettingsPage({
+    super.key,
+    required this.settings,
+    required this.onSave,
+  });
+
+  final AppSettings settings;
+  final ValueChanged<AppSettings> onSave;
+
+  void _setVisible(IslandTab tab, bool visible) {
+    final hidden = settings.hiddenTabs.toList();
+    if (visible) {
+      hidden.remove(tab.id);
+    } else if (!hidden.contains(tab.id)) {
+      hidden.add(tab.id);
+    }
+    onSave(settings.copyWith(hiddenTabs: hidden));
+  }
+
+  void _move(IslandTab tab, int delta) {
+    final ids = settings.orderedTabs.map((item) => item.id).toList();
+    final from = ids.indexOf(tab.id);
+    final to = from + delta;
+    if (from < 0 || to < 0 || to >= ids.length) return;
+    final id = ids.removeAt(from);
+    ids.insert(to, id);
+    onSave(settings.copyWith(tabOrder: ids));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.islandColors;
+    final order = settings.orderedTabs;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SettingsSectionLabel('岛体页面'),
+        SettingsCard(
+          children: [
+            for (var index = 0; index < order.length; index++) ...[
+              if (index > 0) const SettingsDivider(),
+              _PageRow(
+                tab: order[index],
+                visible: !settings.hiddenTabs.contains(order[index].id),
+                canMoveUp: index > 0,
+                canMoveDown: index < order.length - 1,
+                onVisible: (value) => _setVisible(order[index], value),
+                onMoveUp: () => _move(order[index], -1),
+                onMoveDown: () => _move(order[index], 1),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 12),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Text(
+            '隐藏的页面不会出现在岛体 tab 栏；全部隐藏时岛体只保留标题栏，'
+            '可从齿轮重新打开设置。',
+            style: TextStyle(color: colors.muted, fontSize: 11),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PageRow extends StatelessWidget {
+  const _PageRow({
+    required this.tab,
+    required this.visible,
+    required this.canMoveUp,
+    required this.canMoveDown,
+    required this.onVisible,
+    required this.onMoveUp,
+    required this.onMoveDown,
+  });
+
+  final IslandTab tab;
+  final bool visible;
+  final bool canMoveUp;
+  final bool canMoveDown;
+  final ValueChanged<bool> onVisible;
+  final VoidCallback onMoveUp;
+  final VoidCallback onMoveDown;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.islandColors;
+    return SettingsRow(
+      title: tab.label,
+      subtitle: visible ? '在岛体显示' : '已隐藏',
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _ArrowButton(
+            icon: Icons.keyboard_arrow_up_rounded,
+            tooltip: '上移',
+            enabled: canMoveUp,
+            onTap: onMoveUp,
+          ),
+          _ArrowButton(
+            icon: Icons.keyboard_arrow_down_rounded,
+            tooltip: '下移',
+            enabled: canMoveDown,
+            onTap: onMoveDown,
+          ),
+          const SizedBox(width: 6),
+          Switch(
+            value: visible,
+            activeThumbColor: colors.accent,
+            activeTrackColor: colors.accent.withValues(alpha: 0.35),
+            inactiveThumbColor: colors.muted,
+            inactiveTrackColor: colors.switchOff,
+            onChanged: onVisible,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ArrowButton extends StatelessWidget {
+  const _ArrowButton({
+    required this.icon,
+    required this.tooltip,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.islandColors;
+    return Tooltip(
+      message: tooltip,
+      waitDuration: const Duration(milliseconds: 600),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(6),
+        onTap: enabled ? onTap : null,
+        child: Padding(
+          padding: const EdgeInsets.all(2),
+          child: Icon(
+            icon,
+            size: 18,
+            color: enabled ? colors.muted : colors.muted.withValues(alpha: 0.3),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class MusicSettingsPage extends StatelessWidget {
+  const MusicSettingsPage({
+    super.key,
+    required this.settings,
+    required this.onSave,
+  });
+
+  final AppSettings settings;
+  final ValueChanged<AppSettings> onSave;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SettingsSectionLabel('媒体'),
+        SettingsCard(
+          children: [
+            SettingsSwitchRow(
+              title: '媒体信息与控制',
+              subtitle: '显示系统媒体会话的曲目、进度与封面，并支持播放控制',
+              value: settings.mediaEnabled,
+              onChanged: (value) =>
+                  onSave(settings.copyWith(mediaEnabled: value)),
+            ),
+            const SettingsDivider(),
+            SettingsSwitchRow(
+              title: '播放时显示音波',
+              subtitle: '收起态最右侧显示动态音波图标',
+              value: settings.showPlayingIndicator,
+              onChanged: (value) =>
+                  onSave(settings.copyWith(showPlayingIndicator: value)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+        const SettingsSectionLabel('数据'),
+        const SettingsCard(
+          children: [
+            SettingsInfoRow(title: '刷新频率', subtitle: '播放中', value: '1 秒'),
+            SettingsDivider(),
+            SettingsInfoRow(title: '封面', value: '随曲目更新'),
+            SettingsDivider(),
+            SettingsInfoRow(
+              title: '歌词',
+              subtitle: '按曲目名、歌手与时长自动匹配',
+              value: 'QQ 音乐',
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

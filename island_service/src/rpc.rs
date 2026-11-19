@@ -23,6 +23,9 @@ pub const CAPABILITIES: &[&str] = &[
     "messages.clear",
     "messages.list",
     "messages.open",
+    "media.current",
+    "media.control",
+    "media.lyrics",
     "weather.current",
     "settings.persist",
 ];
@@ -50,6 +53,10 @@ pub struct State {
     pub listener_message: Mutex<String>,
     pub notifications_ok: Mutex<bool>,
     pub notifications_message: Mutex<String>,
+    pub media: Mutex<Option<crate::media::MediaSnapshot>>,
+    pub lyrics: Mutex<Option<crate::lyrics::LyricsSnapshot>>,
+    pub lyrics_pending: Mutex<bool>,
+    pub lyrics_sequence: Mutex<u64>,
     pub weather: Mutex<Option<crate::weather::WeatherSnapshot>>,
     pub weather_status: Mutex<String>,
     pub config: crate::config::Config,
@@ -70,6 +77,10 @@ impl State {
             listener_message: Mutex::new("starting".into()),
             notifications_ok: Mutex::new(false),
             notifications_message: Mutex::new("starting".into()),
+            media: Mutex::new(None),
+            lyrics: Mutex::new(None),
+            lyrics_pending: Mutex::new(false),
+            lyrics_sequence: Mutex::new(0),
             weather: Mutex::new(None),
             weather_status: Mutex::new("正在获取天气".into()),
             config,
@@ -148,13 +159,32 @@ pub fn handle(state: &State, method: &str, params: &Value) -> Result<Action, Rpc
             Ok(Action::Respond(json!({ "ok": true, "removed": removed })))
         }
         "messages.open" => open_message(state, params),
-        "media.get" => Ok(Action::Respond(json!({
-            "title": null,
-            "artist": null,
-            "position": 0,
-            "playing": false,
-            "available": false,
-        }))),
+        "media.get" => {
+            let media = state
+                .media
+                .lock()
+                .ok()
+                .and_then(|slot| slot.clone())
+                .unwrap_or_default();
+            Ok(Action::Respond(json!({ "media": media })))
+        }
+        "media.control" => media_control(params),
+        "lyrics.get" => {
+            let lyrics = state
+                .lyrics
+                .lock()
+                .ok()
+                .and_then(|slot| slot.clone());
+            let pending = state
+                .lyrics_pending
+                .lock()
+                .map(|value| *value)
+                .unwrap_or(false);
+            Ok(Action::Respond(json!({
+                "lyrics": lyrics,
+                "pending": pending,
+            })))
+        }
         "weather.get" => {
             let snapshot = state
                 .weather
@@ -197,6 +227,37 @@ pub fn handle(state: &State, method: &str, params: &Value) -> Result<Action, Rpc
             ERR_METHOD_NOT_FOUND,
             format!("method not found: {other}"),
         )),
+    }
+}
+
+fn media_control(params: &Value) -> Result<Action, RpcError> {
+    use crate::media::Transport;
+    let action = params
+        .get("action")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let command = match action {
+        "toggle" | "play_pause" => Transport::Toggle,
+        "next" => Transport::Next,
+        "previous" | "prev" => Transport::Previous,
+        "seek" => {
+            let position = params
+                .get("position")
+                .and_then(Value::as_f64)
+                .ok_or_else(|| RpcError::new(ERR_INVALID_PARAMS, "seek requires position"))?;
+            Transport::Seek(position)
+        }
+        other => {
+            return Err(RpcError::new(
+                ERR_INVALID_PARAMS,
+                format!("unknown media action: {other}"),
+            ))
+        }
+    };
+    let source = params.get("source").and_then(Value::as_str);
+    match crate::media::control(command, source) {
+        Ok(()) => Ok(Action::Respond(json!({ "ok": true }))),
+        Err(message) => Ok(Action::Respond(json!({ "ok": false, "message": message }))),
     }
 }
 

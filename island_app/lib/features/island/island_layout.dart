@@ -6,7 +6,7 @@ import '../../core/window/app_window.dart';
 abstract final class IslandLayout {
   static const double topInset = 8;
 
-  static const Size collapsedSize = Size(156, 36);
+  static const Size collapsedSize = Size(178, 36);
   static const Size bannerSize = Size(360, 80);
   static const Size expandedSize = Size(380, 260);
 

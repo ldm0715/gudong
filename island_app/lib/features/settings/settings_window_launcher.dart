@@ -40,6 +40,10 @@ class SettingsWindowLauncher {
         settings.settings.copyWith(
           themeId: incoming.themeId,
           showWeather: incoming.showWeather,
+          mediaEnabled: incoming.mediaEnabled,
+          showPlayingIndicator: incoming.showPlayingIndicator,
+          tabOrder: incoming.tabOrder,
+          hiddenTabs: incoming.hiddenTabs,
         ),
       );
       return {'ok': true};
@@ -77,7 +81,9 @@ class SettingsWindowLauncher {
   /// 退出应用时关闭设置窗口，避免留下孤儿窗口。
   Future<void> dispose() async {
     try {
-      final windows = await WindowController.getAll();
+      final windows = await WindowController.getAll().timeout(
+        const Duration(milliseconds: 800),
+      );
       for (final window in windows) {
         if (SettingsWindowArguments.tryParse(window.arguments) == null) {
           continue;

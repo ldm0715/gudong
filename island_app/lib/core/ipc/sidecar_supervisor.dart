@@ -225,16 +225,25 @@ class SidecarSupervisor extends ChangeNotifier {
   }
 
   /// 异步清理。`dispose` 是 ChangeNotifier 的同步入口，内部走这里。
+  /// 每一步都有上限，避免退出时被某个流或进程挂住。
   Future<void> close() async {
     if (_disposed) return;
     _disposed = true;
     _heartbeat?.cancel();
     _restartTimer?.cancel();
     await _shutdown();
-    await _eventSubscription?.cancel();
-    await _client?.dispose();
+    try {
+      await _eventSubscription?.cancel().timeout(
+        const Duration(milliseconds: 300),
+      );
+    } catch (_) {}
+    try {
+      await _client?.dispose().timeout(const Duration(milliseconds: 500));
+    } catch (_) {}
     _client = null;
-    await _events.close();
+    try {
+      await _events.close().timeout(const Duration(milliseconds: 300));
+    } catch (_) {}
   }
 
   @override
