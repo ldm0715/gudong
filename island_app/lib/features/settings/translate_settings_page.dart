@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/settings/app_settings.dart';
 import '../../core/theme/island_colors.dart';
+import '../../core/theme/island_motion.dart';
 import '../translate/translate_bridge.dart';
 import '../translate/translate_languages.dart';
 import 'settings_panel.dart';
@@ -104,17 +105,13 @@ class _TranslateSettingsPageState extends State<TranslateSettingsPage> {
 
   void _saveUserPrompt() {
     _apply(
-      widget.settings.copyWith(
-        translateUserPrompt: _userPrompt.text.trim(),
-      ),
+      widget.settings.copyWith(translateUserPrompt: _userPrompt.text.trim()),
     );
   }
 
   void _savePrompt() {
     _apply(
-      widget.settings.copyWith(
-        translateSystemPrompt: _prompt.text.trim(),
-      ),
+      widget.settings.copyWith(translateSystemPrompt: _prompt.text.trim()),
     );
   }
 
@@ -129,10 +126,10 @@ class _TranslateSettingsPageState extends State<TranslateSettingsPage> {
   Future<bool> _writeSecret(String provider, String key) async {
     setState(() => _savingSecret = true);
     try {
-      await translateChannel.invokeMethod<dynamic>(
-        'setSecret',
-        {'provider': provider, 'key': key},
-      );
+      await translateChannel.invokeMethod<dynamic>('setSecret', {
+        'provider': provider,
+        'key': key,
+      });
       return true;
     } catch (error) {
       _showError('保存密钥失败：$error');
@@ -157,13 +154,10 @@ class _TranslateSettingsPageState extends State<TranslateSettingsPage> {
   Future<void> _fetchModels() async {
     setState(() => _fetchingModels = true);
     try {
-      final result = await translateChannel.invokeMethod<dynamic>(
-        'models',
-        {
-          'baseUrl': _baseUrl.text.trim(),
-          'apiKey': _llmKey.text.trim(),
-        },
-      );
+      final result = await translateChannel.invokeMethod<dynamic>('models', {
+        'baseUrl': _baseUrl.text.trim(),
+        'apiKey': _llmKey.text.trim(),
+      });
       final raw = result is Map ? result['models'] : null;
       final models = raw is List
           ? raw.map((value) => value.toString()).toList(growable: false)
@@ -190,7 +184,6 @@ class _TranslateSettingsPageState extends State<TranslateSettingsPage> {
       context: context,
       builder: (context) {
         return SimpleDialog(
-          backgroundColor: colors.cardBackground,
           title: Text(
             '选择模型',
             style: TextStyle(
@@ -207,18 +200,10 @@ class _TranslateSettingsPageState extends State<TranslateSettingsPage> {
                 itemCount: models.length,
                 itemBuilder: (context, index) {
                   final model = models[index];
-                  return InkWell(
+                  return ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 24),
+                    title: Text(model),
                     onTap: () => Navigator.of(context).pop(model),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 10,
-                      ),
-                      child: Text(
-                        model,
-                        style: TextStyle(color: colors.text, fontSize: 12),
-                      ),
-                    ),
                   );
                 },
               ),
@@ -239,24 +224,20 @@ class _TranslateSettingsPageState extends State<TranslateSettingsPage> {
 
   void _showError(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   bool get _llmReady => _llmConfigured && _model.text.trim().isNotEmpty;
 
   ({String label, bool ok}) _engineStatus(String id) {
     return switch (id) {
-      'llm' => _llmReady
-          ? (label: '已配置', ok: true)
-          : (label: '未配置', ok: false),
-      'deepl' => _deeplConfigured
-          ? (label: '已配置', ok: true)
-          : (label: '未配置', ok: false),
-      'caiyun' => _caiyunConfigured
-          ? (label: '已配置', ok: true)
-          : (label: '免密钥', ok: true),
+      'llm' => _llmReady ? (label: '已配置', ok: true) : (label: '未配置', ok: false),
+      'deepl' =>
+        _deeplConfigured ? (label: '已配置', ok: true) : (label: '未配置', ok: false),
+      'caiyun' =>
+        _caiyunConfigured ? (label: '已配置', ok: true) : (label: '免密钥', ok: true),
       'microsoftFree' => (label: '免密钥', ok: true),
       'mymemory' => (label: '免密钥', ok: true),
       _ => (label: '自动', ok: true),
@@ -287,16 +268,11 @@ class _TranslateSettingsPageState extends State<TranslateSettingsPage> {
                     width: 200,
                     entries: [
                       for (final item in translateProviders)
-                        DropdownMenuEntry(
-                          value: item.id,
-                          label: item.label,
-                        ),
+                        DropdownMenuEntry(value: item.id, label: item.label),
                     ],
                     onChanged: (value) {
                       if (value != null) {
-                        _apply(
-                          settings.copyWith(translateProvider: value),
-                        );
+                        _apply(settings.copyWith(translateProvider: value));
                       }
                     },
                   ),
@@ -345,14 +321,14 @@ class _TranslateSettingsPageState extends State<TranslateSettingsPage> {
   }
 
   Widget _languageCard(AppSettings settings) {
-    final source = translateSourceLanguages.any(
-      (item) => item.code == settings.translateSource,
-    )
+    final source =
+        translateSourceLanguages.any(
+          (item) => item.code == settings.translateSource,
+        )
         ? settings.translateSource
         : 'auto';
-    final target = translateLanguages.any(
-      (item) => item.code == settings.translateTarget,
-    )
+    final target =
+        translateLanguages.any((item) => item.code == settings.translateTarget)
         ? settings.translateTarget
         : translateLanguages.first.code;
     return SettingsCard(
@@ -365,10 +341,7 @@ class _TranslateSettingsPageState extends State<TranslateSettingsPage> {
             width: 220,
             entries: [
               for (final item in translateLanguages)
-                DropdownMenuEntry(
-                  value: item.code,
-                  label: item.label,
-                ),
+                DropdownMenuEntry(value: item.code, label: item.label),
             ],
             onChanged: (value) {
               if (value != null) {
@@ -386,10 +359,7 @@ class _TranslateSettingsPageState extends State<TranslateSettingsPage> {
             width: 220,
             entries: [
               for (final item in translateSourceLanguages)
-                DropdownMenuEntry(
-                  value: item.code,
-                  label: item.label,
-                ),
+                DropdownMenuEntry(value: item.code, label: item.label),
             ],
             onChanged: (value) {
               if (value != null) {
@@ -414,14 +384,8 @@ class _TranslateSettingsPageState extends State<TranslateSettingsPage> {
         const SettingsSectionLabel('系统提示词'),
         _promptCard(),
       ],
-      'deepl' => [
-        const SettingsSectionLabel('DeepL 配置'),
-        _deeplCard(),
-      ],
-      'caiyun' => [
-        const SettingsSectionLabel('彩云小译配置'),
-        _caiyunCard(),
-      ],
+      'deepl' => [const SettingsSectionLabel('DeepL 配置'), _deeplCard()],
+      'caiyun' => [const SettingsSectionLabel('彩云小译配置'), _caiyunCard()],
       'microsoftFree' => [
         const SettingsSectionLabel('微软免密钥'),
         _microsoftFreeCard(),
@@ -430,10 +394,7 @@ class _TranslateSettingsPageState extends State<TranslateSettingsPage> {
         const SettingsSectionLabel('MyMemory 配置'),
         _myMemoryCard(),
       ],
-      _ => [
-        const SettingsSectionLabel('自动选择'),
-        _autoCard(settings),
-      ],
+      _ => [const SettingsSectionLabel('自动选择'), _autoCard(settings)],
     };
   }
 
@@ -460,6 +421,7 @@ class _TranslateSettingsPageState extends State<TranslateSettingsPage> {
           proxyDecorator: (child, index, animation) {
             return Material(
               color: _colors.cardBackground,
+              surfaceTintColor: Colors.transparent,
               elevation: 6,
               borderRadius: BorderRadius.circular(8),
               child: child,
@@ -474,26 +436,24 @@ class _TranslateSettingsPageState extends State<TranslateSettingsPage> {
             return Container(
               key: ValueKey(id),
               child: SettingsRow(
-                title: option.label,
-                subtitle: option.detail,
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _statusBadge(_engineStatus(id)),
-                    const SizedBox(width: 8),
-                    ReorderableDragStartListener(
-                      index: index,
-                      child: Padding(
-                        padding: const EdgeInsets.all(4),
-                        child: Icon(
-                          Icons.drag_handle_rounded,
-                          size: 18,
-                          color: _colors.muted,
-                        ),
+                leading: Tooltip(
+                  message: '拖动排序',
+                  waitDuration: IslandMotion.tooltipDelay,
+                  child: ReorderableDragStartListener(
+                    index: index,
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Icon(
+                        Icons.drag_handle_rounded,
+                        size: 18,
+                        color: _colors.muted,
                       ),
                     ),
-                  ],
+                  ),
                 ),
+                title: option.label,
+                subtitle: option.detail,
+                trailing: _statusBadge(_engineStatus(id)),
               ),
             );
           },
@@ -538,10 +498,7 @@ class _TranslateSettingsPageState extends State<TranslateSettingsPage> {
                 ),
                 if (_llmConfigured) ...[
                   const SizedBox(width: 8),
-                  _button(
-                    label: '清除',
-                    onTap: () => unawaited(_clearLlmKey()),
-                  ),
+                  _button(label: '清除', onTap: () => unawaited(_clearLlmKey())),
                 ],
               ],
             ),
@@ -555,9 +512,7 @@ class _TranslateSettingsPageState extends State<TranslateSettingsPage> {
             width: 360,
             child: Row(
               children: [
-                Expanded(
-                  child: _textField(_model, hint: '例如 deepseek-chat'),
-                ),
+                Expanded(child: _textField(_model, hint: '例如 deepseek-chat')),
                 const SizedBox(width: 8),
                 _button(
                   label: _fetchingModels ? '获取中…' : '获取模型',
@@ -573,10 +528,7 @@ class _TranslateSettingsPageState extends State<TranslateSettingsPage> {
           alignment: Alignment.centerRight,
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 6),
-            child: _button(
-              label: '保存',
-              onTap: () => unawaited(_saveLlm()),
-            ),
+            child: _button(label: '保存', onTap: () => unawaited(_saveLlm())),
           ),
         ),
       ],
@@ -593,15 +545,8 @@ class _TranslateSettingsPageState extends State<TranslateSettingsPage> {
             minLines: 2,
             maxLines: 4,
             style: TextStyle(color: _colors.text, fontSize: 12),
-            decoration: InputDecoration(
+            decoration: const InputDecoration(
               hintText: '例如：保留代码不翻译、术语按……；留空使用默认翻译指令',
-              hintStyle: TextStyle(color: _colors.muted, fontSize: 11),
-              filled: true,
-              fillColor: _colors.sidebarBackground,
-              contentPadding: const EdgeInsets.all(10),
-              border: _border(_colors.cardStroke),
-              enabledBorder: _border(_colors.cardStroke),
-              focusedBorder: _border(_colors.accent),
             ),
           ),
         ),
@@ -634,15 +579,8 @@ class _TranslateSettingsPageState extends State<TranslateSettingsPage> {
             minLines: 3,
             maxLines: 6,
             style: TextStyle(color: _colors.text, fontSize: 12),
-            decoration: InputDecoration(
+            decoration: const InputDecoration(
               hintText: '留空使用内置模板，{{to}} 会替换为目标语言名',
-              hintStyle: TextStyle(color: _colors.muted, fontSize: 11),
-              filled: true,
-              fillColor: _colors.sidebarBackground,
-              contentPadding: const EdgeInsets.all(10),
-              border: _border(_colors.cardStroke),
-              enabledBorder: _border(_colors.cardStroke),
-              focusedBorder: _border(_colors.accent),
             ),
           ),
         ),
@@ -712,19 +650,14 @@ class _TranslateSettingsPageState extends State<TranslateSettingsPage> {
       children: [
         _keyRow(
           title: '彩云小译 Token',
-          subtitle: _caiyunConfigured
-              ? '已保存个人 Token'
-              : '未配置，使用官方公开测试 Token',
+          subtitle: _caiyunConfigured ? '已保存个人 Token' : '未配置，使用官方公开测试 Token',
           controller: _caiyunKey,
           hint: _caiyunConfigured ? '输入新 Token 可覆盖' : '可选，粘贴自己的 Token',
           provider: 'caiyun',
           onConfigured: (value) => _caiyunConfigured = value,
         ),
         const SettingsDivider(),
-        _linkRow(
-          label: '申请彩云小译 Token',
-          url: 'https://platform.caiyunapp.com/',
-        ),
+        _linkRow(label: '申请彩云小译 Token', url: 'https://platform.caiyunapp.com/'),
         const SettingsDivider(),
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 10),
@@ -764,11 +697,7 @@ class _TranslateSettingsPageState extends State<TranslateSettingsPage> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
-                Icons.science_outlined,
-                size: 16,
-                color: _colors.warning,
-              ),
+              Icon(Icons.science_outlined, size: 16, color: _colors.warning),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -816,11 +745,7 @@ class _TranslateSettingsPageState extends State<TranslateSettingsPage> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
-                Icons.info_outline_rounded,
-                size: 14,
-                color: _colors.muted,
-              ),
+              Icon(Icons.info_outline_rounded, size: 14, color: _colors.muted),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
@@ -851,10 +776,7 @@ class _TranslateSettingsPageState extends State<TranslateSettingsPage> {
     return SettingsRow(
       title: title,
       subtitle: subtitle,
-      trailing: SizedBox(
-        width: 360,
-        child: _textField(controller, hint: hint),
-      ),
+      trailing: SizedBox(width: 360, child: _textField(controller, hint: hint)),
     );
   }
 
@@ -873,16 +795,13 @@ class _TranslateSettingsPageState extends State<TranslateSettingsPage> {
         width: 360,
         child: Row(
           children: [
-            Expanded(
-              child: _textField(controller, hint: hint, obscure: true),
-            ),
+            Expanded(child: _textField(controller, hint: hint, obscure: true)),
             const SizedBox(width: 8),
             _button(
               label: _savingSecret ? '保存中…' : '保存密钥',
               busy: _savingSecret,
-              onTap: () => unawaited(
-                _saveSecret(provider, controller, onConfigured),
-              ),
+              onTap: () =>
+                  unawaited(_saveSecret(provider, controller, onConfigured)),
             ),
           ],
         ),
@@ -899,20 +818,7 @@ class _TranslateSettingsPageState extends State<TranslateSettingsPage> {
       controller: controller,
       obscureText: obscure,
       style: TextStyle(color: _colors.text, fontSize: 12),
-      decoration: InputDecoration(
-        isDense: true,
-        hintText: hint,
-        hintStyle: TextStyle(color: _colors.muted, fontSize: 11),
-        filled: true,
-        fillColor: _colors.sidebarBackground,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 10,
-          vertical: 8,
-        ),
-        border: _border(_colors.cardStroke),
-        enabledBorder: _border(_colors.cardStroke),
-        focusedBorder: _border(_colors.accent),
-      ),
+      decoration: InputDecoration(hintText: hint),
     );
   }
 
@@ -924,13 +830,7 @@ class _TranslateSettingsPageState extends State<TranslateSettingsPage> {
         child: TextButton.icon(
           onPressed: () => unawaited(_openUrl(url)),
           icon: const Icon(Icons.open_in_new_rounded, size: 14),
-          label: Text(label, style: const TextStyle(fontSize: 12)),
-          style: TextButton.styleFrom(
-            foregroundColor: _colors.accent,
-            minimumSize: const Size(0, 30),
-            padding: const EdgeInsets.symmetric(horizontal: 6),
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
+          label: Text(label),
         ),
       ),
     );
@@ -943,27 +843,7 @@ class _TranslateSettingsPageState extends State<TranslateSettingsPage> {
   }) {
     return TextButton(
       onPressed: busy ? null : onTap,
-      style: TextButton.styleFrom(
-        foregroundColor: _colors.accent,
-        disabledForegroundColor: _colors.muted,
-        minimumSize: const Size(0, 32),
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-      ),
-    );
-  }
-
-  OutlineInputBorder _border(Color color) {
-    return OutlineInputBorder(
-      borderRadius: BorderRadius.circular(8),
-      borderSide: BorderSide(color: color),
+      child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
     );
   }
 }
@@ -993,6 +873,16 @@ class _Dropdown<T> extends StatelessWidget {
       enableFilter: false,
       enableSearch: false,
       textStyle: TextStyle(color: colors.text, fontSize: 12),
+      menuStyle: MenuStyle(
+        backgroundColor: WidgetStatePropertyAll(colors.cardBackground),
+        surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
+        shape: WidgetStatePropertyAll(
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        padding: const WidgetStatePropertyAll(
+          EdgeInsets.symmetric(vertical: 4),
+        ),
+      ),
       inputDecorationTheme: InputDecorationTheme(
         isDense: true,
         filled: true,
