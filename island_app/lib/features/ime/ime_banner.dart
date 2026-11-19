@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/island_colors.dart';
+import '../../core/theme/island_metrics.dart';
+import '../../core/theme/island_typography.dart';
 import '../island/island_layout.dart';
 import 'ime_chip.dart';
 
@@ -17,7 +19,7 @@ class ImeBanner extends StatelessWidget {
       width: IslandLayout.bannerSize.width,
       height: IslandLayout.bannerSize.height,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: IslandMetrics.space16),
         child: Row(
           children: [
             Container(
@@ -26,15 +28,15 @@ class ImeBanner extends StatelessWidget {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: colors.accent.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(IslandMetrics.radiusPanel),
               ),
               child: Icon(
                 Icons.keyboard_rounded,
-                size: 22,
+                size: IslandMetrics.iconXL,
                 color: colors.accent,
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: IslandMetrics.space12),
             Expanded(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -44,28 +46,19 @@ class ImeBanner extends StatelessWidget {
                     '输入法已切换',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: colors.text,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      decoration: TextDecoration.none,
-                    ),
+                    style: IslandTypography.headline.tint(colors.text),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: IslandMetrics.space4),
                   Text(
                     chinese ? '中文输入' : 'English 输入',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: colors.muted,
-                      fontSize: 12,
-                      decoration: TextDecoration.none,
-                    ),
+                    style: IslandTypography.body.tint(colors.muted),
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: IslandMetrics.space12),
             ImeChip(chinese: chinese),
           ],
         ),

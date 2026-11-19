@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/island_colors.dart';
+import '../../core/theme/island_metrics.dart';
+import '../../core/theme/island_typography.dart';
 
 /// 收起态常驻的输入法标识：中文高亮“中”，英文显示灰色“en”。
 class ImeIndicator extends StatelessWidget {
@@ -17,16 +19,14 @@ class ImeIndicator extends StatelessWidget {
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: chinese ? colors.accent : colors.chip,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(IslandMetrics.radiusChip),
       ),
       child: Text(
         chinese ? '中' : 'en',
-        style: TextStyle(
+        style: IslandTypography.micro.copyWith(
           color: chinese ? colors.background : colors.muted,
-          fontSize: chinese ? 10 : 9,
           fontWeight: FontWeight.w700,
           height: 1,
-          decoration: TextDecoration.none,
         ),
       ),
     );

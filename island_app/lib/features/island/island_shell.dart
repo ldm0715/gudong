@@ -5,6 +5,9 @@ import 'package:flutter/material.dart';
 import '../../core/settings/island_tabs.dart';
 import '../../core/settings/settings_controller.dart';
 import '../../core/theme/island_colors.dart';
+import '../../core/theme/island_metrics.dart';
+import '../../core/theme/island_motion.dart';
+import '../../core/theme/island_typography.dart';
 import '../../core/window/dock_edge.dart';
 import '../../core/window/window_position.dart';
 import '../diagnostics/diagnostics_controller.dart';
@@ -116,9 +119,7 @@ class _IslandShellState extends State<IslandShell> {
                 final settings = widget.settings.settings;
                 // 输入法切换复用消息横幅的激活态，消息横幅优先。
                 final showIme =
-                    settings.showImeBanner &&
-                    widget.ime.visible &&
-                    !showBanner;
+                    settings.showImeBanner && widget.ime.visible && !showBanner;
                 final activeBanner = showBanner || showIme;
                 final tabs = settings.visibleTabs;
                 final tab = tabs.contains(_tab)
@@ -132,10 +133,14 @@ class _IslandShellState extends State<IslandShell> {
                         side,
                         imeIndicator: settings.showImeIndicator,
                       );
-                final radius = expanded ? 24.0 : (activeBanner ? 22.0 : 18.0);
+                final radius = expanded
+                    ? IslandMetrics.radiusIslandExpanded
+                    : (activeBanner
+                          ? IslandMetrics.radiusIslandBanner
+                          : IslandMetrics.radiusIslandCollapsed);
                 return AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  curve: Curves.easeOutCubic,
+                  duration: IslandMotion.base,
+                  curve: IslandMotion.standard,
                   width: size.width,
                   height: size.height,
                   clipBehavior: Clip.hardEdge,
@@ -145,7 +150,8 @@ class _IslandShellState extends State<IslandShell> {
                     border: Border.all(
                       color:
                           (island.pulse ||
-                              (settings.showImeBanner && widget.ime.visible)) &&
+                                  (settings.showImeBanner &&
+                                      widget.ime.visible)) &&
                               !expanded
                           ? colors.accent.withValues(alpha: 0.75)
                           : colors.stroke,
@@ -252,7 +258,12 @@ class _ExpandedBody extends StatelessWidget {
           Column(
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(14, 10, 8, 2),
+                padding: const EdgeInsets.fromLTRB(
+                  IslandMetrics.space14,
+                  IslandMetrics.space10,
+                  IslandMetrics.space8,
+                  IslandMetrics.space2,
+                ),
                 child: Row(
                   children: [
                     if (messages.unread.isNotEmpty) ...[
@@ -260,30 +271,27 @@ class _ExpandedBody extends StatelessWidget {
                         source: messages.hasQq && !messages.hasWechat
                             ? 'qq'
                             : 'wechat',
-                        size: 22,
+                        size: IslandMetrics.iconXL,
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: IslandMetrics.space8),
                     ],
                     Text(
                       'Guduo Island',
-                      style: TextStyle(
-                        color: colors.text,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        decoration: TextDecoration.none,
-                      ),
+                      style: IslandTypography.title.tint(colors.text),
                     ),
                     const Spacer(),
                     _StatusPill(ok: island.ready, label: island.statusLabel),
-                    const SizedBox(width: 2),
+                    const SizedBox(width: IslandMetrics.space2),
                     InkWell(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(
+                        IslandMetrics.radiusPill,
+                      ),
                       onTap: onOpenSettings,
                       child: Padding(
-                        padding: const EdgeInsets.all(4),
+                        padding: const EdgeInsets.all(IslandMetrics.space4),
                         child: Icon(
                           Icons.settings_rounded,
-                          size: 14,
+                          size: IslandMetrics.iconSM,
                           color: colors.muted,
                         ),
                       ),
@@ -293,7 +301,9 @@ class _ExpandedBody extends StatelessWidget {
               ),
               if (tabs.isNotEmpty) ...[
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: IslandMetrics.space12,
+                  ),
                   child: Row(
                     children: [
                       for (final item in tabs)
@@ -305,11 +315,16 @@ class _ExpandedBody extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: IslandMetrics.space4),
               ],
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 4, 14, 12),
+                  padding: const EdgeInsets.fromLTRB(
+                    IslandMetrics.space14,
+                    IslandMetrics.space4,
+                    IslandMetrics.space14,
+                    IslandMetrics.space12,
+                  ),
                   child: _content(colors, activeTab),
                 ),
               ),
@@ -329,13 +344,15 @@ class _ExpandedBody extends StatelessWidget {
                   child: Align(
                     alignment: Alignment.topCenter,
                     child: Padding(
-                      padding: const EdgeInsets.only(top: 3),
+                      padding: const EdgeInsets.only(top: IslandMetrics.space3),
                       child: Container(
-                        width: 36,
-                        height: 4,
+                        width: IslandMetrics.handleWidth,
+                        height: IslandMetrics.handleHeight,
                         decoration: BoxDecoration(
                           color: colors.handle,
-                          borderRadius: BorderRadius.circular(2),
+                          borderRadius: BorderRadius.circular(
+                            IslandMetrics.radiusBar,
+                          ),
                         ),
                       ),
                     ),
@@ -382,43 +399,36 @@ class _NoVisibleTabs extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.dashboard_outlined, size: 24, color: colors.muted),
-          const SizedBox(height: 8),
-          Text(
-            '未启用页面',
-            style: TextStyle(
-              color: colors.text,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              decoration: TextDecoration.none,
-            ),
+          Icon(
+            Icons.dashboard_outlined,
+            size: IslandMetrics.iconXL,
+            color: colors.muted,
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: IslandMetrics.space8),
+          Text('未启用页面', style: IslandTypography.subhead.tint(colors.text)),
+          const SizedBox(height: IslandMetrics.space4),
           Text(
             '在设置 → 页面管理中开启',
-            style: TextStyle(
-              color: colors.muted,
-              fontSize: 11,
-              decoration: TextDecoration.none,
-            ),
+            style: IslandTypography.caption.tint(colors.muted),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: IslandMetrics.space10),
           InkWell(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(IslandMetrics.radiusControl),
             onTap: onOpenSettings,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+              padding: const EdgeInsets.symmetric(
+                horizontal: IslandMetrics.space12,
+                vertical: IslandMetrics.space5,
+              ),
               decoration: BoxDecoration(
                 color: colors.accent.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(
+                  IslandMetrics.radiusControl,
+                ),
               ),
               child: Text(
                 '打开设置',
-                style: TextStyle(
-                  color: colors.accent,
-                  fontSize: 11,
-                  decoration: TextDecoration.none,
-                ),
+                style: IslandTypography.caption.tint(colors.accent),
               ),
             ),
           ),
@@ -443,24 +453,25 @@ class _TabButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.islandColors;
     return InkWell(
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(IslandMetrics.radiusControl),
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.only(right: 6),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        margin: const EdgeInsets.only(right: IslandMetrics.space6),
+        padding: const EdgeInsets.symmetric(
+          horizontal: IslandMetrics.space8,
+          vertical: IslandMetrics.space5,
+        ),
         decoration: BoxDecoration(
           color: selected
               ? colors.accent.withValues(alpha: 0.12)
               : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(IslandMetrics.radiusControl),
         ),
         child: Text(
           label,
-          style: TextStyle(
+          style: IslandTypography.caption.copyWith(
             color: selected ? colors.accent : colors.muted,
-            fontSize: 11,
             fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-            decoration: TextDecoration.none,
           ),
         ),
       ),
@@ -479,29 +490,24 @@ class _StatusPill extends StatelessWidget {
     final colors = context.islandColors;
     final color = ok ? colors.accent : colors.warning;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(
+        horizontal: IslandMetrics.space8,
+        vertical: IslandMetrics.space3,
+      ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(IslandMetrics.radiusPill),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 6,
-            height: 6,
+            width: IslandMetrics.space6,
+            height: IslandMetrics.space6,
             decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              decoration: TextDecoration.none,
-            ),
-          ),
+          const SizedBox(width: IslandMetrics.space5),
+          Text(label, style: IslandTypography.microStrong.tint(color)),
         ],
       ),
     );

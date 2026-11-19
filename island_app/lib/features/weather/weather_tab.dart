@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/island_colors.dart';
+import '../../core/theme/island_metrics.dart';
+import '../../core/theme/island_typography.dart';
 import 'weather_controller.dart';
 import 'weather_models.dart';
 import 'weather_widgets.dart';
@@ -44,25 +46,21 @@ class WeatherTab extends StatelessWidget {
                 children: [
                   Icon(
                     weatherIcon(snapshot.kind, snapshot.isDay),
-                    size: 30,
+                    size: IslandMetrics.icon3XL,
                     color: weatherColor(colors, snapshot.kind),
                   ),
-                  const SizedBox(height: 5),
+                  const SizedBox(height: IslandMetrics.space5),
                   Text(
                     snapshot.description,
                     textAlign: TextAlign.center,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: colors.muted,
-                      fontSize: 10,
-                      decoration: TextDecoration.none,
-                    ),
+                    style: IslandTypography.micro.tint(colors.muted),
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: IslandMetrics.space10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -72,49 +70,37 @@ class WeatherTab extends StatelessWidget {
                     children: [
                       Text(
                         '${snapshot.roundedTemp}°',
-                        style: TextStyle(
-                          color: colors.text,
-                          fontSize: 26,
-                          fontWeight: FontWeight.w700,
-                          height: 1,
-                          decoration: TextDecoration.none,
-                        ),
+                        style: IslandTypography.displayLarge.tint(colors.text),
                       ),
                       const Spacer(),
                       if (updated != null)
                         Padding(
-                          padding: const EdgeInsets.only(top: 2),
+                          padding: const EdgeInsets.only(
+                            top: IslandMetrics.space2,
+                          ),
                           child: Text(
                             '$updated 更新',
-                            style: TextStyle(
-                              color: colors.muted,
-                              fontSize: 9,
-                              decoration: TextDecoration.none,
-                            ),
+                            style: IslandTypography.micro.tint(colors.muted),
                           ),
                         ),
                     ],
                   ),
-                  const SizedBox(height: 7),
+                  const SizedBox(height: IslandMetrics.space7),
                   Text(
                     summary,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: colors.muted,
-                      fontSize: 11,
-                      decoration: TextDecoration.none,
-                    ),
+                    style: IslandTypography.caption.tint(colors.muted),
                   ),
                 ],
               ),
             ),
           ],
         ),
-        const SizedBox(height: 7),
+        const SizedBox(height: IslandMetrics.space7),
         Divider(height: 1, color: colors.divider),
         if (metrics.isNotEmpty) ...[
-          const SizedBox(height: 7),
+          const SizedBox(height: IslandMetrics.space7),
           Row(
             children: [
               for (final metric in metrics)
@@ -124,41 +110,35 @@ class WeatherTab extends StatelessWidget {
                     textAlign: TextAlign.center,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: colors.text,
-                      fontSize: 10,
-                      decoration: TextDecoration.none,
-                    ),
+                    style: IslandTypography.micro.tint(colors.text),
                   ),
                 ),
             ],
           ),
-          const SizedBox(height: 7),
+          const SizedBox(height: IslandMetrics.space7),
           Divider(height: 1, color: colors.divider),
         ],
-        const SizedBox(height: 7),
+        const SizedBox(height: IslandMetrics.space7),
         Expanded(
           child: snapshot.days.isEmpty
               ? Center(
                   child: Text(
                     '暂无预报',
-                    style: TextStyle(
-                      color: colors.muted,
-                      fontSize: 11,
-                      decoration: TextDecoration.none,
-                    ),
+                    style: IslandTypography.caption.tint(colors.muted),
                   ),
                 )
               : Align(
                   alignment: Alignment.topCenter,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                      vertical: 6,
-                      horizontal: 2,
+                      vertical: IslandMetrics.space6,
+                      horizontal: IslandMetrics.space2,
                     ),
                     decoration: BoxDecoration(
                       color: colors.surface,
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(
+                        IslandMetrics.radiusPill,
+                      ),
                     ),
                     child: Row(
                       children: [
@@ -202,26 +182,15 @@ class _EmptyWeather extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.cloud_off_rounded, size: 26, color: colors.muted),
-          const SizedBox(height: 8),
-          Text(
-            '天气暂时取不到',
-            style: TextStyle(
-              color: colors.text,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              decoration: TextDecoration.none,
-            ),
+          Icon(
+            Icons.cloud_off_rounded,
+            size: IslandMetrics.icon2XL,
+            color: colors.muted,
           ),
-          const SizedBox(height: 4),
-          Text(
-            status,
-            style: TextStyle(
-              color: colors.muted,
-              fontSize: 11,
-              decoration: TextDecoration.none,
-            ),
-          ),
+          const SizedBox(height: IslandMetrics.space8),
+          Text('天气暂时取不到', style: IslandTypography.subhead.tint(colors.text)),
+          const SizedBox(height: IslandMetrics.space4),
+          Text(status, style: IslandTypography.caption.tint(colors.muted)),
         ],
       ),
     );
@@ -247,26 +216,22 @@ class _WeatherDayCell extends StatelessWidget {
           child: Center(
             child: Text(
               dayLabel(index, day.date),
-              style: TextStyle(
-                color: colors.muted,
-                fontSize: 10,
-                decoration: TextDecoration.none,
-              ),
+              style: IslandTypography.micro.tint(colors.muted),
             ),
           ),
         ),
-        const SizedBox(height: 3),
+        const SizedBox(height: IslandMetrics.space3),
         SizedBox(
           height: 20,
           child: Center(
             child: Icon(
               weatherIcon(day.kind, true),
-              size: 18,
+              size: IslandMetrics.iconLG,
               color: weatherColor(colors, day.kind),
             ),
           ),
         ),
-        const SizedBox(height: 3),
+        const SizedBox(height: IslandMetrics.space3),
         SizedBox(
           height: 14,
           child: Center(
@@ -274,12 +239,7 @@ class _WeatherDayCell extends StatelessWidget {
               fit: BoxFit.scaleDown,
               child: Text(
                 '${day.highC.round()}° / ${day.lowC.round()}°',
-                style: TextStyle(
-                  color: colors.text,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  decoration: TextDecoration.none,
-                ),
+                style: IslandTypography.microStrong.tint(colors.text),
               ),
             ),
           ),
@@ -289,11 +249,7 @@ class _WeatherDayCell extends StatelessWidget {
           child: Center(
             child: Text(
               showRain ? '$rain%' : '',
-              style: TextStyle(
-                color: colors.rain,
-                fontSize: 9,
-                decoration: TextDecoration.none,
-              ),
+              style: IslandTypography.micro.tint(colors.rain),
             ),
           ),
         ),

@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import '../../core/app_info.dart';
 import '../../core/log.dart';
 import '../../core/theme/island_colors.dart';
+import '../../core/theme/island_metrics.dart';
+import '../../core/theme/island_typography.dart';
 import '../weather/weather_controller.dart';
 import 'diagnostics_controller.dart';
 
@@ -46,42 +48,41 @@ class DiagnosticsTab extends StatelessWidget {
         const _DiagRow(label: '快捷键', value: 'Ctrl + Alt + Space 展开 / 收起'),
         const _DiagRow(label: '点击穿透', value: '岛体外点击直达下层窗口'),
         Padding(
-          padding: const EdgeInsets.only(top: 2),
+          padding: const EdgeInsets.only(top: IslandMetrics.space2),
           child: Align(
             alignment: Alignment.centerLeft,
             child: InkWell(
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(IslandMetrics.radiusChip),
               onTap: _openLogDir,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: IslandMetrics.space6,
+                  vertical: IslandMetrics.space3,
+                ),
                 child: Text(
                   '打开日志目录',
-                  style: TextStyle(
-                    color: colors.accent,
-                    fontSize: 11,
-                    decoration: TextDecoration.none,
-                  ),
+                  style: IslandTypography.caption.tint(colors.accent),
                 ),
               ),
             ),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: IslandMetrics.space8),
         TextField(
-          style: TextStyle(color: colors.text, fontSize: 12),
+          style: IslandTypography.body.tint(colors.text),
           cursorColor: colors.accent,
           decoration: InputDecoration(
             isDense: true,
             filled: true,
             fillColor: colors.divider,
             hintText: '输入法测试：用微软拼音或搜狗输入中文',
-            hintStyle: TextStyle(color: colors.muted, fontSize: 11),
+            hintStyle: IslandTypography.caption.tint(colors.muted),
             contentPadding: const EdgeInsets.symmetric(
-              horizontal: 10,
-              vertical: 10,
+              horizontal: IslandMetrics.space10,
+              vertical: IslandMetrics.space10,
             ),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(IslandMetrics.radiusPill),
               borderSide: BorderSide.none,
             ),
           ),
@@ -101,7 +102,7 @@ class _DiagRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.islandColors;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
+      padding: const EdgeInsets.symmetric(vertical: IslandMetrics.space3),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -109,21 +110,13 @@ class _DiagRow extends StatelessWidget {
             width: 64,
             child: Text(
               label,
-              style: TextStyle(
-                color: colors.muted,
-                fontSize: 11,
-                decoration: TextDecoration.none,
-              ),
+              style: IslandTypography.caption.tint(colors.muted),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: TextStyle(
-                color: colors.text,
-                fontSize: 11,
-                decoration: TextDecoration.none,
-              ),
+              style: IslandTypography.caption.tint(colors.text),
             ),
           ),
         ],

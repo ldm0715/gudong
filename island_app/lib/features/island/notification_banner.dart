@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/island_colors.dart';
+import '../../core/theme/island_metrics.dart';
+import '../../core/theme/island_typography.dart';
 import '../messages/messages_controller.dart';
 import 'client_glyph.dart';
 import 'island_layout.dart';
@@ -20,11 +22,11 @@ class NotificationBanner extends StatelessWidget {
       width: IslandLayout.bannerSize.width,
       height: IslandLayout.bannerSize.height,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: IslandMetrics.space16),
         child: Row(
           children: [
             ClientGlyph(source: item.source, size: 40),
-            const SizedBox(width: 12),
+            const SizedBox(width: IslandMetrics.space12),
             Expanded(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -34,44 +36,31 @@ class NotificationBanner extends StatelessWidget {
                     item.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: colors.text,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      decoration: TextDecoration.none,
-                    ),
+                    style: IslandTypography.headline.tint(colors.text),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: IslandMetrics.space4),
                   Text(
                     item.subtitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: colors.muted,
-                      fontSize: 12,
-                      decoration: TextDecoration.none,
-                    ),
+                    style: IslandTypography.body.tint(colors.muted),
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: IslandMetrics.space12),
             Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
                   _relativeTime(item.time),
-                  style: TextStyle(
-                    color: colors.muted,
-                    fontSize: 11,
-                    decoration: TextDecoration.none,
-                  ),
+                  style: IslandTypography.caption.tint(colors.muted),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: IslandMetrics.space4),
                 Icon(
                   Icons.expand_more_rounded,
-                  size: 16,
+                  size: IslandMetrics.iconMD,
                   color: colors.muted,
                 ),
               ],

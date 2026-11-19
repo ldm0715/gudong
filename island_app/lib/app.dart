@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/cupertino.dart' show CupertinoTheme;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hotkey_manager/hotkey_manager.dart';
@@ -12,6 +13,7 @@ import 'core/ipc/sidecar_supervisor.dart';
 import 'core/log.dart';
 import 'core/settings/settings_controller.dart';
 import 'core/theme/island_colors.dart';
+import 'core/theme/island_cupertino.dart';
 import 'core/window/window_position.dart';
 import 'features/diagnostics/diagnostics_controller.dart';
 import 'features/ime/ime_controller.dart';
@@ -185,9 +187,7 @@ class _GuduoAppState extends State<GuduoApp> with WindowListener, TrayListener {
     await widget.scope.dispose();
     AppLog.write('[app] quit: scope');
     try {
-      await windowManager.destroy().timeout(
-        const Duration(milliseconds: 800),
-      );
+      await windowManager.destroy().timeout(const Duration(milliseconds: 800));
     } catch (_) {}
     AppLog.write('[app] quit: window');
     exit(0);
@@ -237,20 +237,23 @@ class _GuduoAppState extends State<GuduoApp> with WindowListener, TrayListener {
             hoverColor: Colors.transparent,
             extensions: [colors],
           ),
-          home: Scaffold(
-            backgroundColor: Colors.transparent,
-            body: IslandShell(
-              island: widget.scope.island,
-              messages: widget.scope.messages,
-              weather: widget.scope.weather,
-              media: widget.scope.media,
-              ime: widget.scope.ime,
-              diagnostics: widget.scope.diagnostics,
-              translate: widget.scope.translate,
-              settings: widget.scope.settings,
-              windowPosition: widget.scope.windowPosition,
-              onOpenSettings: () =>
-                  unawaited(widget.scope.settingsWindow.open()),
+          home: CupertinoTheme(
+            data: islandCupertinoTheme(colors),
+            child: Scaffold(
+              backgroundColor: Colors.transparent,
+              body: IslandShell(
+                island: widget.scope.island,
+                messages: widget.scope.messages,
+                weather: widget.scope.weather,
+                media: widget.scope.media,
+                ime: widget.scope.ime,
+                diagnostics: widget.scope.diagnostics,
+                translate: widget.scope.translate,
+                settings: widget.scope.settings,
+                windowPosition: widget.scope.windowPosition,
+                onOpenSettings: () =>
+                    unawaited(widget.scope.settingsWindow.open()),
+              ),
             ),
           ),
         );

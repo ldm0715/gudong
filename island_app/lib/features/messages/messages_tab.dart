@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/island_colors.dart';
+import '../../core/theme/island_metrics.dart';
+import '../../core/theme/island_motion.dart';
+import '../../core/theme/island_typography.dart';
 import '../island/client_glyph.dart';
 import 'messages_controller.dart';
 
@@ -20,31 +23,26 @@ class MessagesTab extends StatelessWidget {
           children: [
             Text(
               '未读 ${controller.unreadCount}',
-              style: TextStyle(
-                color: colors.muted,
-                fontSize: 11,
-                decoration: TextDecoration.none,
-              ),
+              style: IslandTypography.caption.tint(colors.muted),
             ),
             const Spacer(),
             InkWell(
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(IslandMetrics.radiusChip),
               onTap: controller.markAllSeen,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: IslandMetrics.space6,
+                  vertical: IslandMetrics.space3,
+                ),
                 child: Text(
                   '全部已读',
-                  style: TextStyle(
-                    color: colors.accent,
-                    fontSize: 11,
-                    decoration: TextDecoration.none,
-                  ),
+                  style: IslandTypography.caption.tint(colors.accent),
                 ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 2),
+        const SizedBox(height: IslandMetrics.space2),
         Expanded(
           child: ListView.separated(
             padding: EdgeInsets.zero,
@@ -55,16 +53,18 @@ class MessagesTab extends StatelessWidget {
               final item = items[index];
               return Tooltip(
                 message: '打开${item.sourceName}',
-                waitDuration: const Duration(milliseconds: 600),
+                waitDuration: IslandMotion.tooltipDelay,
                 child: InkWell(
                   onTap: () => controller.openMessage(item),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(
+                    IslandMetrics.radiusControl,
+                  ),
                   child: SizedBox(
                     height: 54,
                     child: Row(
                       children: [
                         ClientGlyph(source: item.source, size: 20),
-                        const SizedBox(width: 10),
+                        const SizedBox(width: IslandMetrics.space10),
                         Expanded(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -74,50 +74,44 @@ class MessagesTab extends StatelessWidget {
                                 item.title,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: colors.text,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  decoration: TextDecoration.none,
+                                style: IslandTypography.bodyStrong.tint(
+                                  colors.text,
                                 ),
                               ),
-                              const SizedBox(height: 2),
+                              const SizedBox(height: IslandMetrics.space2),
                               Text(
                                 item.subtitle,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: colors.muted,
-                                  fontSize: 10,
-                                  decoration: TextDecoration.none,
+                                style: IslandTypography.micro.tint(
+                                  colors.muted,
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: IslandMetrics.space8),
                         Container(
                           constraints: const BoxConstraints(minWidth: 22),
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
+                            horizontal: IslandMetrics.space6,
+                            vertical: IslandMetrics.space2,
                           ),
                           decoration: BoxDecoration(
                             color: colors.chip,
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(
+                              IslandMetrics.radiusPill,
+                            ),
                           ),
                           child: Text(
                             '${item.count}',
                             textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: colors.text,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              decoration: TextDecoration.none,
+                            style: IslandTypography.captionStrong.tint(
+                              colors.text,
                             ),
                           ),
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: IslandMetrics.space4),
                       ],
                     ),
                   ),
@@ -143,27 +137,15 @@ class _EmptyMessages extends StatelessWidget {
         children: [
           Icon(
             Icons.chat_bubble_outline_rounded,
-            size: 26,
+            size: IslandMetrics.icon2XL,
             color: colors.muted,
           ),
-          const SizedBox(height: 8),
-          Text(
-            '暂无新消息',
-            style: TextStyle(
-              color: colors.text,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              decoration: TextDecoration.none,
-            ),
-          ),
-          const SizedBox(height: 4),
+          const SizedBox(height: IslandMetrics.space8),
+          Text('暂无新消息', style: IslandTypography.subhead.tint(colors.text)),
+          const SizedBox(height: IslandMetrics.space4),
           Text(
             '微信 / QQ 有新消息时会出现在这里',
-            style: TextStyle(
-              color: colors.muted,
-              fontSize: 11,
-              decoration: TextDecoration.none,
-            ),
+            style: IslandTypography.caption.tint(colors.muted),
           ),
         ],
       ),

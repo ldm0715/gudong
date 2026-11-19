@@ -5,6 +5,9 @@ import 'package:flutter/services.dart';
 
 import '../../core/settings/settings_controller.dart';
 import '../../core/theme/island_colors.dart';
+import '../../core/theme/island_metrics.dart';
+import '../../core/theme/island_motion.dart';
+import '../../core/theme/island_typography.dart';
 import 'translate_controller.dart';
 import 'translate_languages.dart';
 
@@ -42,7 +45,7 @@ class _TranslateTabState extends State<TranslateTab> {
     await Clipboard.setData(ClipboardData(text: text));
     if (!mounted) return;
     setState(() => _copied = true);
-    Future<void>.delayed(const Duration(seconds: 1), () {
+    Future<void>.delayed(IslandMotion.feedbackHold, () {
       if (mounted) setState(() => _copied = false);
     });
   }
@@ -51,27 +54,21 @@ class _TranslateTabState extends State<TranslateTab> {
     if (code == null) return;
     final settings = widget.settings.settings;
     if (settings.translateSource == code) return;
-    unawaited(
-      widget.settings.save(settings.copyWith(translateSource: code)),
-    );
+    unawaited(widget.settings.save(settings.copyWith(translateSource: code)));
   }
 
   void _setTarget(String? code) {
     if (code == null) return;
     final settings = widget.settings.settings;
     if (settings.translateTarget == code) return;
-    unawaited(
-      widget.settings.save(settings.copyWith(translateTarget: code)),
-    );
+    unawaited(widget.settings.save(settings.copyWith(translateTarget: code)));
   }
 
   void _setProvider(String? id) {
     if (id == null) return;
     final settings = widget.settings.settings;
     if (settings.translateProvider == id) return;
-    unawaited(
-      widget.settings.save(settings.copyWith(translateProvider: id)),
-    );
+    unawaited(widget.settings.save(settings.copyWith(translateProvider: id)));
   }
 
   /// Enter 确认，Shift+Enter 换行；输入法正在选词时不拦截 Enter。
@@ -97,14 +94,14 @@ class _TranslateTabState extends State<TranslateTab> {
     final colors = context.islandColors;
     final controller = widget.controller;
     final settings = widget.settings.settings;
-    final source = translateSourceLanguages.any(
-      (item) => item.code == settings.translateSource,
-    )
+    final source =
+        translateSourceLanguages.any(
+          (item) => item.code == settings.translateSource,
+        )
         ? settings.translateSource
         : 'auto';
-    final target = translateLanguages.any(
-      (item) => item.code == settings.translateTarget,
-    )
+    final target =
+        translateLanguages.any((item) => item.code == settings.translateTarget)
         ? settings.translateTarget
         : translateLanguages.first.code;
     return Column(
@@ -119,10 +116,12 @@ class _TranslateTabState extends State<TranslateTab> {
               onChanged: _setSource,
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 3),
+              padding: const EdgeInsets.symmetric(
+                horizontal: IslandMetrics.space3,
+              ),
               child: Icon(
                 Icons.arrow_forward_rounded,
-                size: 12,
+                size: IslandMetrics.iconXS,
                 color: colors.muted,
               ),
             ),
@@ -139,7 +138,7 @@ class _TranslateTabState extends State<TranslateTab> {
             ),
           ],
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: IslandMetrics.space6),
         Expanded(
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -153,11 +152,9 @@ class _TranslateTabState extends State<TranslateTab> {
                     maxLines: null,
                     minLines: null,
                     textAlignVertical: TextAlignVertical.top,
-                    style: TextStyle(
+                    style: IslandTypography.body.copyWith(
                       color: colors.text,
-                      fontSize: 12,
                       height: 1.35,
-                      decoration: TextDecoration.none,
                     ),
                     cursorColor: colors.accent,
                     decoration: InputDecoration(
@@ -166,8 +163,10 @@ class _TranslateTabState extends State<TranslateTab> {
                       fillColor: colors.surface,
                       hintText: 'Enter 翻译\nShift+Enter 换行',
                       hintMaxLines: 2,
-                      hintStyle: TextStyle(color: colors.muted, fontSize: 11),
-                      contentPadding: const EdgeInsets.all(8),
+                      hintStyle: IslandTypography.caption.tint(colors.muted),
+                      contentPadding: const EdgeInsets.all(
+                        IslandMetrics.space8,
+                      ),
                       border: _border(colors.stroke),
                       enabledBorder: _border(colors.stroke),
                       focusedBorder: _border(colors.accent),
@@ -175,13 +174,20 @@ class _TranslateTabState extends State<TranslateTab> {
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: IslandMetrics.space8),
               Expanded(
                 child: Container(
-                  padding: const EdgeInsets.fromLTRB(8, 6, 6, 6),
+                  padding: const EdgeInsets.fromLTRB(
+                    IslandMetrics.space8,
+                    IslandMetrics.space6,
+                    IslandMetrics.space6,
+                    IslandMetrics.space6,
+                  ),
                   decoration: BoxDecoration(
                     color: colors.surface,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(
+                      IslandMetrics.radiusControl,
+                    ),
                     border: Border.all(color: colors.stroke),
                   ),
                   child: Column(
@@ -191,13 +197,9 @@ class _TranslateTabState extends State<TranslateTab> {
                         children: [
                           Text(
                             '译文',
-                            style: TextStyle(
-                              color: colors.muted,
-                              fontSize: 10,
-                              decoration: TextDecoration.none,
-                            ),
+                            style: IslandTypography.micro.tint(colors.muted),
                           ),
-                          const SizedBox(width: 6),
+                          const SizedBox(width: IslandMetrics.space6),
                           Expanded(
                             child: Text(
                               controller.provider.isEmpty
@@ -206,48 +208,44 @@ class _TranslateTabState extends State<TranslateTab> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               textAlign: TextAlign.right,
-                              style: TextStyle(
-                                color: colors.muted,
-                                fontSize: 9,
-                                decoration: TextDecoration.none,
-                              ),
+                              style: IslandTypography.micro.tint(colors.muted),
                             ),
                           ),
                           if (controller.result.isNotEmpty) ...[
-                            const SizedBox(width: 4),
+                            const SizedBox(width: IslandMetrics.space4),
                             InkWell(
                               onTap: _copy,
-                              borderRadius: BorderRadius.circular(4),
+                              borderRadius: BorderRadius.circular(
+                                IslandMetrics.radiusTag,
+                              ),
                               child: Padding(
-                                padding: const EdgeInsets.all(2),
+                                padding: const EdgeInsets.all(
+                                  IslandMetrics.space2,
+                                ),
                                 child: Icon(
                                   _copied
                                       ? Icons.check_rounded
                                       : Icons.copy_rounded,
-                                  size: 13,
-                                  color: _copied
-                                      ? colors.accent
-                                      : colors.muted,
+                                  size: IslandMetrics.iconSM,
+                                  color: _copied ? colors.accent : colors.muted,
                                 ),
                               ),
                             ),
                           ],
                         ],
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: IslandMetrics.space2),
                       Expanded(
                         child: SingleChildScrollView(
                           child: SelectableText(
                             _resultText(controller),
-                            style: TextStyle(
+                            style: IslandTypography.body.copyWith(
                               color: controller.error.isNotEmpty
                                   ? colors.warning
                                   : controller.result.isEmpty
                                   ? colors.muted
                                   : colors.text,
-                              fontSize: 12,
                               height: 1.4,
-                              decoration: TextDecoration.none,
                             ),
                           ),
                         ),
@@ -265,7 +263,7 @@ class _TranslateTabState extends State<TranslateTab> {
 
   static OutlineInputBorder _border(Color color) {
     return OutlineInputBorder(
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(IslandMetrics.radiusControl),
       borderSide: BorderSide(color: color),
     );
   }
@@ -297,16 +295,18 @@ class _LanguageMenu extends StatelessWidget {
     final label = translateLanguageLabelIn(options, value);
     return Tooltip(
       message: tooltip,
-      waitDuration: const Duration(milliseconds: 600),
+      waitDuration: IslandMotion.tooltipDelay,
       child: MenuAnchor(
         style: MenuStyle(
           backgroundColor: WidgetStatePropertyAll(colors.cardBackground),
           surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
           shape: WidgetStatePropertyAll(
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(IslandMetrics.radiusControl),
+            ),
           ),
           padding: const WidgetStatePropertyAll(
-            EdgeInsets.symmetric(vertical: 4),
+            EdgeInsets.symmetric(vertical: IslandMetrics.space4),
           ),
           maximumSize: const WidgetStatePropertyAll(Size(220, 220)),
         ),
@@ -318,26 +318,27 @@ class _LanguageMenu extends StatelessWidget {
                 foregroundColor: WidgetStatePropertyAll(colors.text),
                 minimumSize: const WidgetStatePropertyAll(Size(140, 32)),
                 padding: const WidgetStatePropertyAll(
-                  EdgeInsets.symmetric(horizontal: 12),
+                  EdgeInsets.symmetric(horizontal: IslandMetrics.space12),
                 ),
               ),
-              child: Text(
-                language.label,
-                style: const TextStyle(fontSize: 12),
-              ),
+              child: Text(language.label, style: IslandTypography.body),
             ),
         ],
         builder: (context, controller, child) {
           return InkWell(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(IslandMetrics.radiusControl),
             onTap: () =>
                 controller.isOpen ? controller.close() : controller.open(),
             child: Container(
-              height: 28,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
+              height: IslandMetrics.hitTargetMin,
+              padding: const EdgeInsets.symmetric(
+                horizontal: IslandMetrics.space8,
+              ),
               decoration: BoxDecoration(
                 color: colors.surface,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(
+                  IslandMetrics.radiusControl,
+                ),
                 border: Border.all(color: colors.stroke),
               ),
               child: Row(
@@ -349,17 +350,13 @@ class _LanguageMenu extends StatelessWidget {
                       label,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: colors.text,
-                        fontSize: 11,
-                        decoration: TextDecoration.none,
-                      ),
+                      style: IslandTypography.caption.tint(colors.text),
                     ),
                   ),
-                  const SizedBox(width: 2),
+                  const SizedBox(width: IslandMetrics.space2),
                   Icon(
                     Icons.keyboard_arrow_down_rounded,
-                    size: 15,
+                    size: IslandMetrics.iconSM,
                     color: colors.muted,
                   ),
                 ],
@@ -383,16 +380,18 @@ class _ProviderMenu extends StatelessWidget {
     final colors = context.islandColors;
     return Tooltip(
       message: '翻译引擎',
-      waitDuration: const Duration(milliseconds: 600),
+      waitDuration: IslandMotion.tooltipDelay,
       child: MenuAnchor(
         style: MenuStyle(
           backgroundColor: WidgetStatePropertyAll(colors.cardBackground),
           surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
           shape: WidgetStatePropertyAll(
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(IslandMetrics.radiusControl),
+            ),
           ),
           padding: const WidgetStatePropertyAll(
-            EdgeInsets.symmetric(vertical: 4),
+            EdgeInsets.symmetric(vertical: IslandMetrics.space4),
           ),
           maximumSize: const WidgetStatePropertyAll(Size(220, 220)),
         ),
@@ -404,26 +403,27 @@ class _ProviderMenu extends StatelessWidget {
                 foregroundColor: WidgetStatePropertyAll(colors.text),
                 minimumSize: const WidgetStatePropertyAll(Size(140, 32)),
                 padding: const WidgetStatePropertyAll(
-                  EdgeInsets.symmetric(horizontal: 12),
+                  EdgeInsets.symmetric(horizontal: IslandMetrics.space12),
                 ),
               ),
-              child: Text(
-                provider.label,
-                style: const TextStyle(fontSize: 12),
-              ),
+              child: Text(provider.label, style: IslandTypography.body),
             ),
         ],
         builder: (context, controller, child) {
           return InkWell(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(IslandMetrics.radiusControl),
             onTap: () =>
                 controller.isOpen ? controller.close() : controller.open(),
             child: Container(
-              height: 28,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
+              height: IslandMetrics.hitTargetMin,
+              padding: const EdgeInsets.symmetric(
+                horizontal: IslandMetrics.space8,
+              ),
               decoration: BoxDecoration(
                 color: colors.surface,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(
+                  IslandMetrics.radiusControl,
+                ),
                 border: Border.all(color: colors.stroke),
               ),
               child: Row(
@@ -435,17 +435,13 @@ class _ProviderMenu extends StatelessWidget {
                       translateProviderShortLabel(value),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: colors.text,
-                        fontSize: 11,
-                        decoration: TextDecoration.none,
-                      ),
+                      style: IslandTypography.caption.tint(colors.text),
                     ),
                   ),
-                  const SizedBox(width: 2),
+                  const SizedBox(width: IslandMetrics.space2),
                   Icon(
                     Icons.keyboard_arrow_down_rounded,
-                    size: 15,
+                    size: IslandMetrics.iconSM,
                     color: colors.muted,
                   ),
                 ],

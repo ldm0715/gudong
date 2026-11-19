@@ -4,6 +4,9 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../core/theme/island_colors.dart';
+import '../../core/theme/island_metrics.dart';
+import '../../core/theme/island_motion.dart';
+import '../../core/theme/island_typography.dart';
 import '../ime/ime_controller.dart';
 import '../ime/ime_indicator.dart';
 import '../media/media_controller.dart';
@@ -94,42 +97,33 @@ class _CollapsedBarState extends State<CollapsedBar> {
       height: size.height,
       child: Row(
         children: [
-          const SizedBox(width: 10),
+          const SizedBox(width: IslandMetrics.space10),
           Expanded(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  time,
-                  style: TextStyle(
-                    color: colors.text,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.4,
-                    decoration: TextDecoration.none,
-                  ),
-                ),
+                Text(time, style: IslandTypography.clock.tint(colors.text)),
                 if (snapshot != null) ...[
-                  const SizedBox(width: 7),
+                  const SizedBox(width: IslandMetrics.space7),
                   WeatherChip(snapshot: snapshot),
                 ],
                 if (showIme) ...[
-                  const SizedBox(width: 6),
+                  const SizedBox(width: IslandMetrics.space6),
                   ImeIndicator(chinese: widget.ime.chinese),
                 ],
                 if (widget.messages.hasWechat) ...[
-                  const SizedBox(width: 8),
+                  const SizedBox(width: IslandMetrics.space8),
                   const ClientGlyph(source: 'wechat', size: 18),
                 ],
                 if (widget.messages.hasQq) ...[
-                  const SizedBox(width: 4),
+                  const SizedBox(width: IslandMetrics.space4),
                   const ClientGlyph(source: 'qq', size: 18),
                 ],
               ],
             ),
           ),
           if (showWave) const _WaveBars(),
-          const SizedBox(width: 10),
+          const SizedBox(width: IslandMetrics.space10),
         ],
       ),
     );
@@ -152,7 +146,7 @@ class _CollapsedBarState extends State<CollapsedBar> {
       height: size.height,
       child: Column(
         children: [
-          const SizedBox(height: 10),
+          const SizedBox(height: IslandMetrics.space10),
           Expanded(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -160,44 +154,31 @@ class _CollapsedBarState extends State<CollapsedBar> {
                 Text(
                   clock,
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: colors.text,
-                    fontSize: 12,
-                    height: 1.05,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.4,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                    decoration: TextDecoration.none,
-                  ),
+                  style: IslandTypography.clockCompact.tint(colors.text),
                 ),
                 if (snapshot != null) ...[
-                  const SizedBox(height: 6),
+                  const SizedBox(height: IslandMetrics.space6),
                   Icon(
                     weatherIcon(snapshot.kind, snapshot.isDay),
-                    size: 15,
+                    size: IslandMetrics.iconSM,
                     color: weatherColor(colors, snapshot.kind),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: IslandMetrics.space2),
                   Text(
                     '${snapshot.roundedTemp}°',
-                    style: TextStyle(
-                      color: colors.text,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      decoration: TextDecoration.none,
-                    ),
+                    style: IslandTypography.microStrong.tint(colors.text),
                   ),
                 ],
                 if (showIme) ...[
-                  const SizedBox(height: 6),
+                  const SizedBox(height: IslandMetrics.space6),
                   ImeIndicator(chinese: widget.ime.chinese),
                 ],
                 if (widget.messages.hasWechat) ...[
-                  const SizedBox(height: 6),
+                  const SizedBox(height: IslandMetrics.space6),
                   const ClientGlyph(source: 'wechat', size: 18),
                 ],
                 if (widget.messages.hasQq) ...[
-                  const SizedBox(height: 4),
+                  const SizedBox(height: IslandMetrics.space4),
                   const ClientGlyph(source: 'qq', size: 18),
                 ],
               ],
@@ -205,7 +186,7 @@ class _CollapsedBarState extends State<CollapsedBar> {
           ),
           // 与横向版本贴右边一致：音波固定在窄栏最下方。
           if (showWave) const _WaveBars(),
-          const SizedBox(height: 10),
+          const SizedBox(height: IslandMetrics.space10),
         ],
       ),
     );
@@ -232,7 +213,7 @@ class _WaveBarsState extends State<_WaveBars>
 
   late final AnimationController _controller = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 900),
+    duration: IslandMotion.wave,
   )..repeat();
 
   @override
@@ -258,11 +239,13 @@ class _WaveBarsState extends State<_WaveBars>
               children: [
                 for (var index = 0; index < _envelope.length; index++)
                   Container(
-                    width: 2.5,
+                    width: IslandMetrics.waveBarWidth,
                     height: _barHeight(time, index),
                     decoration: BoxDecoration(
                       color: colors.accent.withValues(alpha: 0.85),
-                      borderRadius: BorderRadius.circular(1.25),
+                      borderRadius: BorderRadius.circular(
+                        IslandMetrics.waveBarWidth / 2,
+                      ),
                     ),
                   ),
               ],

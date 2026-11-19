@@ -3,6 +3,9 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import '../../core/theme/island_colors.dart';
+import '../../core/theme/island_metrics.dart';
+import '../../core/theme/island_motion.dart';
+import '../../core/theme/island_typography.dart';
 import 'media_controller.dart';
 
 /// 媒体页：左栏曲目与控制，右栏歌词，底部通栏进度。
@@ -35,20 +38,15 @@ class _MediaTabState extends State<MediaTab> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     _Artwork(bytes: media.artwork, colors: colors),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: IslandMetrics.space6),
                     Text(
                       media.title ?? '未知曲目',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: colors.text,
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
-                        decoration: TextDecoration.none,
-                      ),
+                      style: IslandTypography.bodyStrong.tint(colors.text),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: IslandMetrics.space2),
                     Text(
                       [
                         media.artist?.isNotEmpty == true
@@ -59,13 +57,9 @@ class _MediaTabState extends State<MediaTab> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: colors.muted,
-                        fontSize: 9.5,
-                        decoration: TextDecoration.none,
-                      ),
+                      style: IslandTypography.micro.tint(colors.muted),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: IslandMetrics.space8),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -74,12 +68,12 @@ class _MediaTabState extends State<MediaTab> {
                           tooltip: '上一首',
                           onTap: media.previous,
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: IslandMetrics.space8),
                         _PlayButton(
                           playing: media.playing,
                           onTap: media.toggle,
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: IslandMetrics.space8),
                         _ControlButton(
                           icon: Icons.skip_next_rounded,
                           tooltip: '下一首',
@@ -104,7 +98,7 @@ class _MediaTabState extends State<MediaTab> {
             ],
           ),
         ),
-        const SizedBox(height: 2),
+        const SizedBox(height: IslandMetrics.space2),
         ValueListenableBuilder<int>(
           valueListenable: media.ticks,
           builder: (context, _, _) {
@@ -118,11 +112,9 @@ class _MediaTabState extends State<MediaTab> {
                   width: 34,
                   child: Text(
                     _time(current),
-                    style: TextStyle(
+                    style: IslandTypography.micro.copyWith(
                       color: colors.muted,
-                      fontSize: 9,
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                      decoration: TextDecoration.none,
+                      fontFeatures: IslandTypography.tabularFigures,
                     ),
                   ),
                 ),
@@ -164,11 +156,9 @@ class _MediaTabState extends State<MediaTab> {
                   child: Text(
                     media.duration > 0 ? _time(media.duration) : '--:--',
                     textAlign: TextAlign.right,
-                    style: TextStyle(
+                    style: IslandTypography.micro.copyWith(
                       color: colors.muted,
-                      fontSize: 9,
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                      decoration: TextDecoration.none,
+                      fontFeatures: IslandTypography.tabularFigures,
                     ),
                   ),
                 ),
@@ -208,7 +198,7 @@ class _LyricsViewState extends State<_LyricsView>
 
   late final AnimationController _animation = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 340),
+    duration: IslandMotion.progress,
     value: 1,
   );
   List<LyricLine>? _lastLyrics;
@@ -217,7 +207,7 @@ class _LyricsViewState extends State<_LyricsView>
   double _to = 0;
 
   double get _position {
-    final t = Curves.easeOutCubic.transform(_animation.value);
+    final t = IslandMotion.standard.transform(_animation.value);
     return _from + (_to - _from) * t;
   }
 
@@ -269,11 +259,7 @@ class _LyricsViewState extends State<_LyricsView>
       return Center(
         child: Text(
           media.lyricsLoading ? '歌词加载中…' : '暂无歌词',
-          style: TextStyle(
-            color: colors.muted,
-            fontSize: 11,
-            decoration: TextDecoration.none,
-          ),
+          style: IslandTypography.caption.tint(colors.muted),
         ),
       );
     }
@@ -343,15 +329,15 @@ class _LyricRow extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           textAlign: TextAlign.center,
-          style: TextStyle(
-            color: highlighted
-                ? colors.accent
-                : colors.muted.withValues(alpha: alpha),
-            fontSize: highlighted ? 11.5 : 10,
-            height: 1.25,
-            fontWeight: highlighted ? FontWeight.w600 : FontWeight.w400,
-            decoration: TextDecoration.none,
-          ),
+          style:
+              (highlighted ? IslandTypography.caption : IslandTypography.micro)
+                  .copyWith(
+                    color: highlighted
+                        ? colors.accent
+                        : colors.muted.withValues(alpha: alpha),
+                    fontWeight: highlighted ? FontWeight.w600 : FontWeight.w400,
+                    height: 1.25,
+                  ),
         ),
       ),
     );
@@ -368,13 +354,17 @@ class _Artwork extends StatelessWidget {
   Widget build(BuildContext context) {
     final image = bytes;
     return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(IslandMetrics.radiusControl),
       child: Container(
         width: 52,
         height: 52,
         color: colors.chip,
         child: image == null
-            ? Icon(Icons.music_note_rounded, size: 22, color: colors.muted)
+            ? Icon(
+                Icons.music_note_rounded,
+                size: IslandMetrics.iconXL,
+                color: colors.muted,
+              )
             : Image.memory(
                 image,
                 width: 52,
@@ -402,7 +392,7 @@ class _PlayButton extends StatelessWidget {
     final colors = context.islandColors;
     return Tooltip(
       message: playing ? '暂停' : '播放',
-      waitDuration: const Duration(milliseconds: 600),
+      waitDuration: IslandMotion.tooltipDelay,
       child: InkWell(
         onTap: onTap,
         customBorder: const CircleBorder(),
@@ -415,7 +405,7 @@ class _PlayButton extends StatelessWidget {
           ),
           child: Icon(
             playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
-            size: 19,
+            size: IslandMetrics.iconLG,
             color: colors.background,
           ),
         ),
@@ -440,13 +430,13 @@ class _ControlButton extends StatelessWidget {
     final colors = context.islandColors;
     return Tooltip(
       message: tooltip,
-      waitDuration: const Duration(milliseconds: 600),
+      waitDuration: IslandMotion.tooltipDelay,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(IslandMetrics.radiusCover),
         child: Padding(
-          padding: const EdgeInsets.all(5),
-          child: Icon(icon, size: 19, color: colors.text),
+          padding: const EdgeInsets.all(IslandMetrics.space5),
+          child: Icon(icon, size: IslandMetrics.iconLG, color: colors.text),
         ),
       ),
     );
@@ -464,25 +454,17 @@ class _EmptyMedia extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.music_note_rounded, size: 28, color: colors.muted),
-          const SizedBox(height: 8),
-          Text(
-            '暂无正在播放的媒体',
-            style: TextStyle(
-              color: colors.text,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              decoration: TextDecoration.none,
-            ),
+          Icon(
+            Icons.music_note_rounded,
+            size: IslandMetrics.icon2XL,
+            color: colors.muted,
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: IslandMetrics.space8),
+          Text('暂无正在播放的媒体', style: IslandTypography.subhead.tint(colors.text)),
+          const SizedBox(height: IslandMetrics.space4),
           Text(
             '用任意播放器播放音乐后，这里会显示曲目与控制',
-            style: TextStyle(
-              color: colors.muted,
-              fontSize: 11,
-              decoration: TextDecoration.none,
-            ),
+            style: IslandTypography.caption.tint(colors.muted),
           ),
         ],
       ),

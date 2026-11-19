@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/island_colors.dart';
+import '../../core/theme/island_metrics.dart';
+import '../../core/theme/island_motion.dart';
+import '../../core/theme/island_typography.dart';
 
 /// 输入法横幅里的中英文切换标识：两个分段同时显示，当前模式高亮。
 class ImeChip extends StatelessWidget {
@@ -13,10 +16,10 @@ class ImeChip extends StatelessWidget {
     final colors = context.islandColors;
     return Container(
       height: 34,
-      padding: const EdgeInsets.all(3),
+      padding: const EdgeInsets.all(IslandMetrics.space3),
       decoration: BoxDecoration(
         color: colors.surface,
-        borderRadius: BorderRadius.circular(17),
+        borderRadius: BorderRadius.circular(IslandMetrics.pill(34)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -38,23 +41,24 @@ class _Segment extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.islandColors;
+    final style = label == 'en'
+        ? IslandTypography.subhead
+        : IslandTypography.headline;
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 160),
+      duration: IslandMotion.fast,
       width: 40,
       height: 28,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: active ? colors.accent : Colors.transparent,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(IslandMetrics.pill(28)),
       ),
       child: Text(
         label,
-        style: TextStyle(
+        style: style.copyWith(
           color: active ? colors.background : colors.muted,
-          fontSize: label == 'en' ? 13 : 15,
           fontWeight: FontWeight.w700,
           height: 1,
-          decoration: TextDecoration.none,
         ),
       ),
     );

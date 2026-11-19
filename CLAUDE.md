@@ -37,11 +37,14 @@ Windows 桌面灵动岛。`island_app`（Flutter）负责岛体、动画与设�
 ### 4. 界面与主题
 
 - 颜色只从 `IslandColors`（ThemeExtension）取，皮肤由 `themeId` 决定（`midnight` / `daylight`）；禁止硬编码色值。
-- 交互控件默认只使用 Material 3 组件（`FilledButton` / `OutlinedButton` / `TextButton` / `TextField` / `DropdownMenu` / `Switch` / `Dialog` 等）；禁止再引入 `DropdownButton`、`FlatButton` 等 M2 控件，存量自定义控件在改到时一并收敛。
-- 岛体内部受 380×260 尺寸限制的紧凑控件可以自绘，但高度、圆角、字体、配色必须与同屏其他控件一致。
+- 岛体（380×260 内）采用 macOS 桌面风格，以自绘为主；字阶、字重、字距、圆角、间距、动效曲线统一取自 `IslandTypography` / `IslandMetrics` / `IslandMotion`（`core/theme/`），禁止硬编码字号、圆角、时长。
+- 岛体可选用 Cupertino 叶子控件（如 `CupertinoSlidingSegmentedControl`），但 `CupertinoThemeData` 必须由上述 token 与 `IslandColors` 派生；禁止使用 `CupertinoColors` 默认值、Cupertino 默认字体族与默认尺寸；依赖 `CupertinoLocalizations` 的控件须先注册 delegate。
+- 设置窗口继续使用 Material 3 组件（`FilledButton` / `OutlinedButton` / `TextButton` / `TextField` / `DropdownMenu` / `Switch` / `Dialog` 等），但关闭 M3 视觉签名：`surfaceTintColor` 透明、无 ripple、无 tonal elevation。
+- 岛体自绘控件必须补齐 hover / pressed / focus / semantics / 键盘可达，高度、圆角、字体、配色与同屏其他控件一致。
+- 禁止引入 `DropdownButton`、`FlatButton` 等 M2 控件；存量自定义控件在改到时一并收敛到 token 层。
 - 窗口透明、无边框、置顶、跳过任务栏；点击穿透按光标逐像素切换 `WS_EX_LAYERED | WS_EX_TRANSPARENT`。
 - tab 固定为 `messages` / `translate` / `weather` / `media` / `diagnostics`；顺序与显隐由 `tabOrder` / `hiddenTabs` 驱动，允许全部隐藏。
-- 动画区域包 `RepaintBoundary`；收起后停用 Ticker / 动画；避免 `Opacity`、`ClipPath`、`saveLayer` 与大面积 `BackdropFilter`。
+- 动画区域包 `RepaintBoundary`；收起后停用 Ticker / 动画；避免 `Opacity`、`ClipPath`、`saveLayer`；禁止用 `BackdropFilter` 模拟毛玻璃，Win10 无 Mica，窗口材质变更属 Rust 侧能力，须单独立项。
 - 图片必须指定 `cacheWidth` / `cacheHeight`（封面 104px），image cache 上限 32MB。
 - 播放进度用独立 250ms 时钟插值，只重建进度区域，不重建岛体外壳。
 

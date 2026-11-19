@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/island_colors.dart';
+import '../../core/theme/island_metrics.dart';
+import '../../core/theme/island_typography.dart';
 import 'weather_models.dart';
 
 /// 收起态的时间右侧天气：图标 + 温度。
@@ -17,18 +19,13 @@ class WeatherChip extends StatelessWidget {
       children: [
         Icon(
           weatherIcon(snapshot.kind, snapshot.isDay),
-          size: 15,
+          size: IslandMetrics.iconSM,
           color: weatherColor(colors, snapshot.kind),
         ),
-        const SizedBox(width: 3),
+        const SizedBox(width: IslandMetrics.space3),
         Text(
           '${snapshot.roundedTemp}°',
-          style: TextStyle(
-            color: colors.text,
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            decoration: TextDecoration.none,
-          ),
+          style: IslandTypography.bodyStrong.tint(colors.text),
         ),
       ],
     );

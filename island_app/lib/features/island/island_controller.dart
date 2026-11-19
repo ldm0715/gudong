@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../../core/ipc/sidecar_supervisor.dart';
+import '../../core/theme/island_motion.dart';
 import '../messages/messages_controller.dart';
 
 /// 岛体外壳状态：展开、闪烁、横幅。业务数据由各 feature controller 持有。
@@ -46,7 +47,7 @@ class IslandController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 光标进入 / 离开岛体。进入时展开，停留 700ms 后显示顶部拖拽把手。
+  /// 光标进入 / 离开岛体。进入时展开，停留后显示顶部拖拽把手。
   void setPointerInside(bool inside) {
     setExpanded(inside);
     _handleTimer?.cancel();
@@ -57,7 +58,7 @@ class IslandController extends ChangeNotifier {
       }
       return;
     }
-    _handleTimer = Timer(const Duration(milliseconds: 700), () {
+    _handleTimer = Timer(IslandMotion.handleDelay, () {
       if (_disposed || _handleVisible) return;
       _handleVisible = true;
       notifyListeners();
@@ -80,7 +81,7 @@ class IslandController extends ChangeNotifier {
   void _showBannerForAWhile() {
     _banner = true;
     _bannerTimer?.cancel();
-    _bannerTimer = Timer(const Duration(seconds: 2), () {
+    _bannerTimer = Timer(IslandMotion.bannerHold, () {
       if (_disposed) return;
       _banner = false;
       notifyListeners();
@@ -90,7 +91,7 @@ class IslandController extends ChangeNotifier {
   void _signalPulse() {
     _pulseTimer?.cancel();
     _pulse = true;
-    _pulseTimer = Timer(const Duration(milliseconds: 1400), () {
+    _pulseTimer = Timer(IslandMotion.pulse, () {
       if (_disposed) return;
       _pulse = false;
       notifyListeners();

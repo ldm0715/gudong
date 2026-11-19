@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../core/ipc/sidecar_supervisor.dart';
 import '../../core/log.dart';
+import '../../core/theme/island_motion.dart';
 
 /// 输入法状态。检测由 sidecar 完成，这里只维护展示用的模式与横幅计时。
 class ImeController extends ChangeNotifier {
@@ -13,7 +14,7 @@ class ImeController extends ChangeNotifier {
   }
 
   /// 横幅保留时长，和消息横幅保持同一节奏。
-  static const Duration visibleDuration = Duration(seconds: 2);
+  static const Duration visibleDuration = IslandMotion.bannerHold;
 
   final SidecarSupervisor supervisor;
   StreamSubscription<Map<String, dynamic>>? _subscription;
