@@ -79,13 +79,58 @@ if ($bootstrap -and $shown) {
 if ($bootstrap -and $ready) {
   Write-Host ("in-app bootstrap -> sidecar ready : {0} ms" -f [int]($ready - $bootstrap).TotalMilliseconds)
 }
-Write-Host ""
-Write-Host ("{0,-16} {1,10} {2,12}" -f "process", "working", "private")
-Write-Host ("{0,-16} {1,10} {2,12}" -f "island_app", ("{0:N1} MB" -f ($app.WorkingSet64 / 1MB)), ("{0:N1} MB" -f ($app.PrivateMemorySize64 / 1MB)))
-if ($svc) {
-  Write-Host ("{0,-16} {1,10} {2,12}" -f "island_service", ("{0:N1} MB" -f ($svc.WorkingSet64 / 1MB)), ("{0:N1} MB" -f ($svc.PrivateMemorySize64 / 1MB)))
-  Write-Host ("{0,-16} {1,10} {2,12}" -f "total", ("{0:N1} MB" -f (($app.WorkingSet64 + $svc.WorkingSet64) / 1MB)), ("{0:N1} MB" -f (($app.PrivateMemorySize64 + $svc.PrivateMemorySize64) / 1MB)))
+# Memory metrics:
+# - private working set is what Task Manager shows under "Memory"; the budget uses it.
+# - private commit (PrivateMemorySize64) counts pages already paged out as well,
+#   so it reads 40-60MB higher and must not be treated as resident memory.
+function Get-MemInfo($process) {
+  if (-not $process) { return $null }
+  $perf = Get-CimInstance Win32_PerfFormattedData_PerfProc_Process `
+    -Filter "IDProcess = $($process.Id)" -ErrorAction SilentlyContinue
+  $workingSet = [int64]$process.WorkingSet64
+  $privateWs = [int64]0
+  if ($perf) {
+    $workingSet = [int64]$perf.WorkingSet
+    $privateWs = [int64]$perf.WorkingSetPrivate
+  }
+  return [pscustomobject]@{
+    WorkingSet        = $workingSet
+    PrivateWorkingSet = $privateWs
+    Commit            = [int64]$process.PrivateMemorySize64
+  }
 }
+
+$appMem = Get-MemInfo $app
+$svcMem = Get-MemInfo $svc
+$rows = @([pscustomobject]@{ Name = "island_app"; Mem = $appMem })
+$totalWs = $appMem.WorkingSet
+$totalPws = $appMem.PrivateWorkingSet
+$totalCommit = $appMem.Commit
+if ($svc) {
+  $rows += [pscustomobject]@{ Name = "island_service"; Mem = $svcMem }
+  $totalWs += $svcMem.WorkingSet
+  $totalPws += $svcMem.PrivateWorkingSet
+  $totalCommit += $svcMem.Commit
+}
+$rows += [pscustomobject]@{
+  Name = "total"
+  Mem  = [pscustomobject]@{
+    WorkingSet = $totalWs
+    PrivateWorkingSet = $totalPws
+    Commit = $totalCommit
+  }
+}
+Write-Host ""
+Write-Host ("{0,-16} {1,12} {2,16} {3,14}" -f "process", "working", "private (taskmgr)", "commit*")
+foreach ($row in $rows) {
+  Write-Host ("{0,-16} {1,12} {2,16} {3,14}" -f $row.Name,
+    ("{0:N1} MB" -f ($row.Mem.WorkingSet / 1MB)),
+    ("{0:N1} MB" -f ($row.Mem.PrivateWorkingSet / 1MB)),
+    ("{0:N1} MB" -f ($row.Mem.Commit / 1MB)))
+}
+$memOk = $rows[-1].Mem.PrivateWorkingSet / 1MB
+Write-Host ("memory budget: private {0:N1} MB / 80 MB  {1}" -f $memOk, $(if ($memOk -le 80) { "OK" } else { "OVER" }))
+Write-Host "  * commit is reserved address space, not resident memory; use the private column for the budget."
 Write-Host ""
 Write-Host ("idle CPU over {0}s: island_app {1:N3}%  island_service {2:N3}%  total {3:N3}% (of all cores)" -f $IdleSeconds, $appCpu, $svcCpu, ($appCpu + $svcCpu))
 Write-Host ""

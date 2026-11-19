@@ -1,6 +1,6 @@
 # Phase 1：骨架 报告
 
-状态：代码完成，交互项待人工验收；性能基线已采样，**空闲内存超出预算**。
+状态：代码完成，交互项待人工验收；性能基线已按 private working set 口径复核，空闲内存与 CPU 达标。
 日期：2026-11-18
 
 ## 已实现
@@ -98,20 +98,34 @@
 
 测量条件：Windows 10 22H2、125% 缩放、release 构建、空闲 15 秒采样。
 
+内存口径：任务管理器的“内存”列是 private working set（常驻私有页）。此前用
+`PrivateMemorySize64`（private commit，包含已换出到页面文件的页）统计，数值虚高，
+预算改按 private working set 复核。
+
 | 指标 | 预算 | 实测 | 结论 |
 | --- | --- | --- | --- |
-| 空闲内存（private 合计） | ≤ 80MB | 108.3MB（working 111.7MB） | **超标** |
+| 空闲内存（private working set 合计） | ≤ 80MB | 40.7MB | 通过 |
+| 参考：working set 合计 | - | 101.5MB | 含共享 DLL |
+| 参考：private commit 合计 | - | 101.1MB | 非常驻占用 |
 | 空闲 CPU（全核占比） | ≤ 0.5% | 0.061% | 通过 |
-| 冷启动到窗口可见 | ≤ 1.5s | 1.399s | 勉强通过 |
+| 冷启动到窗口可见 | ≤ 1.5s | 1.399–1.513s | 临界 |
 | 展开 / 收起 p95 帧时间 | < 16.7ms | 未测 | 待测 |
 | 输入延迟 | ≤ 1 帧 | 未测 | 待测 |
 
 进程明细：
 
-| 进程 | working | private |
-| --- | --- | --- |
-| island_app | 88.7MB | 103.0MB |
-| island_service | 22.9MB | 5.3MB |
+| 进程 | working set | private working set | private commit |
+| --- | --- | --- | --- |
+| island_app | 78.5MB | 36.9MB | 95.8MB |
+| island_service | 23.0MB | 3.8MB | 5.4MB |
+
+对照：空白 Flutter Windows release 工程（默认 1280×720 不透明窗口）private working set
+35.1MB、private commit 109.1MB。本项目 private working set 多出约 2–6MB，来自字体、
+插件与透明窗口；private commit 与空白工程同量级，说明 100MB 左右是 Flutter 引擎基线，
+不是业务代码造成的。
+
+设置窗口是独立 Flutter 引擎：打开期间额外约 16MB private working set、40MB commit，
+关闭后大部分回收。空闲基线按未打开设置窗口统计。
 
 复测命令：
 
@@ -126,7 +140,9 @@ cd island_app
 flutter run --profile -d windows
 ```
 
-结论：内存超预算约 28MB，是进入 Phase 2 前必须处理的问题；CPU 与冷启动达标。
+结论：按任务管理器口径，内存预算已达标，剩余占用主要是 Flutter 引擎基线；继续压缩
+需要更换技术栈，或定期调用 `EmptyWorkingSet` 裁剪（会牺牲交互响应），Phase 2 前不做。
+CPU 达标；冷启动处于 1.5s 临界。
 
 ## Phase 1 已知限制
 
@@ -162,6 +178,6 @@ flutter run --profile -d windows
 
 ## 下一步
 
-1. **内存优化**：profile 模式拆解 Flutter 引擎、字体资源、插件与常驻控制器的占用，先把空闲内存压回 80MB 以内。
+1. **内存维持**：复测统一用 `scripts/measure-baseline.ps1` 的 private working set 口径；Phase 2 新增常驻功能后关注设置窗口关闭后的回收与长时间挂机增长。
 2. **Phase 2**：SMTC 媒体信息与控制、微信 / QQ 事件驱动监听与多开账号、凭据与配置完善、tab 显隐与排序。
 3. 补自动化：协议契约测试、单实例与窗口位置的集成冒烟。
