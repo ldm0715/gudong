@@ -7,11 +7,14 @@ import '../../core/theme/island_colors.dart';
 import '../media/media_controller.dart';
 import '../messages/messages_controller.dart';
 import '../weather/weather_controller.dart';
+import '../weather/weather_models.dart';
 import '../weather/weather_widgets.dart';
 import 'client_glyph.dart';
 import 'island_layout.dart';
 
-/// 收起态：时间 + 天气 + 微信 / QQ 未读标识，播放中在最右侧显示音波。
+/// 收起态：时间 + 天气 + 微信 / QQ 未读标识，播放中显示音波。
+///
+/// [vertical] 为真时按左右停靠的窄栏竖向排列，内容保持正向不旋转。
 class CollapsedBar extends StatefulWidget {
   const CollapsedBar({
     super.key,
@@ -20,6 +23,7 @@ class CollapsedBar extends StatefulWidget {
     required this.media,
     required this.showWeather,
     required this.showPlayingIndicator,
+    this.vertical = false,
   });
 
   final MessagesController messages;
@@ -27,6 +31,7 @@ class CollapsedBar extends StatefulWidget {
   final MediaController media;
   final bool showWeather;
   final bool showPlayingIndicator;
+  final bool vertical;
 
   @override
   State<CollapsedBar> createState() => _CollapsedBarState();
@@ -70,6 +75,9 @@ class _CollapsedBarState extends State<CollapsedBar> {
         widget.showPlayingIndicator &&
         widget.media.available &&
         widget.media.playing;
+    if (widget.vertical) {
+      return _buildVertical(colors, time, snapshot, showWave);
+    }
     return SizedBox(
       width: IslandLayout.collapsedSize.width,
       height: IslandLayout.collapsedSize.height,
@@ -111,6 +119,67 @@ class _CollapsedBarState extends State<CollapsedBar> {
       ),
     );
   }
+
+  /// 竖屏窄栏：时间、天气、客户端标识和音波从上到下排列，文字保持正向。
+  Widget _buildVertical(
+    IslandColors colors,
+    String time,
+    WeatherSnapshot? snapshot,
+    bool showWave,
+  ) {
+    // 窄栏放不下 "HH:MM"，拆成小时在上、分钟在下。
+    final parts = time.split(':');
+    final clock = parts.length == 2 ? '${parts[0]}\n${parts[1]}' : time;
+    return SizedBox(
+      width: IslandLayout.collapsedVerticalSize.width,
+      height: IslandLayout.collapsedVerticalSize.height,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            clock,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: colors.text,
+              fontSize: 12,
+              height: 1.05,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.4,
+              fontFeatures: const [FontFeature.tabularFigures()],
+              decoration: TextDecoration.none,
+            ),
+          ),
+          if (snapshot != null) ...[
+            const SizedBox(height: 6),
+            Icon(
+              weatherIcon(snapshot.kind, snapshot.isDay),
+              size: 15,
+              color: weatherColor(colors, snapshot.kind),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              '${snapshot.roundedTemp}°',
+              style: TextStyle(
+                color: colors.text,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                decoration: TextDecoration.none,
+              ),
+            ),
+          ],
+          if (widget.messages.hasWechat) ...[
+            const SizedBox(height: 6),
+            const ClientGlyph(source: 'wechat', size: 18),
+          ],
+          if (widget.messages.hasQq) ...[
+            const SizedBox(height: 4),
+            const ClientGlyph(source: 'qq', size: 18),
+          ],
+          if (showWave) ...[const SizedBox(height: 6), const _WaveBars()],
+        ],
+      ),
+    );
+  }
 }
 
 /// 四根随正弦起伏的音波，只在播放中挂载，停止后自动释放动画。
@@ -125,6 +194,7 @@ class _WaveBarsState extends State<_WaveBars>
     with SingleTickerProviderStateMixin {
   /// 中间最高、向两端递减的高度包络。
   static const _envelope = [0.35, 0.65, 1.0, 0.65, 0.35];
+
   /// 同一频率、按位置递延相位，形成连续行波；相邻条不会独立乱跳。
   static const _phaseStep = 1.05;
   static const _minHeight = 3.5;
@@ -179,7 +249,6 @@ class _WaveBarsState extends State<_WaveBars>
     final primary = math.sin(time + offset);
     final secondary = math.sin(time * 0.45 - index * 0.65 + 1.7);
     final pulse = (0.62 + 0.28 * primary + 0.1 * secondary).clamp(0.2, 1.0);
-    return _minHeight +
-        (_maxHeight - _minHeight) * _envelope[index] * pulse;
+    return _minHeight + (_maxHeight - _minHeight) * _envelope[index] * pulse;
   }
 }

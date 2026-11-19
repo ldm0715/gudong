@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../core/settings/island_tabs.dart';
 import '../../core/settings/settings_controller.dart';
 import '../../core/theme/island_colors.dart';
+import '../../core/window/dock_edge.dart';
 import '../../core/window/window_position.dart';
 import '../diagnostics/diagnostics_controller.dart';
 import '../diagnostics/diagnostics_tab.dart';
@@ -51,106 +52,128 @@ class _IslandShellState extends State<IslandShell> {
   IslandTab _tab = IslandTab.messages;
 
   @override
+  void initState() {
+    super.initState();
+    widget.windowPosition.addListener(_onDockChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.windowPosition.removeListener(_onDockChanged);
+    super.dispose();
+  }
+
+  void _onDockChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
   Widget build(BuildContext context) {
     final island = widget.island;
+    final side = widget.windowPosition.side;
     return Material(
       color: Colors.transparent,
-      child: Stack(
-        children: [
-          Positioned(
-            top: IslandLayout.topInset,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: RepaintBoundary(
-                child: AnimatedBuilder(
-                  animation: Listenable.merge([
-                    island,
-                    widget.messages,
-                    widget.weather,
-                    widget.media,
-                    widget.diagnostics,
-                    widget.settings,
-                  ]),
-                  builder: (context, _) {
-                    final colors = context.islandColors;
-                    final expanded = island.expanded;
-                    final showBanner = island.showBanner;
-                    final tabs = widget.settings.settings.visibleTabs;
-                    final tab = tabs.contains(_tab)
-                        ? _tab
-                        : (tabs.isEmpty ? null : tabs.first);
-                    final size = expanded
-                        ? IslandLayout.expandedSize
+      child: Align(
+        alignment: switch (side) {
+          DockEdge.top => Alignment.topCenter,
+          DockEdge.left => Alignment.centerLeft,
+          DockEdge.right => Alignment.centerRight,
+        },
+        child: Padding(
+          padding: switch (side) {
+            DockEdge.top => const EdgeInsets.only(top: IslandLayout.edgeInset),
+            DockEdge.left => const EdgeInsets.only(
+              left: IslandLayout.edgeInset,
+            ),
+            DockEdge.right => const EdgeInsets.only(
+              right: IslandLayout.edgeInset,
+            ),
+          },
+          child: RepaintBoundary(
+            child: AnimatedBuilder(
+              animation: Listenable.merge([
+                island,
+                widget.messages,
+                widget.weather,
+                widget.media,
+                widget.diagnostics,
+                widget.settings,
+              ]),
+              builder: (context, _) {
+                final colors = context.islandColors;
+                final expanded = island.expanded;
+                final showBanner = island.showBanner;
+                final tabs = widget.settings.settings.visibleTabs;
+                final tab = tabs.contains(_tab)
+                    ? _tab
+                    : (tabs.isEmpty ? null : tabs.first);
+                final size = expanded
+                    ? IslandLayout.expandedSizeFor(side)
+                    : showBanner
+                    ? IslandLayout.bannerSizeFor(side)
+                    : IslandLayout.collapsedSizeFor(side);
+                final radius = expanded ? 24.0 : (showBanner ? 22.0 : 18.0);
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOutCubic,
+                  width: size.width,
+                  height: size.height,
+                  clipBehavior: Clip.hardEdge,
+                  decoration: BoxDecoration(
+                    color: colors.background,
+                    borderRadius: BorderRadius.circular(radius),
+                    border: Border.all(
+                      color: island.pulse && !expanded
+                          ? colors.accent.withValues(alpha: 0.75)
+                          : colors.stroke,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.35),
+                        blurRadius: expanded ? 24 : 12,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: OverflowBox(
+                    alignment: Alignment.topCenter,
+                    minWidth: 0,
+                    maxWidth: size.width,
+                    minHeight: 0,
+                    maxHeight: size.height,
+                    child: expanded
+                        ? _ExpandedBody(
+                            size: IslandLayout.expandedSizeFor(side),
+                            island: island,
+                            messages: widget.messages,
+                            weather: widget.weather,
+                            media: widget.media,
+                            diagnostics: widget.diagnostics,
+                            onOpenSettings: widget.onOpenSettings,
+                            handleVisible: island.handleVisible,
+                            onDragStart: () =>
+                                unawaited(widget.windowPosition.startDrag()),
+                            tabs: tabs,
+                            tab: tab,
+                            onTab: (tab) => setState(() => _tab = tab),
+                          )
                         : showBanner
-                        ? IslandLayout.bannerSize
-                        : IslandLayout.collapsedSize;
-                    final radius = expanded ? 24.0 : (showBanner ? 22.0 : 18.0);
-                    return AnimatedContainer(
-                      duration: const Duration(milliseconds: 220),
-                      curve: Curves.easeOutCubic,
-                      width: size.width,
-                      height: size.height,
-                      clipBehavior: Clip.hardEdge,
-                      decoration: BoxDecoration(
-                        color: colors.background,
-                        borderRadius: BorderRadius.circular(radius),
-                        border: Border.all(
-                          color: island.pulse && !expanded
-                              ? colors.accent.withValues(alpha: 0.75)
-                              : colors.stroke,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.35),
-                            blurRadius: expanded ? 24 : 12,
-                            offset: const Offset(0, 6),
+                        ? NotificationBanner(controller: widget.messages)
+                        : CollapsedBar(
+                            messages: widget.messages,
+                            weather: widget.weather,
+                            media: widget.media,
+                            showWeather: widget.settings.settings.showWeather,
+                            showPlayingIndicator:
+                                widget.settings.settings.showPlayingIndicator,
+                            vertical: side.isVertical,
                           ),
-                        ],
-                      ),
-                      child: OverflowBox(
-                        alignment: Alignment.topCenter,
-                        minWidth: 0,
-                        maxWidth: IslandLayout.expandedSize.width,
-                        minHeight: 0,
-                        maxHeight: IslandLayout.expandedSize.height,
-                        child: expanded
-                            ? _ExpandedBody(
-                                island: island,
-                                messages: widget.messages,
-                                weather: widget.weather,
-                                media: widget.media,
-                                diagnostics: widget.diagnostics,
-                                onOpenSettings: widget.onOpenSettings,
-                                handleVisible: island.handleVisible,
-                                onDragStart: () => unawaited(
-                                  widget.windowPosition.startDrag(),
-                                ),
-                                tabs: tabs,
-                                tab: tab,
-                                onTab: (tab) => setState(() => _tab = tab),
-                              )
-                            : showBanner
-                            ? NotificationBanner(controller: widget.messages)
-                            : CollapsedBar(
-                                messages: widget.messages,
-                                weather: widget.weather,
-                                media: widget.media,
-                                showWeather:
-                                    widget.settings.settings.showWeather,
-                                showPlayingIndicator: widget
-                                    .settings
-                                    .settings
-                                    .showPlayingIndicator,
-                              ),
-                      ),
-                    );
-                  },
-                ),
-              ),
+                  ),
+                );
+              },
             ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -158,6 +181,7 @@ class _IslandShellState extends State<IslandShell> {
 
 class _ExpandedBody extends StatelessWidget {
   const _ExpandedBody({
+    required this.size,
     required this.island,
     required this.messages,
     required this.weather,
@@ -171,6 +195,7 @@ class _ExpandedBody extends StatelessWidget {
     required this.onTab,
   });
 
+  final Size size;
   final IslandController island;
   final MessagesController messages;
   final WeatherController weather;
@@ -188,8 +213,8 @@ class _ExpandedBody extends StatelessWidget {
     final colors = context.islandColors;
     final activeTab = tab;
     return SizedBox(
-      width: IslandLayout.expandedSize.width,
-      height: IslandLayout.expandedSize.height,
+      width: size.width,
+      height: size.height,
       child: Stack(
         children: [
           Column(
@@ -253,23 +278,7 @@ class _ExpandedBody extends StatelessWidget {
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(14, 4, 14, 12),
-                  child: activeTab == null
-                      ? _NoVisibleTabs(
-                          colors: colors,
-                          onOpenSettings: onOpenSettings,
-                        )
-                      : switch (activeTab) {
-                          IslandTab.messages => MessagesTab(
-                            controller: messages,
-                          ),
-                          IslandTab.weather => WeatherTab(controller: weather),
-                          IslandTab.media => MediaTab(controller: media),
-                          IslandTab.diagnostics => DiagnosticsTab(
-                            connectionDetail: island.connectionDetail,
-                            diagnostics: diagnostics,
-                            weather: weather,
-                          ),
-                        },
+                  child: _content(colors, activeTab),
                 ),
               ),
             ],
@@ -305,6 +314,22 @@ class _ExpandedBody extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Widget _content(IslandColors colors, IslandTab? activeTab) {
+    if (activeTab == null) {
+      return _NoVisibleTabs(colors: colors, onOpenSettings: onOpenSettings);
+    }
+    return switch (activeTab) {
+      IslandTab.messages => MessagesTab(controller: messages),
+      IslandTab.weather => WeatherTab(controller: weather),
+      IslandTab.media => MediaTab(controller: media),
+      IslandTab.diagnostics => DiagnosticsTab(
+        connectionDetail: island.connectionDetail,
+        diagnostics: diagnostics,
+        weather: weather,
+      ),
+    };
   }
 }
 

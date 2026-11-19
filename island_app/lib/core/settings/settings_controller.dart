@@ -15,21 +15,28 @@ class SettingsController extends ChangeNotifier {
   final SidecarSupervisor supervisor;
   AppSettings _settings = const AppSettings();
   bool _loaded = false;
+  bool _loading = false;
   int _saveSequence = 0;
   Future<void> _saveChain = Future<void>.value();
 
   AppSettings get settings => _settings;
+
+  /// 只有真正取回设置后才为真。窗口位置恢复依赖它，不能提前置位。
   bool get loaded => _loaded;
 
   Future<void> load() async {
     try {
       final result = await supervisor.call('settings.get');
       final raw = result['settings'];
-      if (raw is! Map<String, dynamic>) return;
-      _settings = AppSettings.fromJson(raw);
-      notifyListeners();
+      if (raw is Map<String, dynamic>) {
+        _settings = AppSettings.fromJson(raw);
+      }
     } catch (error) {
       AppLog.write('[settings] load failed: $error');
+    } finally {
+      _loading = false;
+      _loaded = true;
+      notifyListeners();
     }
   }
 
@@ -63,10 +70,11 @@ class SettingsController extends ChangeNotifier {
   void _onSupervisorChanged() {
     if (!supervisor.ready) {
       _loaded = false;
+      _loading = false;
       return;
     }
-    if (_loaded) return;
-    _loaded = true;
+    if (_loaded || _loading) return;
+    _loading = true;
     unawaited(load());
   }
 

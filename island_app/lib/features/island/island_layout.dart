@@ -1,20 +1,55 @@
 import 'dart:ui';
 
 import '../../core/window/app_window.dart';
+import '../../core/window/dock_edge.dart';
 
 /// 岛体各状态的尺寸与命中区域。绘制与点击穿透都以这里为准，避免两处手抄。
+///
+/// 顶部停靠为横向布局；左右停靠为竖向布局，展开面板保持竖向尺寸，
+/// 内容不旋转，只把 tab 改为竖排。
 abstract final class IslandLayout {
-  static const double topInset = 8;
+  /// 顶部停靠时岛体与屏幕上边缘的间距。
+  static const double edgeInset = 8;
 
+  // 横向（顶部停靠）。
   static const Size collapsedSize = Size(178, 36);
   static const Size bannerSize = Size(360, 80);
   static const Size expandedSize = Size(380, 260);
 
-  /// 在窗口画布内水平居中、距顶部 [topInset] 的矩形（窗口坐标）。
-  static Rect centered(Size size) => Rect.fromLTWH(
-    (appWindowSize.width - size.width) / 2,
-    topInset,
-    size.width,
-    size.height,
-  );
+  // 竖向（左右停靠）：收起为窄条；展开面板与顶部完全同尺寸、同布局。
+  static const Size collapsedVerticalSize = Size(40, 178);
+
+  static Size collapsedSizeFor(DockEdge side) =>
+      side.isVertical ? collapsedVerticalSize : collapsedSize;
+
+  static Size expandedSizeFor(DockEdge side) => expandedSize;
+
+  /// 横幅保持横向，临时消息不因停靠方向变得难读。
+  static Size bannerSizeFor(DockEdge side) => bannerSize;
+
+  /// 岛体在窗口画布内的矩形。三种停靠都保留同样的边缘间距。
+  static Rect rectFor(DockEdge side, Size size) {
+    final centeredX = (appWindowSize.width - size.width) / 2;
+    final centeredY = (appWindowSize.height - size.height) / 2;
+    return switch (side) {
+      DockEdge.top => Rect.fromLTWH(
+        centeredX,
+        edgeInset,
+        size.width,
+        size.height,
+      ),
+      DockEdge.left => Rect.fromLTWH(
+        edgeInset,
+        centeredY,
+        size.width,
+        size.height,
+      ),
+      DockEdge.right => Rect.fromLTWH(
+        appWindowSize.width - edgeInset - size.width,
+        centeredY,
+        size.width,
+        size.height,
+      ),
+    };
+  }
 }

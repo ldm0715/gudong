@@ -9,8 +9,8 @@ class AppSettings {
     this.showPlayingIndicator = true,
     this.tabOrder = defaultTabOrder,
     this.hiddenTabs = const [],
-    this.windowX,
-    this.windowY,
+    this.dockSide = 'top',
+    this.dockOffset,
   });
 
   static const List<String> defaultTabOrder = [
@@ -28,8 +28,8 @@ class AppSettings {
       showPlayingIndicator: json['showPlayingIndicator'] != false,
       tabOrder: _normalizeOrder(json['tabOrder']),
       hiddenTabs: _normalizeHidden(json['hiddenTabs']),
-      windowX: (json['windowX'] as num?)?.toDouble(),
-      windowY: (json['windowY'] as num?)?.toDouble(),
+      dockSide: _normalizeDockSide(json['dockSide']),
+      dockOffset: (json['dockOffset'] as num?)?.toDouble(),
     );
   }
 
@@ -39,8 +39,12 @@ class AppSettings {
   final bool showPlayingIndicator;
   final List<String> tabOrder;
   final List<String> hiddenTabs;
-  final double? windowX;
-  final double? windowY;
+
+  /// 停靠边缘：`top` / `left` / `right`。
+  final String dockSide;
+
+  /// 岛体中心沿停靠边缘的物理像素坐标。
+  final double? dockOffset;
 
   /// 已排好序的全部页面，未知 id 被丢弃，缺失的补在末尾。
   List<IslandTab> get orderedTabs {
@@ -67,8 +71,8 @@ class AppSettings {
     'showPlayingIndicator': showPlayingIndicator,
     'tabOrder': tabOrder,
     'hiddenTabs': hiddenTabs,
-    if (windowX != null) 'windowX': windowX,
-    if (windowY != null) 'windowY': windowY,
+    'dockSide': dockSide,
+    if (dockOffset != null) 'dockOffset': dockOffset,
   };
 
   AppSettings copyWith({
@@ -78,19 +82,18 @@ class AppSettings {
     bool? showPlayingIndicator,
     List<String>? tabOrder,
     List<String>? hiddenTabs,
-    double? windowX,
-    double? windowY,
+    String? dockSide,
+    double? dockOffset,
   }) {
     return AppSettings(
       themeId: themeId ?? this.themeId,
       showWeather: showWeather ?? this.showWeather,
       mediaEnabled: mediaEnabled ?? this.mediaEnabled,
-      showPlayingIndicator:
-          showPlayingIndicator ?? this.showPlayingIndicator,
+      showPlayingIndicator: showPlayingIndicator ?? this.showPlayingIndicator,
       tabOrder: tabOrder ?? this.tabOrder,
       hiddenTabs: hiddenTabs ?? this.hiddenTabs,
-      windowX: windowX ?? this.windowX,
-      windowY: windowY ?? this.windowY,
+      dockSide: dockSide ?? this.dockSide,
+      dockOffset: dockOffset ?? this.dockOffset,
     );
   }
 
@@ -107,6 +110,9 @@ class AppSettings {
     }
     return ids;
   }
+
+  static String _normalizeDockSide(Object? raw) =>
+      raw == 'left' || raw == 'right' ? raw as String : 'top';
 
   static List<String> _normalizeHidden(Object? raw) {
     final ids = <String>[];

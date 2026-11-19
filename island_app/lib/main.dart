@@ -68,21 +68,6 @@ Future<void> main(List<String> args) async {
   final island = IslandController(supervisor: supervisor, messages: messages);
   final clickThrough = ClickThroughController(windowSize: appWindowSize);
 
-  clickThrough.setInteractiveRect(
-    IslandLayout.centered(IslandLayout.collapsedSize),
-  );
-  // 命中区域跟随岛体状态切换。
-  island.addListener(() {
-    clickThrough.setInteractiveRect(
-      IslandLayout.centered(
-        island.expanded
-            ? IslandLayout.expandedSize
-            : island.showBanner
-            ? IslandLayout.bannerSize
-            : IslandLayout.collapsedSize,
-      ),
-    );
-  });
   // 悬停展开 / 收起：命中状态来自 16ms 的光标轮询，不依赖 Flutter 的
   // MouseRegion 事件，穿透状态下也能可靠触发。
   clickThrough.pointerInside.addListener(() {
@@ -94,6 +79,25 @@ Future<void> main(List<String> args) async {
   await prepareAppWindow();
   // 位置恢复放在窗口准备好之后，避免被窗口初始化覆盖。
   final windowPosition = WindowPositionKeeper(settings);
+
+  // 命中区域跟随岛体状态与停靠方向切换。
+  void updateInteractiveRect() {
+    final side = windowPosition.side;
+    clickThrough.setInteractiveRect(
+      IslandLayout.rectFor(
+        side,
+        island.expanded
+            ? IslandLayout.expandedSizeFor(side)
+            : island.showBanner
+            ? IslandLayout.bannerSizeFor(side)
+            : IslandLayout.collapsedSizeFor(side),
+      ),
+    );
+  }
+
+  island.addListener(updateInteractiveRect);
+  windowPosition.addListener(updateInteractiveRect);
+  updateInteractiveRect();
 
   runApp(
     GuduoApp(

@@ -6,21 +6,21 @@ void main() {
     final settings = AppSettings.fromJson(const {});
     expect(settings.themeId, 'midnight');
     expect(settings.showWeather, isTrue);
-    expect(settings.windowX, isNull);
-    expect(settings.windowY, isNull);
+    expect(settings.dockSide, 'top');
+    expect(settings.dockOffset, isNull);
   });
 
   test('parses and serializes persisted values', () {
     final settings = AppSettings.fromJson(const {
       'themeId': 'light',
       'showWeather': false,
-      'windowX': 120.5,
-      'windowY': 8.0,
+      'dockSide': 'left',
+      'dockOffset': 420.5,
     });
     expect(settings.themeId, 'light');
     expect(settings.showWeather, isFalse);
-    expect(settings.windowX, 120.5);
-    expect(settings.windowY, 8.0);
+    expect(settings.dockSide, 'left');
+    expect(settings.dockOffset, 420.5);
     expect(settings.toJson(), {
       'themeId': 'light',
       'showWeather': false,
@@ -28,17 +28,22 @@ void main() {
       'showPlayingIndicator': true,
       'tabOrder': ['messages', 'weather', 'media', 'diagnostics'],
       'hiddenTabs': <String>[],
-      'windowX': 120.5,
-      'windowY': 8.0,
+      'dockSide': 'left',
+      'dockOffset': 420.5,
     });
   });
 
+  test('falls back to the top edge for unknown dock sides', () {
+    final settings = AppSettings.fromJson(const {'dockSide': 'bottom'});
+    expect(settings.dockSide, 'top');
+  });
+
   test('copyWith keeps unspecified fields', () {
-    const settings = AppSettings(windowX: 10, windowY: 20);
+    const settings = AppSettings(dockSide: 'right', dockOffset: 20);
     final next = settings.copyWith(themeId: 'light');
     expect(next.themeId, 'light');
-    expect(next.windowX, 10);
-    expect(next.windowY, 20);
+    expect(next.dockSide, 'right');
+    expect(next.dockOffset, 20);
   });
 
   test('normalizes unknown and missing tab ids', () {
@@ -46,12 +51,7 @@ void main() {
       'tabOrder': ['media', 'unknown', 'media', 'messages'],
       'hiddenTabs': ['weather', 'nope'],
     });
-    expect(settings.tabOrder, [
-      'media',
-      'messages',
-      'weather',
-      'diagnostics',
-    ]);
+    expect(settings.tabOrder, ['media', 'messages', 'weather', 'diagnostics']);
     expect(settings.hiddenTabs, ['weather']);
     expect(settings.visibleTabs.map((tab) => tab.id), [
       'media',
