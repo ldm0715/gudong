@@ -16,6 +16,8 @@ mod clients;
 #[cfg(windows)]
 mod foreground;
 #[cfg(windows)]
+mod ime;
+#[cfg(windows)]
 mod notifications;
 #[cfg(windows)]
 mod wechat;
@@ -68,6 +70,7 @@ fn main() {
     #[cfg(windows)]
     {
         foreground::start(state.clone(), tx.clone());
+        ime::start(state.clone(), tx.clone());
         if let Err(error) = notifications::start(state.clone(), tx.clone()) {
             let _ = tx.send(rpc::emit_status(&state, "notifications", false, &error));
             log(&format!("notification listener failed: {error}"));

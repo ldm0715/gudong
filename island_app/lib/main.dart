@@ -20,6 +20,7 @@ import 'features/settings/settings_window.dart';
 import 'features/settings/settings_window_args.dart';
 import 'features/settings/settings_window_launcher.dart';
 import 'features/diagnostics/diagnostics_controller.dart';
+import 'features/ime/ime_controller.dart';
 import 'features/island/island_controller.dart';
 import 'features/island/island_layout.dart';
 import 'features/media/media_controller.dart';
@@ -62,6 +63,7 @@ Future<void> main(List<String> args) async {
   final messages = MessagesController(supervisor);
   final weather = WeatherController(supervisor);
   final media = MediaController(supervisor);
+  final ime = ImeController(supervisor);
   final diagnostics = DiagnosticsController(supervisor);
   final settings = SettingsController(supervisor);
   final settingsLauncher = SettingsWindowLauncher(settings);
@@ -83,19 +85,27 @@ Future<void> main(List<String> args) async {
   // 命中区域跟随岛体状态与停靠方向切换。
   void updateInteractiveRect() {
     final side = windowPosition.side;
+    final appSettings = settings.settings;
+    final showBanner =
+        island.showBanner || (appSettings.showImeBanner && ime.visible);
     clickThrough.setInteractiveRect(
       IslandLayout.rectFor(
         side,
         island.expanded
             ? IslandLayout.expandedSizeFor(side)
-            : island.showBanner
+            : showBanner
             ? IslandLayout.bannerSizeFor(side)
-            : IslandLayout.collapsedSizeFor(side),
+            : IslandLayout.collapsedSizeFor(
+                side,
+                imeIndicator: appSettings.showImeIndicator,
+              ),
       ),
     );
   }
 
   island.addListener(updateInteractiveRect);
+  ime.addListener(updateInteractiveRect);
+  settings.addListener(updateInteractiveRect);
   windowPosition.addListener(updateInteractiveRect);
   updateInteractiveRect();
 
@@ -107,6 +117,7 @@ Future<void> main(List<String> args) async {
         messages: messages,
         weather: weather,
         media: media,
+        ime: ime,
         diagnostics: diagnostics,
         settings: settings,
         settingsWindow: settingsLauncher,

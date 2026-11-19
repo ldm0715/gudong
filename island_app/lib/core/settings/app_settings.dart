@@ -7,6 +7,8 @@ class AppSettings {
     this.showWeather = true,
     this.mediaEnabled = true,
     this.showPlayingIndicator = true,
+    this.showImeIndicator = true,
+    this.showImeBanner = true,
     this.tabOrder = defaultTabOrder,
     this.hiddenTabs = const [],
     this.dockSide = 'top',
@@ -26,6 +28,8 @@ class AppSettings {
       showWeather: json['showWeather'] != false,
       mediaEnabled: json['mediaEnabled'] != false,
       showPlayingIndicator: json['showPlayingIndicator'] != false,
+      showImeIndicator: json['showImeIndicator'] != false,
+      showImeBanner: json['showImeBanner'] != false,
       tabOrder: _normalizeOrder(json['tabOrder']),
       hiddenTabs: _normalizeHidden(json['hiddenTabs']),
       dockSide: _normalizeDockSide(json['dockSide']),
@@ -37,6 +41,12 @@ class AppSettings {
   final bool showWeather;
   final bool mediaEnabled;
   final bool showPlayingIndicator;
+
+  /// 收起态常驻显示当前输入法模式。
+  final bool showImeIndicator;
+
+  /// 输入法切换时弹出横幅。
+  final bool showImeBanner;
   final List<String> tabOrder;
   final List<String> hiddenTabs;
 
@@ -69,6 +79,8 @@ class AppSettings {
     'showWeather': showWeather,
     'mediaEnabled': mediaEnabled,
     'showPlayingIndicator': showPlayingIndicator,
+    'showImeIndicator': showImeIndicator,
+    'showImeBanner': showImeBanner,
     'tabOrder': tabOrder,
     'hiddenTabs': hiddenTabs,
     'dockSide': dockSide,
@@ -80,6 +92,8 @@ class AppSettings {
     bool? showWeather,
     bool? mediaEnabled,
     bool? showPlayingIndicator,
+    bool? showImeIndicator,
+    bool? showImeBanner,
     List<String>? tabOrder,
     List<String>? hiddenTabs,
     String? dockSide,
@@ -90,6 +104,8 @@ class AppSettings {
       showWeather: showWeather ?? this.showWeather,
       mediaEnabled: mediaEnabled ?? this.mediaEnabled,
       showPlayingIndicator: showPlayingIndicator ?? this.showPlayingIndicator,
+      showImeIndicator: showImeIndicator ?? this.showImeIndicator,
+      showImeBanner: showImeBanner ?? this.showImeBanner,
       tabOrder: tabOrder ?? this.tabOrder,
       hiddenTabs: hiddenTabs ?? this.hiddenTabs,
       dockSide: dockSide ?? this.dockSide,

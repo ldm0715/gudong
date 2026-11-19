@@ -42,6 +42,8 @@ class SettingsWindowLauncher {
           showWeather: incoming.showWeather,
           mediaEnabled: incoming.mediaEnabled,
           showPlayingIndicator: incoming.showPlayingIndicator,
+          showImeIndicator: incoming.showImeIndicator,
+          showImeBanner: incoming.showImeBanner,
           tabOrder: incoming.tabOrder,
           hiddenTabs: incoming.hiddenTabs,
         ),

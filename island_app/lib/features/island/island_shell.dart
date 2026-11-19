@@ -9,6 +9,8 @@ import '../../core/window/dock_edge.dart';
 import '../../core/window/window_position.dart';
 import '../diagnostics/diagnostics_controller.dart';
 import '../diagnostics/diagnostics_tab.dart';
+import '../ime/ime_banner.dart';
+import '../ime/ime_controller.dart';
 import '../media/media_controller.dart';
 import '../media/media_tab.dart';
 import '../messages/messages_controller.dart';
@@ -29,6 +31,7 @@ class IslandShell extends StatefulWidget {
     required this.messages,
     required this.weather,
     required this.media,
+    required this.ime,
     required this.diagnostics,
     required this.settings,
     required this.windowPosition,
@@ -39,6 +42,7 @@ class IslandShell extends StatefulWidget {
   final MessagesController messages;
   final WeatherController weather;
   final MediaController media;
+  final ImeController ime;
   final DiagnosticsController diagnostics;
   final SettingsController settings;
   final WindowPositionKeeper windowPosition;
@@ -96,6 +100,7 @@ class _IslandShellState extends State<IslandShell> {
                 widget.messages,
                 widget.weather,
                 widget.media,
+                widget.ime,
                 widget.diagnostics,
                 widget.settings,
               ]),
@@ -103,16 +108,26 @@ class _IslandShellState extends State<IslandShell> {
                 final colors = context.islandColors;
                 final expanded = island.expanded;
                 final showBanner = island.showBanner;
-                final tabs = widget.settings.settings.visibleTabs;
+                final settings = widget.settings.settings;
+                // 输入法切换复用消息横幅的激活态，消息横幅优先。
+                final showIme =
+                    settings.showImeBanner &&
+                    widget.ime.visible &&
+                    !showBanner;
+                final activeBanner = showBanner || showIme;
+                final tabs = settings.visibleTabs;
                 final tab = tabs.contains(_tab)
                     ? _tab
                     : (tabs.isEmpty ? null : tabs.first);
                 final size = expanded
                     ? IslandLayout.expandedSizeFor(side)
-                    : showBanner
+                    : activeBanner
                     ? IslandLayout.bannerSizeFor(side)
-                    : IslandLayout.collapsedSizeFor(side);
-                final radius = expanded ? 24.0 : (showBanner ? 22.0 : 18.0);
+                    : IslandLayout.collapsedSizeFor(
+                        side,
+                        imeIndicator: settings.showImeIndicator,
+                      );
+                final radius = expanded ? 24.0 : (activeBanner ? 22.0 : 18.0);
                 return AnimatedContainer(
                   duration: const Duration(milliseconds: 220),
                   curve: Curves.easeOutCubic,
@@ -123,7 +138,10 @@ class _IslandShellState extends State<IslandShell> {
                     color: colors.background,
                     borderRadius: BorderRadius.circular(radius),
                     border: Border.all(
-                      color: island.pulse && !expanded
+                      color:
+                          (island.pulse ||
+                              (settings.showImeBanner && widget.ime.visible)) &&
+                              !expanded
                           ? colors.accent.withValues(alpha: 0.75)
                           : colors.stroke,
                     ),
@@ -159,13 +177,16 @@ class _IslandShellState extends State<IslandShell> {
                           )
                         : showBanner
                         ? NotificationBanner(controller: widget.messages)
+                        : showIme
+                        ? ImeBanner(chinese: widget.ime.chinese)
                         : CollapsedBar(
                             messages: widget.messages,
                             weather: widget.weather,
                             media: widget.media,
-                            showWeather: widget.settings.settings.showWeather,
-                            showPlayingIndicator:
-                                widget.settings.settings.showPlayingIndicator,
+                            ime: widget.ime,
+                            showWeather: settings.showWeather,
+                            showPlayingIndicator: settings.showPlayingIndicator,
+                            showImeIndicator: settings.showImeIndicator,
                             vertical: side.isVertical,
                           ),
                   ),

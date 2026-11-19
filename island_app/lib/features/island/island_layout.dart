@@ -16,11 +16,28 @@ abstract final class IslandLayout {
   static const Size bannerSize = Size(360, 80);
   static const Size expandedSize = Size(380, 260);
 
+  // 常驻输入法标识会占用一段宽度，单独放大收起态，避免挤压其他内容。
+  static const Size collapsedImeSize = Size(210, 36);
+
   // 竖向（左右停靠）：收起为窄条；展开面板与顶部完全同尺寸、同布局。
   static const Size collapsedVerticalSize = Size(40, 178);
+  static const Size collapsedVerticalImeSize = Size(40, 200);
 
-  static Size collapsedSizeFor(DockEdge side) =>
-      side.isVertical ? collapsedVerticalSize : collapsedSize;
+  static Size collapsedSizeFor(DockEdge side, {bool imeIndicator = false}) {
+    if (side.isVertical) {
+      return imeIndicator ? collapsedVerticalImeSize : collapsedVerticalSize;
+    }
+    return imeIndicator ? collapsedImeSize : collapsedSize;
+  }
+
+  /// 收起栏自身使用的尺寸，按横向 / 竖向布局取。
+  static Size collapsedBarSize({
+    required bool vertical,
+    required bool imeIndicator,
+  }) => collapsedSizeFor(
+    vertical ? DockEdge.left : DockEdge.top,
+    imeIndicator: imeIndicator,
+  );
 
   static Size expandedSizeFor(DockEdge side) => expandedSize;
 

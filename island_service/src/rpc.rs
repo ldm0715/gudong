@@ -27,6 +27,7 @@ pub const CAPABILITIES: &[&str] = &[
     "media.control",
     "media.lyrics",
     "weather.current",
+    "ime.status",
     "settings.persist",
 ];
 
@@ -59,6 +60,8 @@ pub struct State {
     pub lyrics_sequence: Mutex<u64>,
     pub weather: Mutex<Option<crate::weather::WeatherSnapshot>>,
     pub weather_status: Mutex<String>,
+    /// 最近一次读到的输入法模式：`zh` / `en`，采样前为 `None`。
+    pub ime: Mutex<Option<&'static str>>,
     pub config: crate::config::Config,
 }
 
@@ -83,6 +86,7 @@ impl State {
             lyrics_sequence: Mutex::new(0),
             weather: Mutex::new(None),
             weather_status: Mutex::new("正在获取天气".into()),
+            ime: Mutex::new(None),
             config,
         }
     }
@@ -184,6 +188,14 @@ pub fn handle(state: &State, method: &str, params: &Value) -> Result<Action, Rpc
                 "lyrics": lyrics,
                 "pending": pending,
             })))
+        }
+        "ime.get" => {
+            let cached = state.ime.lock().map(|value| *value).unwrap_or(None);
+            #[cfg(windows)]
+            let mode = cached.or_else(crate::ime::current_mode);
+            #[cfg(not(windows))]
+            let mode = cached;
+            Ok(Action::Respond(json!({ "mode": mode })))
         }
         "weather.get" => {
             let snapshot = state

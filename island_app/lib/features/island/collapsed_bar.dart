@@ -4,6 +4,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../core/theme/island_colors.dart';
+import '../ime/ime_controller.dart';
+import '../ime/ime_indicator.dart';
 import '../media/media_controller.dart';
 import '../messages/messages_controller.dart';
 import '../weather/weather_controller.dart';
@@ -21,16 +23,20 @@ class CollapsedBar extends StatefulWidget {
     required this.messages,
     required this.weather,
     required this.media,
+    required this.ime,
     required this.showWeather,
     required this.showPlayingIndicator,
+    required this.showImeIndicator,
     this.vertical = false,
   });
 
   final MessagesController messages;
   final WeatherController weather;
   final MediaController media;
+  final ImeController ime;
   final bool showWeather;
   final bool showPlayingIndicator;
+  final bool showImeIndicator;
   final bool vertical;
 
   @override
@@ -75,12 +81,17 @@ class _CollapsedBarState extends State<CollapsedBar> {
         widget.showPlayingIndicator &&
         widget.media.available &&
         widget.media.playing;
+    final showIme = widget.showImeIndicator && widget.ime.mode != null;
+    final size = IslandLayout.collapsedBarSize(
+      vertical: widget.vertical,
+      imeIndicator: widget.showImeIndicator,
+    );
     if (widget.vertical) {
-      return _buildVertical(colors, time, snapshot, showWave);
+      return _buildVertical(colors, time, snapshot, showWave, showIme, size);
     }
     return SizedBox(
-      width: IslandLayout.collapsedSize.width,
-      height: IslandLayout.collapsedSize.height,
+      width: size.width,
+      height: size.height,
       child: Row(
         children: [
           const SizedBox(width: 10),
@@ -101,6 +112,10 @@ class _CollapsedBarState extends State<CollapsedBar> {
                 if (snapshot != null) ...[
                   const SizedBox(width: 7),
                   WeatherChip(snapshot: snapshot),
+                ],
+                if (showIme) ...[
+                  const SizedBox(width: 6),
+                  ImeIndicator(chinese: widget.ime.chinese),
                 ],
                 if (widget.messages.hasWechat) ...[
                   const SizedBox(width: 8),
@@ -126,13 +141,15 @@ class _CollapsedBarState extends State<CollapsedBar> {
     String time,
     WeatherSnapshot? snapshot,
     bool showWave,
+    bool showIme,
+    Size size,
   ) {
     // 窄栏放不下 "HH:MM"，拆成小时在上、分钟在下。
     final parts = time.split(':');
     final clock = parts.length == 2 ? '${parts[0]}\n${parts[1]}' : time;
     return SizedBox(
-      width: IslandLayout.collapsedVerticalSize.width,
-      height: IslandLayout.collapsedVerticalSize.height,
+      width: size.width,
+      height: size.height,
       child: Column(
         children: [
           const SizedBox(height: 10),
@@ -170,6 +187,10 @@ class _CollapsedBarState extends State<CollapsedBar> {
                       decoration: TextDecoration.none,
                     ),
                   ),
+                ],
+                if (showIme) ...[
+                  const SizedBox(height: 6),
+                  ImeIndicator(chinese: widget.ime.chinese),
                 ],
                 if (widget.messages.hasWechat) ...[
                   const SizedBox(height: 6),

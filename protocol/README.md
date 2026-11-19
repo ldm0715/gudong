@@ -15,6 +15,7 @@
 | `media.control` | `{action, source?, position?}` | `{ok, message?}`；`action` 为 `toggle` / `next` / `previous` / `seek` |
 | `lyrics.get` | `{}` | `{lyrics: LyricsSnapshot \| null, pending}` |
 | `weather.get` | `{}` | `{snapshot, status}`；`snapshot` 可能为 `null` |
+| `ime.get` | `{}` | `{mode}`；`mode` 为 `zh` / `en`，首次采样前为 `null` |
 | `settings.get` | `{}` | `{settings}` |
 | `settings.set` | `{settings:{...}}` | `{ok, settings}`；按 key 合并后返回全量设置 |
 | `app.shutdown` | `{}` | `{ok}`，随后进程退出 |
@@ -27,6 +28,8 @@
 | `showWeather` | bool | 是否在岛体显示天气，默认 `true` |
 | `mediaEnabled` | bool | 是否读取 SMTC 媒体会话，默认 `true` |
 | `showPlayingIndicator` | bool | 收起态播放时显示音波，默认 `true` |
+| `showImeIndicator` | bool | 收起态常驻显示输入法状态，默认 `true` |
+| `showImeBanner` | bool | 输入法切换时弹出横幅，默认 `true` |
 | `tabOrder` | string[] | 岛体 tab 顺序：`messages` / `weather` / `media` / `diagnostics` |
 | `hiddenTabs` | string[] | 隐藏的 tab；允许全部隐藏，此时岛体只显示标题栏与设置入口 |
 | `windowX` / `windowY` | number | 窗口左上角屏幕坐标（物理像素），缺省表示按默认位置摆放 |
@@ -69,6 +72,7 @@
 | `system.status` | `component` 为 `wechat` 或 `notifications`，带 `ok`、`message` |
 | `message.unread` | 新增或更新一条提醒；同一账号 5 秒内的重复闪动合并 |
 | `message.cleared` | 提醒已失效，带 `id`，或 `source` + 可选 `account`；清空该来源时只带 `source` |
+| `ime.changed` | 中英文输入法切换，带 `mode`（`zh` / `en`）与 `banner`；`banner=false` 表示只是切换窗口 / 焦点后的模式同步，只更新状态、不弹横幅 |
 | `weather.updated` | 实况刷新成功或失败，带 `snapshot`（可能为 `null`）与 `status` |
 | `media.changed` | 媒体信息变化，带 `media`；播放中最多 1Hz 推送进度，客户端本地插值 |
 | `media.lyrics` | 当前曲目歌词，带 `lyrics` 与 `pending`；切歌时立即发 `lyrics:null, pending:true`，抓取结束再发结果 |

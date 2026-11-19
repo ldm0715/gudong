@@ -190,6 +190,27 @@ class GeneralSettingsPage extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 18),
+        const SettingsSectionLabel('输入法'),
+        SettingsCard(
+          children: [
+            SettingsSwitchRow(
+              title: '显示输入法状态',
+              subtitle: '收起态显示当前“中 / en”输入模式',
+              value: settings.showImeIndicator,
+              onChanged: (value) =>
+                  onSave(settings.copyWith(showImeIndicator: value)),
+            ),
+            const SettingsDivider(),
+            SettingsSwitchRow(
+              title: '切换时显示横幅',
+              subtitle: '输入法切换时弹出与消息提醒相同的横幅',
+              value: settings.showImeBanner,
+              onChanged: (value) =>
+                  onSave(settings.copyWith(showImeBanner: value)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
         const SettingsSectionLabel('启动与快捷键'),
         const SettingsCard(
           children: [

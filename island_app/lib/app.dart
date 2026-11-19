@@ -14,6 +14,7 @@ import 'core/settings/settings_controller.dart';
 import 'core/theme/island_colors.dart';
 import 'core/window/window_position.dart';
 import 'features/diagnostics/diagnostics_controller.dart';
+import 'features/ime/ime_controller.dart';
 import 'features/island/island_controller.dart';
 import 'features/island/island_shell.dart';
 import 'features/media/media_controller.dart';
@@ -29,6 +30,7 @@ class AppScope {
     required this.messages,
     required this.weather,
     required this.media,
+    required this.ime,
     required this.diagnostics,
     required this.settings,
     required this.settingsWindow,
@@ -41,6 +43,7 @@ class AppScope {
   final MessagesController messages;
   final WeatherController weather;
   final MediaController media;
+  final ImeController ime;
   final DiagnosticsController diagnostics;
   final SettingsController settings;
   final SettingsWindowLauncher settingsWindow;
@@ -54,6 +57,7 @@ class AppScope {
     messages.dispose();
     weather.dispose();
     media.dispose();
+    ime.dispose();
     diagnostics.dispose();
     settings.dispose();
     await supervisor.close();
@@ -236,6 +240,7 @@ class _GuduoAppState extends State<GuduoApp> with WindowListener, TrayListener {
               messages: widget.scope.messages,
               weather: widget.scope.weather,
               media: widget.scope.media,
+              ime: widget.scope.ime,
               diagnostics: widget.scope.diagnostics,
               settings: widget.scope.settings,
               windowPosition: widget.scope.windowPosition,
