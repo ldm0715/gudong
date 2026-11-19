@@ -62,12 +62,13 @@ class SidecarSupervisor extends ChangeNotifier {
   Future<Map<String, dynamic>> call(
     String method, [
     Map<String, dynamic> params = const {},
+    Duration timeout = const Duration(seconds: 5),
   ]) {
     final client = _client;
     if (client == null || client.isClosed) {
       return Future.error(StateError('sidecar is not connected'));
     }
-    return client.call(method, params);
+    return client.call(method, params, timeout);
   }
 
   Future<void> _launch() async {

@@ -15,6 +15,8 @@ import '../media/media_controller.dart';
 import '../media/media_tab.dart';
 import '../messages/messages_controller.dart';
 import '../messages/messages_tab.dart';
+import '../translate/translate_controller.dart';
+import '../translate/translate_tab.dart';
 import '../weather/weather_controller.dart';
 import '../weather/weather_tab.dart';
 import 'client_glyph.dart';
@@ -33,6 +35,7 @@ class IslandShell extends StatefulWidget {
     required this.media,
     required this.ime,
     required this.diagnostics,
+    required this.translate,
     required this.settings,
     required this.windowPosition,
     required this.onOpenSettings,
@@ -44,6 +47,7 @@ class IslandShell extends StatefulWidget {
   final MediaController media;
   final ImeController ime;
   final DiagnosticsController diagnostics;
+  final TranslateController translate;
   final SettingsController settings;
   final WindowPositionKeeper windowPosition;
   final VoidCallback onOpenSettings;
@@ -102,6 +106,7 @@ class _IslandShellState extends State<IslandShell> {
                 widget.media,
                 widget.ime,
                 widget.diagnostics,
+                widget.translate,
                 widget.settings,
               ]),
               builder: (context, _) {
@@ -167,6 +172,8 @@ class _IslandShellState extends State<IslandShell> {
                             weather: widget.weather,
                             media: widget.media,
                             diagnostics: widget.diagnostics,
+                            translate: widget.translate,
+                            settings: widget.settings,
                             onOpenSettings: widget.onOpenSettings,
                             handleVisible: island.handleVisible,
                             onDragStart: () =>
@@ -208,6 +215,8 @@ class _ExpandedBody extends StatelessWidget {
     required this.weather,
     required this.media,
     required this.diagnostics,
+    required this.translate,
+    required this.settings,
     required this.onOpenSettings,
     required this.handleVisible,
     required this.onDragStart,
@@ -222,6 +231,8 @@ class _ExpandedBody extends StatelessWidget {
   final WeatherController weather;
   final MediaController media;
   final DiagnosticsController diagnostics;
+  final TranslateController translate;
+  final SettingsController settings;
   final VoidCallback onOpenSettings;
   final bool handleVisible;
   final VoidCallback onDragStart;
@@ -343,6 +354,10 @@ class _ExpandedBody extends StatelessWidget {
     }
     return switch (activeTab) {
       IslandTab.messages => MessagesTab(controller: messages),
+      IslandTab.translate => TranslateTab(
+        controller: translate,
+        settings: settings,
+      ),
       IslandTab.weather => WeatherTab(controller: weather),
       IslandTab.media => MediaTab(controller: media),
       IslandTab.diagnostics => DiagnosticsTab(

@@ -9,8 +9,10 @@ class SettingsWindowArguments {
 
   final AppSettings settings;
 
-  String encode() =>
-      jsonEncode({'type': 'settings', 'settings': settings.toJson()});
+  String encode() => jsonEncode({
+    'type': 'settings',
+    'settings': settings.toJson(includeRuntime: true),
+  });
 
   static SettingsWindowArguments? tryParse(String? raw) {
     if (raw == null || raw.isEmpty) return null;

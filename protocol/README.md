@@ -8,6 +8,7 @@
 | --- | --- | --- |
 | `app.hello` | `{apiVersion}` | `{version, apiVersion, capabilities}` |
 | `app.ping` | `{}` | `{pong, uptimeMs}` |
+| `app.openUrl` | `{url}` | `{ok}`；只接受 `http://` / `https://`，用系统默认浏览器打开 |
 | `messages.list` | `{}` | `{items:[Unread], listener:{ok, message}, notifications:{ok, message}}` |
 | `messages.seen` | `{id}` / `{source, account}` / `{}`（空对象 = 全部） | `{ok, removed}` |
 | `messages.open` | `{id}` 或 `{source, account}` | `{ok, message?}`；成功后客户端切到前台并清除该提醒 |
@@ -16,6 +17,9 @@
 | `lyrics.get` | `{}` | `{lyrics: LyricsSnapshot \| null, pending}` |
 | `weather.get` | `{}` | `{snapshot, status}`；`snapshot` 可能为 `null` |
 | `ime.get` | `{}` | `{mode}`；`mode` 为 `zh` / `en`，首次采样前为 `null` |
+| `translate.run` | `{text, to?, provider?}` | `{text, provider, to, from?}`；`provider` 为 `llm` / `deepl` / `caiyun` / `microsoftFree` / `mymemory`，省略按设置，auto 时按可用凭据选择 |
+| `translate.models` | `{baseUrl?, apiKey?}` | `{models:[string]}`；拉取 OpenAI 兼容服务的模型列表，`apiKey` 省略时读已保存的 LLM Key |
+| `translate.setSecret` | `{provider, key}` | `{ok, configured}`；`provider` 为 `llm` / `deepl` / `caiyun`，空 `key` 表示删除 |
 | `settings.get` | `{}` | `{settings}` |
 | `settings.set` | `{settings:{...}}` | `{ok, settings}`；按 key 合并后返回全量设置 |
 | `app.shutdown` | `{}` | `{ok}`，随后进程退出 |
@@ -30,11 +34,22 @@
 | `showPlayingIndicator` | bool | 收起态播放时显示音波，默认 `true` |
 | `showImeIndicator` | bool | 收起态常驻显示输入法状态，默认 `true` |
 | `showImeBanner` | bool | 输入法切换时弹出横幅，默认 `true` |
-| `tabOrder` | string[] | 岛体 tab 顺序：`messages` / `weather` / `media` / `diagnostics` |
+| `tabOrder` | string[] | 岛体 tab 顺序：`messages` / `translate` / `weather` / `media` / `diagnostics` |
 | `hiddenTabs` | string[] | 隐藏的 tab；允许全部隐藏，此时岛体只显示标题栏与设置入口 |
+| `translateProvider` | string | 翻译引擎：`auto`（默认）/ `llm` / `deepl` / `caiyun` / `microsoftFree` / `mymemory` |
+| `translateBaseUrl` | string | OpenAI 兼容服务的 base URL，默认 `https://api.openai.com/v1` |
+| `translateModel` | string | 大模型名称，空表示未配置 |
+| `translateTarget` | string | 目标语言，默认 `zh-CN` |
+| `translateSource` | string | 源语言，默认 `auto`（自动识别；MyMemory 不支持自动识别时由 sidecar 推断） |
+| `translateAutoOrder` | string[] | 自动模式的引擎优先级，默认 `["llm","deepl","caiyun","microsoftFree","mymemory"]`；未知项忽略，缺项补齐 |
+| `translateUserPrompt` | string | 额外翻译要求，默认空。填普通文字会拼在默认翻译指令后；含 `{{to}}` / `{{text}}` 时按模板替换 |
+| `translateSystemPrompt` | string | 自定义系统提示词，空表示使用内置模板，`{{to}}` 会替换为目标语言名 |
+| `translateMyMemoryEmail` | string | MyMemory 可选邮箱，作为 `de` 参数随请求发送；匿名约 5000 字符/天，填写后约 50000 字符/天 |
 | `windowX` / `windowY` | number | 窗口左上角屏幕坐标（物理像素），缺省表示按默认位置摆放 |
 
-设置落盘到 `%APPDATA%\guduo\config.json`，先写临时文件再替换。`settings.set` 只合并传入的 key，未传的键保持不变；值必须是合法 JSON，空 key 返回 `-32602`。
+`settings.get` 与 `settings.set` 的返回里还会带 `translateLlmKeyConfigured` / `translateDeeplKeyConfigured` / `translateCaiyunKeyConfigured` 三个只读布尔值。它们不写入 config.json，也不接受写入，表示对应密钥是否已在 Windows 凭据管理器里。
+
+设置落盘到 `%APPDATA%\guduo\config.json`，先写临时文件再替换。`settings.set` 只合并传入的 key，未传的键保持不变；值必须是合法 JSON，空 key 返回 `-32602`。翻译密钥通过 `translate.setSecret` 写入 Windows 凭据管理器（目标名 `guduo/translate/llm`、`guduo/translate/deepl`、`guduo/translate/caiyun`），不落 config.json。
 
 `Unread`：
 
@@ -153,6 +168,28 @@
 - `feels_like_c` / `humidity` / `wind_kph` / `precip_probability` 可能缺省；`days` 最多 5 天。
 - 定位与抓取都在 sidecar 内完成：定位优先 ipwho.is，失败退 freeipapi；天气优先 wttr.in，失败退 Open-Meteo；wttr.in 只有 3 天预报，不足 5 天时用 7Timer 补齐。日志不记录 IP 与坐标。
 - 刷新间隔 15 分钟，失败后 2 分钟重试；刷新失败时保留上一次 `snapshot`。
+
+## 翻译
+
+`translate.run` 在 sidecar 的后台线程执行，耗时可能超过普通请求的 5 秒；客户端应放宽到 60–90 秒。
+
+| provider | 接口 | 凭据 |
+| --- | --- | --- |
+| `llm` | `POST {translateBaseUrl}/chat/completions`（OpenAI 兼容） | `translate.setSecret` 的 `llm` |
+| `deepl` | `POST api.deepl.com/v2/translate`；Key 以 `:fx` 结尾时走 `api-free.deepl.com` | `deepl` |
+| `caiyun` | `POST api.interpreter.caiyunai.com/v1/translator` | 可选个人 Token；未配置时用官方公开测试 Token |
+| `microsoftFree` | `POST edge.microsoft.com/translate/translatetext`（Edge 内部接口） | 无 |
+| `mymemory` | `GET api.mymemory.translated.net/get` | 无 |
+
+- 未显式指定 `provider` 或为 `auto` 时，按 `translateAutoOrder` 从上到下选择第一个可用引擎；缺省顺序为 LLM → DeepL → 彩云 → 微软免密钥 → MyMemory。
+- 彩云小译支持译为 `zh-CN` / `zh-TW`，以及中文译为 `en` / `ja` / `ko`；其他目标返回 `-32603`。未配置个人 Token 时使用官方公开测试 Token，可能被限流或随时失效。
+- `microsoftFree` 是非官方接口，没有文档和 SLA，可能随时失效；失败时自动回退 MyMemory，结果的 `provider` 会返回 `mymemory`。
+- `translate.models` 请求 `GET {translateBaseUrl}/models`，返回 `data[].id` 去重排序后的列表。
+- MyMemory 不支持自动识别，sidecar 按字符集推断源语言；`q` 上限 500 字节，超长文本按句子分块。匿名约 5000 字符/天，配置 `translateMyMemoryEmail` 后约 50000 字符/天。
+- MyMemory 的邮箱不是账号或密钥，只用于官方联系和识别用量，会随每次翻译请求以 `de` 参数发送；留空则不发送。
+- 大模型默认使用与沉浸式翻译一致的 system/user 提示词结构；可用 `translateSystemPrompt` / `translateUserPrompt` 覆盖。
+- 引擎失败时返回 `-32603`，`message` 为可读错误；不会自动回退到其他引擎，避免用户误以为在用大模型。
+- 日志只记录引擎与错误，不记录原文、译文和密钥。
 
 `message.cleared` 的触发条件：
 

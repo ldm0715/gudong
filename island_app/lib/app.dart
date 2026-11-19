@@ -20,6 +20,7 @@ import 'features/island/island_shell.dart';
 import 'features/media/media_controller.dart';
 import 'features/messages/messages_controller.dart';
 import 'features/settings/settings_window_launcher.dart';
+import 'features/translate/translate_controller.dart';
 import 'features/weather/weather_controller.dart';
 
 /// 应用级依赖集合，由 main 组装，退出时统一释放。
@@ -32,6 +33,7 @@ class AppScope {
     required this.media,
     required this.ime,
     required this.diagnostics,
+    required this.translate,
     required this.settings,
     required this.settingsWindow,
     required this.windowPosition,
@@ -45,6 +47,7 @@ class AppScope {
   final MediaController media;
   final ImeController ime;
   final DiagnosticsController diagnostics;
+  final TranslateController translate;
   final SettingsController settings;
   final SettingsWindowLauncher settingsWindow;
   final WindowPositionKeeper windowPosition;
@@ -59,6 +62,7 @@ class AppScope {
     media.dispose();
     ime.dispose();
     diagnostics.dispose();
+    translate.dispose();
     settings.dispose();
     await supervisor.close();
     clickThrough.dispose();
@@ -242,6 +246,7 @@ class _GuduoAppState extends State<GuduoApp> with WindowListener, TrayListener {
               media: widget.scope.media,
               ime: widget.scope.ime,
               diagnostics: widget.scope.diagnostics,
+              translate: widget.scope.translate,
               settings: widget.scope.settings,
               windowPosition: widget.scope.windowPosition,
               onOpenSettings: () =>

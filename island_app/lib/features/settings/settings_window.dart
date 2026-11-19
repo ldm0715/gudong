@@ -7,13 +7,16 @@ import '../../core/log.dart';
 import '../../core/logging/crash_handler.dart';
 import '../../core/settings/app_settings.dart';
 import '../../core/theme/island_colors.dart';
+import '../translate/translate_bridge.dart';
 import 'settings_panel.dart';
 import 'settings_window_args.dart';
 import 'settings_window_native.dart';
+import 'translate_settings_page.dart';
 
 enum SettingsSection {
   general,
   pages,
+  translate,
   music,
   focus,
   todos,
@@ -27,6 +30,7 @@ extension SettingsSectionMeta on SettingsSection {
   String get label => switch (this) {
     SettingsSection.general => '常规',
     SettingsSection.pages => '页面管理',
+    SettingsSection.translate => '翻译',
     SettingsSection.music => '音乐与歌词',
     SettingsSection.focus => '专注与饮水',
     SettingsSection.todos => '待办与置物',
@@ -39,6 +43,7 @@ extension SettingsSectionMeta on SettingsSection {
   IconData get icon => switch (this) {
     SettingsSection.general => Icons.settings_rounded,
     SettingsSection.pages => Icons.dashboard_rounded,
+    SettingsSection.translate => Icons.translate_rounded,
     SettingsSection.music => Icons.music_note_rounded,
     SettingsSection.focus => Icons.local_fire_department_rounded,
     SettingsSection.todos => Icons.checklist_rounded,
@@ -51,6 +56,7 @@ extension SettingsSectionMeta on SettingsSection {
   Color get tint => switch (this) {
     SettingsSection.general => const Color(0xFF8E9AAF),
     SettingsSection.pages => const Color(0xFF5B8DEF),
+    SettingsSection.translate => const Color(0xFF7C6CF2),
     SettingsSection.music => const Color(0xFFF06292),
     SettingsSection.focus => const Color(0xFFF59E0B),
     SettingsSection.todos => const Color(0xFF34C77B),
@@ -74,6 +80,12 @@ Future<void> runSettingsWindow(SettingsWindowArguments args) async {
   CrashHandler.install();
   AppLog.write('[settings-window] engine started');
   SettingsNativeWindow.prepare(title: 'Guduo 设置');
+  // 与主窗口组成双向通道，翻译配置页通过它获取模型和保存密钥。
+  try {
+    await translateChannel.setMethodCallHandler((call) async => null);
+  } catch (error) {
+    AppLog.write('[settings-window] translate channel register failed: $error');
+  }
 
   // 主窗口通过 WindowController 发送 focus / close。
   try {
@@ -186,6 +198,10 @@ class _SettingsWindowAppState extends State<SettingsWindowApp> {
         onSave: _save,
       ),
       SettingsSection.pages => PagesSettingsPage(
+        settings: _settings,
+        onSave: _save,
+      ),
+      SettingsSection.translate => TranslateSettingsPage(
         settings: _settings,
         onSave: _save,
       ),

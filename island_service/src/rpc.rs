@@ -1,7 +1,7 @@
 //! stdio JSON-RPC 2.0 的最小实现：按行收发，只依赖 serde_json。
 
 use serde::Serialize;
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
 use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::Instant;
@@ -28,6 +28,9 @@ pub const CAPABILITIES: &[&str] = &[
     "media.lyrics",
     "weather.current",
     "ime.status",
+    "translate.text",
+    "translate.models",
+    "system.openUrl",
     "settings.persist",
 ];
 
@@ -63,6 +66,8 @@ pub struct State {
     /// 最近一次读到的输入法模式：`zh` / `en`，采样前为 `None`。
     pub ime: Mutex<Option<&'static str>>,
     pub config: crate::config::Config,
+    /// 翻译任务队列。网络请求在线程里跑，主循环只负责入队。
+    pub translate_tx: Mutex<Option<std::sync::mpsc::Sender<crate::translate::Job>>>,
 }
 
 impl Default for State {
@@ -88,6 +93,13 @@ impl State {
             weather_status: Mutex::new("正在获取天气".into()),
             ime: Mutex::new(None),
             config,
+            translate_tx: Mutex::new(None),
+        }
+    }
+
+    pub fn set_translate_sender(&self, sender: std::sync::mpsc::Sender<crate::translate::Job>) {
+        if let Ok(mut slot) = self.translate_tx.lock() {
+            *slot = Some(sender);
         }
     }
 }
@@ -110,9 +122,16 @@ impl RpcError {
 pub enum Action {
     Respond(Value),
     Shutdown(Value),
+    /// 请求已交给后台线程，稍后通过同一 id 单独写回响应。
+    Pending,
 }
 
-pub fn handle(state: &State, method: &str, params: &Value) -> Result<Action, RpcError> {
+pub fn handle(
+    state: &State,
+    id: &Value,
+    method: &str,
+    params: &Value,
+) -> Result<Action, RpcError> {
     match method {
         "app.hello" => {
             let client_api = params.get("apiVersion").and_then(Value::as_u64).unwrap_or(0);
@@ -132,6 +151,23 @@ pub fn handle(state: &State, method: &str, params: &Value) -> Result<Action, Rpc
             "pong": true,
             "uptimeMs": state.started.elapsed().as_millis() as u64,
         }))),
+        "app.openUrl" => {
+            let url = params
+                .get("url")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .trim();
+            if !(url.starts_with("https://") || url.starts_with("http://")) {
+                return Err(RpcError::new(
+                    ERR_INVALID_PARAMS,
+                    "url must start with http:// or https://",
+                ));
+            }
+            match crate::shell::open_url(url) {
+                Ok(()) => Ok(Action::Respond(json!({ "ok": true }))),
+                Err(message) => Err(RpcError::new(ERR_INTERNAL, message)),
+            }
+        }
         "messages.list" => {
             let mut items: Vec<UnreadInfo> = state
                 .unread
@@ -213,8 +249,26 @@ pub fn handle(state: &State, method: &str, params: &Value) -> Result<Action, Rpc
                 "status": status,
             })))
         }
+        "translate.run" | "translate.models" | "translate.setSecret" => {
+            let sender = state
+                .translate_tx
+                .lock()
+                .ok()
+                .and_then(|slot| slot.clone());
+            let Some(sender) = sender else {
+                return Err(RpcError::new(ERR_INTERNAL, "translate worker is not running"));
+            };
+            sender
+                .send(crate::translate::Job {
+                    id: id.clone(),
+                    method: method.to_string(),
+                    params: params.clone(),
+                })
+                .map_err(|_| RpcError::new(ERR_INTERNAL, "translate worker stopped"))?;
+            Ok(Action::Pending)
+        }
         "settings.get" => Ok(Action::Respond(json!({
-            "settings": state.config.snapshot(),
+            "settings": settings_snapshot(state),
         }))),
         "settings.set" => {
             let Some(patch) = params.get("settings").and_then(Value::as_object) else {
@@ -223,10 +277,22 @@ pub fn handle(state: &State, method: &str, params: &Value) -> Result<Action, Rpc
                     "settings.set requires a settings object",
                 ));
             };
-            match state.config.merge(patch) {
-                Ok(settings) => Ok(Action::Respond(json!({
+            // 只读派生键和密钥键不允许落进 config.json。
+            let mut patch = patch.clone();
+            for key in [
+                "translateLlmKeyConfigured",
+                "translateDeeplKeyConfigured",
+                "translateCaiyunKeyConfigured",
+                "translateLlmApiKey",
+                "translateDeeplApiKey",
+                "translateCaiyunToken",
+            ] {
+                patch.remove(key);
+            }
+            match state.config.merge(&patch) {
+                Ok(_) => Ok(Action::Respond(json!({
                     "ok": true,
-                    "settings": settings,
+                    "settings": settings_snapshot(state),
                 }))),
                 Err(message) => Err(RpcError::new(
                     ERR_INTERNAL,
@@ -271,6 +337,24 @@ fn media_control(params: &Value) -> Result<Action, RpcError> {
         Ok(()) => Ok(Action::Respond(json!({ "ok": true }))),
         Err(message) => Ok(Action::Respond(json!({ "ok": false, "message": message }))),
     }
+}
+
+/// 设置快照 + 凭据状态。凭据键是只读派生值，不写入 config.json。
+fn settings_snapshot(state: &State) -> Map<String, Value> {
+    let mut settings = state.config.snapshot();
+    settings.insert(
+        "translateLlmKeyConfigured".into(),
+        json!(crate::credentials::read(crate::credentials::LLM).is_some()),
+    );
+    settings.insert(
+        "translateDeeplKeyConfigured".into(),
+        json!(crate::credentials::read(crate::credentials::DEEPL).is_some()),
+    );
+    settings.insert(
+        "translateCaiyunKeyConfigured".into(),
+        json!(crate::credentials::read(crate::credentials::CAIYUN).is_some()),
+    );
+    settings
 }
 
 fn listener_status(state: &State) -> (bool, String) {
@@ -529,6 +613,7 @@ mod tests {
         let state = State::default();
         let set = handle(
             &state,
+            &Value::Null,
             "settings.set",
             &json!({ "settings": { "themeId": "midnight", "windowX": 120.5 } }),
         )
@@ -541,6 +626,7 @@ mod tests {
 
         let Action::Respond(result) = handle(
             &state,
+            &Value::Null,
             "settings.set",
             &json!({ "settings": { "showWeather": false } }),
         )
@@ -551,7 +637,8 @@ mod tests {
         assert_eq!(result["settings"]["themeId"], "midnight");
         assert_eq!(result["settings"]["showWeather"], false);
 
-        let Action::Respond(result) = handle(&state, "settings.get", &json!({})).unwrap()
+        let Action::Respond(result) =
+            handle(&state, &Value::Null, "settings.get", &json!({})).unwrap()
         else {
             panic!("expected response");
         };
@@ -559,9 +646,29 @@ mod tests {
     }
 
     #[test]
+    fn settings_set_drops_derived_translate_keys() {
+        let state = State::default();
+        let _ = handle(
+            &state,
+            &Value::Null,
+            "settings.set",
+            &json!({ "settings": {
+                "themeId": "midnight",
+                "translateLlmKeyConfigured": true,
+                "translateDeeplApiKey": "secret",
+            } }),
+        )
+        .unwrap();
+        let snapshot = state.config.snapshot();
+        assert_eq!(snapshot["themeId"], "midnight");
+        assert!(!snapshot.contains_key("translateLlmKeyConfigured"));
+        assert!(!snapshot.contains_key("translateDeeplApiKey"));
+    }
+
+    #[test]
     fn settings_set_requires_object_params() {
         let state = State::default();
-        let error = match handle(&state, "settings.set", &json!({})) {
+        let error = match handle(&state, &Value::Null, "settings.set", &json!({})) {
             Ok(_) => panic!("expected error"),
             Err(error) => error,
         };

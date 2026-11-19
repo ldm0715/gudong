@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../../core/log.dart';
 import '../../core/settings/app_settings.dart';
 import '../../core/settings/settings_controller.dart';
+import '../translate/translate_bridge.dart';
 import 'settings_window_args.dart';
 
 /// 主窗口侧：打开 / 复用独立设置窗口，并接收设置窗口的保存请求。
@@ -25,6 +26,49 @@ class SettingsWindowLauncher {
       await _channel.setMethodCallHandler(_onCall);
     } catch (error) {
       AppLog.write('[settings-window] channel register failed: $error');
+    }
+    try {
+      await translateChannel.setMethodCallHandler(_onTranslateCall);
+    } catch (error) {
+      AppLog.write('[settings-window] translate channel register failed: $error');
+    }
+  }
+
+  /// 设置窗口没有 sidecar 连接，模型列表、密钥和测试都经主窗口转发。
+  Future<dynamic> _onTranslateCall(MethodCall call) async {
+    final arguments = call.arguments is Map
+        ? Map<String, dynamic>.from(call.arguments as Map)
+        : <String, dynamic>{};
+    try {
+      return switch (call.method) {
+        'models' => await settings.supervisor.call(
+          'translate.models',
+          arguments,
+          const Duration(seconds: 30),
+        ),
+        'run' => await settings.supervisor.call(
+          'translate.run',
+          arguments,
+          const Duration(seconds: 90),
+        ),
+        'setSecret' => await settings.supervisor.call(
+          'translate.setSecret',
+          arguments,
+          const Duration(seconds: 10),
+        ),
+        'openUrl' => await settings.supervisor.call(
+          'app.openUrl',
+          arguments,
+          const Duration(seconds: 5),
+        ),
+        _ => throw PlatformException(
+          code: 'METHOD_NOT_FOUND',
+          message: 'translate method not found: ${call.method}',
+        ),
+      };
+    } catch (error) {
+      AppLog.write('[settings-window] translate ${call.method} failed: $error');
+      rethrow;
     }
   }
 
@@ -46,6 +90,15 @@ class SettingsWindowLauncher {
           showImeBanner: incoming.showImeBanner,
           tabOrder: incoming.tabOrder,
           hiddenTabs: incoming.hiddenTabs,
+          translateProvider: incoming.translateProvider,
+          translateBaseUrl: incoming.translateBaseUrl,
+          translateModel: incoming.translateModel,
+          translateTarget: incoming.translateTarget,
+          translateSource: incoming.translateSource,
+          translateAutoOrder: incoming.translateAutoOrder,
+          translateUserPrompt: incoming.translateUserPrompt,
+          translateSystemPrompt: incoming.translateSystemPrompt,
+          translateMyMemoryEmail: incoming.translateMyMemoryEmail,
         ),
       );
       return {'ok': true};

@@ -6,10 +6,13 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod config;
+mod credentials;
 mod lyrics;
 mod media;
 mod rpc;
+mod shell;
 mod single_instance;
+mod translate;
 mod weather;
 #[cfg(windows)]
 mod clients;
@@ -66,6 +69,8 @@ fn main() {
 
     weather::start(state.clone(), tx.clone());
     media::start(state.clone(), tx.clone());
+    let translate_tx = translate::start(state.clone(), tx.clone());
+    state.set_translate_sender(translate_tx);
 
     #[cfg(windows)]
     {
@@ -107,13 +112,14 @@ fn main() {
             continue;
         };
         let params = message.get("params").cloned().unwrap_or(Value::Null);
-        match rpc::handle(&state, method, &params) {
+        match rpc::handle(&state, &id, method, &params) {
             Ok(rpc::Action::Respond(result)) => write_line(&rpc::response(&id, result)),
             Ok(rpc::Action::Shutdown(result)) => {
                 write_line(&rpc::response(&id, result));
                 log("shutdown requested");
                 break;
             }
+            Ok(rpc::Action::Pending) => {}
             Err(error) => {
                 log(&format!("rpc error: {} {}", error.code, error.message));
                 write_line(&rpc::error(&id, error));

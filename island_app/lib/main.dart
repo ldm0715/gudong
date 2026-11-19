@@ -25,6 +25,7 @@ import 'features/island/island_controller.dart';
 import 'features/island/island_layout.dart';
 import 'features/media/media_controller.dart';
 import 'features/messages/messages_controller.dart';
+import 'features/translate/translate_controller.dart';
 import 'features/weather/weather_controller.dart';
 
 Future<void> main(List<String> args) async {
@@ -65,6 +66,7 @@ Future<void> main(List<String> args) async {
   final media = MediaController(supervisor);
   final ime = ImeController(supervisor);
   final diagnostics = DiagnosticsController(supervisor);
+  final translate = TranslateController(supervisor);
   final settings = SettingsController(supervisor);
   final settingsLauncher = SettingsWindowLauncher(settings);
   final island = IslandController(supervisor: supervisor, messages: messages);
@@ -119,6 +121,7 @@ Future<void> main(List<String> args) async {
         media: media,
         ime: ime,
         diagnostics: diagnostics,
+        translate: translate,
         settings: settings,
         settingsWindow: settingsLauncher,
         windowPosition: windowPosition,

@@ -13,14 +13,38 @@ class AppSettings {
     this.hiddenTabs = const [],
     this.dockSide = 'top',
     this.dockOffset,
+    this.translateProvider = 'auto',
+    this.translateBaseUrl = 'https://api.openai.com/v1',
+    this.translateModel = '',
+    this.translateTarget = 'zh-CN',
+    this.translateSource = 'auto',
+    this.translateAutoOrder = defaultTranslateAutoOrder,
+    this.translateUserPrompt = defaultTranslateUserPrompt,
+    this.translateSystemPrompt = '',
+    this.translateMyMemoryEmail = '',
+    this.translateLlmKeyConfigured = false,
+    this.translateDeeplKeyConfigured = false,
+    this.translateCaiyunKeyConfigured = false,
   });
 
   static const List<String> defaultTabOrder = [
     'messages',
+    'translate',
     'weather',
     'media',
     'diagnostics',
   ];
+
+  static const List<String> defaultTranslateAutoOrder = [
+    'llm',
+    'deepl',
+    'caiyun',
+    'microsoftFree',
+    'mymemory',
+  ];
+
+  /// 留空表示使用内置翻译指令；填写普通文字会作为额外要求拼接。
+  static const String defaultTranslateUserPrompt = '';
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
     return AppSettings(
@@ -34,6 +58,25 @@ class AppSettings {
       hiddenTabs: _normalizeHidden(json['hiddenTabs']),
       dockSide: _normalizeDockSide(json['dockSide']),
       dockOffset: (json['dockOffset'] as num?)?.toDouble(),
+      translateProvider: _normalizeTranslateProvider(json['translateProvider']),
+      translateBaseUrl:
+          json['translateBaseUrl']?.toString() ??
+          'https://api.openai.com/v1',
+      translateModel: json['translateModel']?.toString() ?? '',
+      translateTarget: json['translateTarget']?.toString() ?? 'zh-CN',
+      translateSource: json['translateSource']?.toString() ?? 'auto',
+      translateAutoOrder: _normalizeTranslateAutoOrder(
+        json['translateAutoOrder'],
+      ),
+      translateUserPrompt:
+          json['translateUserPrompt']?.toString() ?? defaultTranslateUserPrompt,
+      translateSystemPrompt: json['translateSystemPrompt']?.toString() ?? '',
+      translateMyMemoryEmail:
+          json['translateMyMemoryEmail']?.toString() ?? '',
+      translateLlmKeyConfigured: json['translateLlmKeyConfigured'] == true,
+      translateDeeplKeyConfigured: json['translateDeeplKeyConfigured'] == true,
+      translateCaiyunKeyConfigured:
+          json['translateCaiyunKeyConfigured'] == true,
     );
   }
 
@@ -56,6 +99,26 @@ class AppSettings {
   /// 岛体中心沿停靠边缘的物理像素坐标。
   final double? dockOffset;
 
+  /// 翻译引擎：`auto` / `llm` / `deepl` / `caiyun` / `microsoftFree` / `mymemory`。
+  final String translateProvider;
+  final String translateBaseUrl;
+  final String translateModel;
+  final String translateTarget;
+  final String translateSource;
+
+  /// 自动模式的引擎优先级，按列表顺序选择第一个可用引擎。
+  final List<String> translateAutoOrder;
+
+  /// 用户提示词模板，支持 `{{to}}` 和 `{{text}}`。
+  final String translateUserPrompt;
+  final String translateSystemPrompt;
+  final String translateMyMemoryEmail;
+
+  /// 只读派生状态，来自 sidecar，不写回 config.json。
+  final bool translateLlmKeyConfigured;
+  final bool translateDeeplKeyConfigured;
+  final bool translateCaiyunKeyConfigured;
+
   /// 已排好序的全部页面，未知 id 被丢弃，缺失的补在末尾。
   List<IslandTab> get orderedTabs {
     final ordered = <IslandTab>[];
@@ -74,7 +137,9 @@ class AppSettings {
       .where((tab) => !hiddenTabs.contains(tab.id))
       .toList(growable: false);
 
-  Map<String, dynamic> toJson() => {
+  /// [includeRuntime] 为 true 时带上只读凭据状态，只用于设置窗口的启动参数。
+  /// 写回 sidecar 时必须保持默认 false，否则派生键会混进 settings.set。
+  Map<String, dynamic> toJson({bool includeRuntime = false}) => {
     'themeId': themeId,
     'showWeather': showWeather,
     'mediaEnabled': mediaEnabled,
@@ -85,6 +150,20 @@ class AppSettings {
     'hiddenTabs': hiddenTabs,
     'dockSide': dockSide,
     if (dockOffset != null) 'dockOffset': dockOffset,
+    'translateProvider': translateProvider,
+    'translateBaseUrl': translateBaseUrl,
+    'translateModel': translateModel,
+    'translateTarget': translateTarget,
+    'translateSource': translateSource,
+    'translateAutoOrder': translateAutoOrder,
+    'translateUserPrompt': translateUserPrompt,
+    'translateSystemPrompt': translateSystemPrompt,
+    'translateMyMemoryEmail': translateMyMemoryEmail,
+    if (includeRuntime) ...{
+      'translateLlmKeyConfigured': translateLlmKeyConfigured,
+      'translateDeeplKeyConfigured': translateDeeplKeyConfigured,
+      'translateCaiyunKeyConfigured': translateCaiyunKeyConfigured,
+    },
   };
 
   AppSettings copyWith({
@@ -98,6 +177,18 @@ class AppSettings {
     List<String>? hiddenTabs,
     String? dockSide,
     double? dockOffset,
+    String? translateProvider,
+    String? translateBaseUrl,
+    String? translateModel,
+    String? translateTarget,
+    String? translateSource,
+    List<String>? translateAutoOrder,
+    String? translateUserPrompt,
+    String? translateSystemPrompt,
+    String? translateMyMemoryEmail,
+    bool? translateLlmKeyConfigured,
+    bool? translateDeeplKeyConfigured,
+    bool? translateCaiyunKeyConfigured,
   }) {
     return AppSettings(
       themeId: themeId ?? this.themeId,
@@ -110,6 +201,22 @@ class AppSettings {
       hiddenTabs: hiddenTabs ?? this.hiddenTabs,
       dockSide: dockSide ?? this.dockSide,
       dockOffset: dockOffset ?? this.dockOffset,
+      translateProvider: translateProvider ?? this.translateProvider,
+      translateBaseUrl: translateBaseUrl ?? this.translateBaseUrl,
+      translateModel: translateModel ?? this.translateModel,
+      translateTarget: translateTarget ?? this.translateTarget,
+      translateSource: translateSource ?? this.translateSource,
+      translateAutoOrder: translateAutoOrder ?? this.translateAutoOrder,
+      translateUserPrompt: translateUserPrompt ?? this.translateUserPrompt,
+      translateSystemPrompt: translateSystemPrompt ?? this.translateSystemPrompt,
+      translateMyMemoryEmail:
+          translateMyMemoryEmail ?? this.translateMyMemoryEmail,
+      translateLlmKeyConfigured:
+          translateLlmKeyConfigured ?? this.translateLlmKeyConfigured,
+      translateDeeplKeyConfigured:
+          translateDeeplKeyConfigured ?? this.translateDeeplKeyConfigured,
+      translateCaiyunKeyConfigured:
+          translateCaiyunKeyConfigured ?? this.translateCaiyunKeyConfigured,
     );
   }
 
@@ -129,6 +236,35 @@ class AppSettings {
 
   static String _normalizeDockSide(Object? raw) =>
       raw == 'left' || raw == 'right' ? raw as String : 'top';
+
+  static List<String> _normalizeTranslateAutoOrder(Object? raw) {
+    final ids = <String>[];
+    if (raw is List) {
+      for (final value in raw) {
+        final id = value.toString();
+        if (defaultTranslateAutoOrder.contains(id) && !ids.contains(id)) {
+          ids.add(id);
+        }
+      }
+    }
+    for (final id in defaultTranslateAutoOrder) {
+      if (!ids.contains(id)) ids.add(id);
+    }
+    return ids;
+  }
+
+  static String _normalizeTranslateProvider(Object? raw) {
+    const providers = {
+      'auto',
+      'llm',
+      'deepl',
+      'caiyun',
+      'microsoftFree',
+      'mymemory',
+    };
+    final value = raw?.toString();
+    return providers.contains(value) ? value! : 'auto';
+  }
 
   static List<String> _normalizeHidden(Object? raw) {
     final ids = <String>[];

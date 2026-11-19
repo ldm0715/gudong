@@ -33,6 +33,7 @@ class JsonRpcClient {
   Future<Map<String, dynamic>> call(
     String method, [
     Map<String, dynamic> params = const {},
+    Duration timeout = const Duration(seconds: 5),
   ]) {
     if (_closed) {
       return Future.error(StateError('sidecar is not connected'));
@@ -55,7 +56,7 @@ class JsonRpcClient {
       return Future.error(StateError('sidecar stdin is closed: $error'));
     }
     return completer.future.timeout(
-      const Duration(seconds: 5),
+      timeout,
       onTimeout: () {
         _pending.remove(id);
         throw TimeoutException('rpc timeout: $method');

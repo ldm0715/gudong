@@ -26,10 +26,33 @@ void main() {
       'showWeather': false,
       'mediaEnabled': true,
       'showPlayingIndicator': true,
-      'tabOrder': ['messages', 'weather', 'media', 'diagnostics'],
+      'showImeIndicator': true,
+      'showImeBanner': true,
+      'tabOrder': [
+        'messages',
+        'translate',
+        'weather',
+        'media',
+        'diagnostics',
+      ],
       'hiddenTabs': <String>[],
       'dockSide': 'left',
       'dockOffset': 420.5,
+      'translateProvider': 'auto',
+      'translateBaseUrl': 'https://api.openai.com/v1',
+      'translateModel': '',
+      'translateTarget': 'zh-CN',
+      'translateSource': 'auto',
+      'translateAutoOrder': [
+        'llm',
+        'deepl',
+        'caiyun',
+        'microsoftFree',
+        'mymemory',
+      ],
+      'translateUserPrompt': '',
+      'translateSystemPrompt': '',
+      'translateMyMemoryEmail': '',
     });
   });
 
@@ -51,20 +74,33 @@ void main() {
       'tabOrder': ['media', 'unknown', 'media', 'messages'],
       'hiddenTabs': ['weather', 'nope'],
     });
-    expect(settings.tabOrder, ['media', 'messages', 'weather', 'diagnostics']);
+    expect(settings.tabOrder, [
+      'media',
+      'messages',
+      'translate',
+      'weather',
+      'diagnostics',
+    ]);
     expect(settings.hiddenTabs, ['weather']);
     expect(settings.visibleTabs.map((tab) => tab.id), [
       'media',
       'messages',
+      'translate',
       'diagnostics',
     ]);
   });
 
   test('allows every tab to be hidden', () {
     final settings = AppSettings.fromJson(const {
-      'hiddenTabs': ['messages', 'weather', 'media', 'diagnostics'],
+      'hiddenTabs': [
+        'messages',
+        'translate',
+        'weather',
+        'media',
+        'diagnostics',
+      ],
     });
     expect(settings.visibleTabs, isEmpty);
-    expect(settings.hiddenTabs.length, 4);
+    expect(settings.hiddenTabs.length, 5);
   });
 }
