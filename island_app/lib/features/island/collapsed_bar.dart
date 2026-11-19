@@ -134,48 +134,57 @@ class _CollapsedBarState extends State<CollapsedBar> {
       width: IslandLayout.collapsedVerticalSize.width,
       height: IslandLayout.collapsedVerticalSize.height,
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(
-            clock,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: colors.text,
-              fontSize: 12,
-              height: 1.05,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.4,
-              fontFeatures: const [FontFeature.tabularFigures()],
-              decoration: TextDecoration.none,
+          const SizedBox(height: 10),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  clock,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: colors.text,
+                    fontSize: 12,
+                    height: 1.05,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.4,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                    decoration: TextDecoration.none,
+                  ),
+                ),
+                if (snapshot != null) ...[
+                  const SizedBox(height: 6),
+                  Icon(
+                    weatherIcon(snapshot.kind, snapshot.isDay),
+                    size: 15,
+                    color: weatherColor(colors, snapshot.kind),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${snapshot.roundedTemp}°',
+                    style: TextStyle(
+                      color: colors.text,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      decoration: TextDecoration.none,
+                    ),
+                  ),
+                ],
+                if (widget.messages.hasWechat) ...[
+                  const SizedBox(height: 6),
+                  const ClientGlyph(source: 'wechat', size: 18),
+                ],
+                if (widget.messages.hasQq) ...[
+                  const SizedBox(height: 4),
+                  const ClientGlyph(source: 'qq', size: 18),
+                ],
+              ],
             ),
           ),
-          if (snapshot != null) ...[
-            const SizedBox(height: 6),
-            Icon(
-              weatherIcon(snapshot.kind, snapshot.isDay),
-              size: 15,
-              color: weatherColor(colors, snapshot.kind),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              '${snapshot.roundedTemp}°',
-              style: TextStyle(
-                color: colors.text,
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                decoration: TextDecoration.none,
-              ),
-            ),
-          ],
-          if (widget.messages.hasWechat) ...[
-            const SizedBox(height: 6),
-            const ClientGlyph(source: 'wechat', size: 18),
-          ],
-          if (widget.messages.hasQq) ...[
-            const SizedBox(height: 4),
-            const ClientGlyph(source: 'qq', size: 18),
-          ],
-          if (showWave) ...[const SizedBox(height: 6), const _WaveBars()],
+          // 与横向版本贴右边一致：音波固定在窄栏最下方。
+          if (showWave) const _WaveBars(),
+          const SizedBox(height: 10),
         ],
       ),
     );
