@@ -156,13 +156,6 @@ class _IslandShellState extends State<IslandShell> {
                           ? colors.accent.withValues(alpha: 0.75)
                           : colors.stroke,
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.35),
-                        blurRadius: expanded ? 24 : 12,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
                   ),
                   child: OverflowBox(
                     alignment: Alignment.topCenter,
