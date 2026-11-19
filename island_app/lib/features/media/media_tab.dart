@@ -75,7 +75,10 @@ class _MediaTabState extends State<MediaTab> {
                           onTap: media.previous,
                         ),
                         const SizedBox(width: 8),
-                        _PlayButton(playing: media.playing, onTap: media.toggle),
+                        _PlayButton(
+                          playing: media.playing,
+                          onTap: media.toggle,
+                        ),
                         const SizedBox(width: 8),
                         _ControlButton(
                           icon: Icons.skip_next_rounded,
@@ -289,15 +292,25 @@ class _LyricsViewState extends State<_LyricsView>
         height: _viewportHeight,
         width: double.infinity,
         child: ClipRect(
-          child: AnimatedBuilder(
-            animation: _animation,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: rows,
-            ),
-            builder: (context, child) => Transform.translate(
-              offset: Offset(0, _centerOffset - _position * _rowHeight),
-              child: child,
+          child: LayoutBuilder(
+            builder: (context, constraints) => AnimatedBuilder(
+              animation: _animation,
+              // 歌词总高度远超可视区，必须解除纵向约束，否则 Column 会报溢出。
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: rows,
+              ),
+              builder: (context, child) => Transform.translate(
+                offset: Offset(0, _centerOffset - _position * _rowHeight),
+                child: OverflowBox(
+                  alignment: Alignment.topCenter,
+                  minWidth: constraints.maxWidth,
+                  maxWidth: constraints.maxWidth,
+                  minHeight: 0,
+                  maxHeight: double.infinity,
+                  child: child,
+                ),
+              ),
             ),
           ),
         ),
