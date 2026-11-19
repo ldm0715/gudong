@@ -437,12 +437,7 @@ fn parse_wttr(value: &Value, place: Option<&str>) -> Option<WeatherSnapshot> {
     let temp = number(&current["temp_C"])?;
     let code = integer(&current["weatherCode"])? as u16;
     let kind = kind_from_wwo(code);
-    let description = current["lang_zh-cn"][0]["value"]
-        .as_str()
-        .or_else(|| current["weatherDesc"][0]["value"].as_str())
-        .map(str::trim)
-        .filter(|text| !text.is_empty())
-        .unwrap_or_else(|| describe_kind(kind));
+    let description = wttr_description(current["lang_zh-cn"][0]["value"].as_str(), code, kind);
     let place = place
         .map(str::trim)
         .filter(|value| !value.is_empty())
@@ -504,13 +499,7 @@ fn wttr_days(value: &Value) -> Vec<WeatherDay> {
                 .or_else(|| hours.first())?;
             let code = integer(&noon["weatherCode"])? as u16;
             let kind = kind_from_wwo(code);
-            let description = noon["lang_zh-cn"][0]["value"]
-                .as_str()
-                .or_else(|| noon["weatherDesc"][0]["value"].as_str())
-                .map(str::trim)
-                .filter(|text| !text.is_empty())
-                .unwrap_or_else(|| describe_kind(kind))
-                .to_string();
+            let description = wttr_description(noon["lang_zh-cn"][0]["value"].as_str(), code, kind);
             Some(WeatherDay {
                 date,
                 kind: kind.to_string(),
@@ -645,13 +634,40 @@ fn kind_from_wwo(code: u16) -> &'static str {
         113 => "clear",
         116 => "partly",
         119 | 122 => "cloudy",
-        143 | 248 | 260 => "fog",
+        143 | 149 | 248 | 260 => "fog",
         263 | 266 | 281 | 284 => "drizzle",
-        176 | 293 | 296 | 299 | 302 | 305 | 308 | 353 | 356 | 359 => "rain",
-        179 | 182 | 185 | 227 | 230 | 323 | 326 | 329 | 332 | 335 | 338 | 350 | 368 | 371 | 374
-        | 377 => "snow",
+        176 | 293 | 296 | 299 | 302 | 305 | 308 | 311 | 314 | 353 | 356 | 359 => "rain",
+        179 | 182 | 185 | 227 | 230 | 317 | 320 | 323 | 326 | 329 | 332 | 335 | 338 | 350 | 362
+        | 365 | 368 | 371 | 374 | 377 => "snow",
         200 | 386 | 389 | 392 | 395 => "thunder",
         _ => "cloudy",
+    }
+}
+
+/// wttr.in 的 zh-cn 字段有时直接回传英文，例如 149 的 Smoky haze。
+fn has_cjk(text: &str) -> bool {
+    text.chars()
+        .any(|ch| ('\u{4e00}'..='\u{9fff}').contains(&ch))
+}
+
+/// 优先使用 wttr 的中文描述，缺失时按天气代码或 kind 兜底。
+fn wttr_description(value: Option<&str>, code: u16, kind: &str) -> String {
+    value
+        .map(str::trim)
+        .filter(|text| !text.is_empty() && has_cjk(text))
+        .map(str::to_string)
+        .or_else(|| describe_wwo(code).map(str::to_string))
+        .unwrap_or_else(|| describe_kind(kind).to_string())
+}
+
+/// wttr 未提供中文时的固定文案。
+fn describe_wwo(code: u16) -> Option<&'static str> {
+    match code {
+        143 => Some("薄雾"),
+        149 => Some("霾"),
+        248 => Some("雾"),
+        260 => Some("冻雾"),
+        _ => None,
     }
 }
 
@@ -752,6 +768,40 @@ mod tests {
         assert_eq!(snapshot.days.len(), 1);
         assert_eq!(snapshot.days[0].kind, "partly");
         assert_eq!(snapshot.days[0].precip_probability, Some(20));
+    }
+
+    #[test]
+    fn replaces_untranslated_wttr_description() {
+        let snapshot = parse_wttr(
+            &json!({
+                "current_condition": [{
+                    "temp_C": "8",
+                    "weatherCode": "149",
+                    "lang_zh-cn": [{ "value": "Smoky haze" }],
+                    "weatherDesc": [{ "value": "Smoky haze" }],
+                }],
+                "nearest_area": [{
+                    "areaName": [{ "value": "Shanghai" }],
+                    "region": [{ "value": "Shanghai" }],
+                }],
+                "weather": [],
+            }),
+            Some("上海"),
+        )
+        .expect("payload should parse");
+        assert_eq!(snapshot.kind, "fog");
+        assert_eq!(snapshot.description, "霾");
+        assert!(snapshot.days.is_empty());
+    }
+
+    #[test]
+    fn wttr_description_falls_back_to_kind_label() {
+        assert_eq!(
+            wttr_description(Some("Partly cloudy"), 116, "partly"),
+            "多云"
+        );
+        assert_eq!(wttr_description(Some("阴"), 122, "cloudy"), "阴");
+        assert_eq!(wttr_description(None, 999, "rain"), "雨");
     }
 
     #[test]
