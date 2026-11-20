@@ -43,7 +43,7 @@ Windows 桌面灵动岛。`island_app`（Flutter）负责岛体、动画与设�
 - 岛体自绘控件必须补齐 hover / pressed / focus / semantics / 键盘可达，高度、圆角、字体、配色与同屏其他控件一致。
 - 禁止引入 `DropdownButton`、`FlatButton` 等 M2 控件；存量自定义控件在改到时一并收敛到 token 层。
 - 窗口透明、无边框、置顶、跳过任务栏；点击穿透按光标逐像素切换 `WS_EX_LAYERED | WS_EX_TRANSPARENT`。
-- tab 固定为 `messages` / `translate` / `weather` / `media` / `diagnostics`；顺序与显隐由 `tabOrder` / `hiddenTabs` 驱动，允许全部隐藏。
+- tab 固定为 `messages` / `mail` / `translate` / `weather` / `media` / `quota` / `diagnostics`；顺序与显隐由 `tabOrder` / `hiddenTabs` 驱动，允许全部隐藏。
 - 动画区域包 `RepaintBoundary`；收起后停用 Ticker / 动画；避免 `Opacity`、`ClipPath`、`saveLayer`；禁止用 `BackdropFilter` 模拟毛玻璃，Win10 无 Mica，窗口材质变更属 Rust 侧能力，须单独立项。
 - 图片必须指定 `cacheWidth` / `cacheHeight`（封面 104px），image cache 上限 32MB。
 - 播放进度用独立 250ms 时钟插值，只重建进度区域，不重建岛体外壳。

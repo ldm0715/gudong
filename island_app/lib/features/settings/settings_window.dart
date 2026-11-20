@@ -10,6 +10,7 @@ import '../../core/settings/app_settings.dart';
 import '../../core/theme/island_colors.dart';
 import '../translate/translate_bridge.dart';
 import 'mail_settings_page.dart';
+import 'quota_settings_page.dart';
 import 'settings_panel.dart';
 import 'settings_window_args.dart';
 import 'settings_window_native.dart';
@@ -76,7 +77,6 @@ extension SettingsSectionMeta on SettingsSection {
     SettingsSection.focus => '专注计时与喝水提醒会放在这里。',
     SettingsSection.todos => '待办、置物架和快捷入口会放在这里。',
     SettingsSection.notifications => '系统通知聚合与日程会放在这里。',
-    SettingsSection.ai => 'AI 服务的额度与用量会放在这里。',
     _ => '该页面将在后续阶段接入。',
   };
 }
@@ -373,6 +373,10 @@ class _SettingsBodyState extends State<_SettingsBody> {
         onSave: onSave,
       ),
       SettingsSection.music => MusicSettingsPage(
+        settings: settings,
+        onSave: onSave,
+      ),
+      SettingsSection.ai => QuotaSettingsPage(
         settings: settings,
         onSave: onSave,
       ),

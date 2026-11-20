@@ -10,6 +10,7 @@ mod credentials;
 mod lyrics;
 mod mail;
 mod media;
+mod quota;
 mod rpc;
 mod shell;
 mod single_instance;
@@ -70,6 +71,8 @@ fn main() {
 
     weather::start(state.clone(), tx.clone());
     media::start(state.clone(), tx.clone());
+    let quota_tx = quota::start(state.clone(), tx.clone());
+    state.set_quota_sender(quota_tx);
     let translate_tx = translate::start(state.clone(), tx.clone());
     state.set_translate_sender(translate_tx);
     let mail_tx = mail::start(state.clone(), tx.clone());

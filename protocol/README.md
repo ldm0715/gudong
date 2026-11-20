@@ -32,6 +32,9 @@
 | `mail.get` | `{id}` | `{item: MailDetail}`；正文已随收信缓存，通常不需要再连服务器 |
 | `mail.refresh` | `{accountId?}` | `{ok}`；立即触发一次增量收取 |
 | `mail.markSeen` | `{id?, accountId?}` | `{ok, marked, message?}`；传 `id` 只标记该封；传 `accountId` 标记该账号全部未读；都不传处理所有启用账号 |
+| `quota.get` | `{}` | `{providers:[QuotaProvider], updatedAtMs}`；返回最近一次快照，未刷新过时为空数组 |
+| `quota.refresh` | `{provider?}` | `{ok}`；`provider` 为 `glm` / `deepseek` / `opencode`，省略表示全部；结果通过 `quota.updated` 推送 |
+| `quota.setSecret` | `{provider, field, value}` | `{ok, configured}`；`field` 为 `apiKey`（三家）或 `cookie`（仅 `opencode`）；`value` 为空表示删除 |
 | `app.shutdown` | `{}` | `{ok}`，随后进程退出 |
 
 `settings` 是扁平 JSON 对象，当前键：
@@ -44,7 +47,7 @@
 | `showPlayingIndicator` | bool | 收起态播放时显示音波，默认 `true` |
 | `showImeIndicator` | bool | 收起态常驻显示输入法状态，默认 `true` |
 | `showImeBanner` | bool | 输入法切换时弹出横幅，默认 `true` |
-| `tabOrder` | string[] | 岛体 tab 顺序：`messages` / `translate` / `weather` / `media` / `diagnostics` / `mail` |
+| `tabOrder` | string[] | 岛体 tab 顺序：`messages` / `mail` / `translate` / `weather` / `media` / `quota` / `diagnostics` |
 | `hiddenTabs` | string[] | 隐藏的 tab；允许全部隐藏，此时岛体只显示标题栏与设置入口 |
 | `translateProvider` | string | 翻译引擎：`auto`（默认）/ `llm` / `deepl` / `caiyun` / `microsoftFree` / `mymemory` |
 | `translateBaseUrl` | string | OpenAI 兼容服务的 base URL，默认 `https://api.openai.com/v1` |
@@ -58,10 +61,53 @@
 | `windowX` / `windowY` | number | 窗口左上角屏幕坐标（物理像素），缺省表示按默认位置摆放 |
 | `mailPollSeconds` | number | 邮件轮询间隔秒数，默认 `180`，限制在 `60`–`900` |
 | `mailTranslateProvider` | string | 邮件翻译使用的服务，默认 `auto`；取值与 `translateProvider` 相同，两者相互独立 |
+| `quotaOrder` | string[] | 额度服务顺序：`glm` / `deepseek` / `opencode`；未知项忽略，缺项补齐 |
+| `hiddenQuotaProviders` | string[] | 隐藏的额度服务；展开面板与收起态都不显示 |
+| `quotaGlmRegion` | string | GLM 区域：`global`（Z.ai，默认）/ `bigmodel-cn`（智谱开放平台） |
+| `quotaRefreshSeconds` | number | 额度刷新间隔秒数，默认 `300`，限制在 `60`–`3600` |
 
-`settings.get` 与 `settings.set` 的返回里还会带 `translateLlmKeyConfigured` / `translateDeeplKeyConfigured` / `translateCaiyunKeyConfigured` 三个只读布尔值。它们不写入 config.json，也不接受写入，表示对应密钥是否已在 Windows 凭据管理器里。
+`settings.get` 与 `settings.set` 的返回里还会带 `translateLlmKeyConfigured` / `translateDeeplKeyConfigured` / `translateCaiyunKeyConfigured` 三个只读布尔值，以及 `quotaGlmKeyConfigured` / `quotaDeepseekKeyConfigured` / `quotaOpencodeKeyConfigured` / `quotaOpencodeCookieConfigured`。它们不写入 config.json，也不接受写入，表示对应密钥是否已在 Windows 凭据管理器里。
 
-设置落盘到 `%APPDATA%\guduo\config.json`，先写临时文件再替换。`settings.set` 只合并传入的 key，未传的键保持不变；值必须是合法 JSON，空 key 返回 `-32602`。翻译密钥通过 `translate.setSecret` 写入 Windows 凭据管理器（目标名 `guduo/translate/llm`、`guduo/translate/deepl`、`guduo/translate/caiyun`），不落 config.json。
+设置落盘到 `%APPDATA%\guduo\config.json`，先写临时文件再替换。`settings.set` 只合并传入的 key，未传的键保持不变；值必须是合法 JSON，空 key 返回 `-32602`。翻译密钥通过 `translate.setSecret` 写入 Windows 凭据管理器（目标名 `guduo/translate/llm`、`guduo/translate/deepl`、`guduo/translate/caiyun`），不落 config.json。额度凭据通过 `quota.setSecret` 写入同一凭据管理器（目标名 `guduo/quota/glm`、`guduo/quota/deepseek`、`guduo/quota/opencode`、`guduo/quota/opencode-cookie`）。
+
+`QuotaProvider`：
+
+```json
+{
+  "id": "glm",
+  "label": "GLM",
+  "status": "ok",
+  "plan": "GLM Coding Pro",
+  "windows": [
+    {
+      "kind": "session",
+      "label": "5-hour",
+      "usedPercent": 32.0,
+      "remainingPercent": 68.0,
+      "windowMinutes": 300,
+      "resetsAtMs": 1795000000000,
+      "showMeter": true
+    },
+    {
+      "kind": "weekly",
+      "label": "Weekly",
+      "usedPercent": 18.0,
+      "remainingPercent": 82.0,
+      "windowMinutes": 10080,
+      "resetsAtMs": 1795500000000,
+      "showMeter": true
+    }
+  ],
+  "updatedAtMs": 1794997775244
+}
+```
+
+- `id` 为 `glm` / `deepseek` / `opencode`；`status` 为 `ok` / `notConfigured` / `unauthorized` / `rateLimited` / `unavailable`。
+- `windows[].kind` 为 `session`（5 小时）/ `weekly` / `monthly` / `billing`；`billing` 用于余额或 MCP 额度。余额窗口没有 `usedPercent`，`showMeter=false`，数值在 `remaining` 与 `currency` 中。
+- `resetsAtMs` 是 Unix 毫秒时间戳；缺失表示服务没有提供重置时间。
+- GLM 使用 `quotaGlmRegion` 选择 Z.ai 或智谱开放平台，5 小时与周窗口来自 Coding Plan 配额接口；DeepSeek 只有余额；OpenCode 的 API Key 读取 Go 额度，Cookie 额外补充 Zen 余额。
+- 凭据缺失时返回 `notConfigured` 且 `windows` 为空；凭据失效返回 `unauthorized`，客户端应提示重新填写。
+- 刷新间隔由 `quotaRefreshSeconds` 控制，`quota.refresh` 可立即触发一次；单个服务请求失败时只把该服务标记为错误状态并清空其窗口，其他服务不受影响。
 
 `Unread`：
 
@@ -107,6 +153,7 @@
 | `mail.account` | 账号连接状态变化，带 `account`（`MailAccount`） |
 | `mail.oauth.completed` | 微软授权成功，带 `flowId` 与新建的 `account` |
 | `mail.oauth.failed` | 微软授权失败或超时，带 `flowId` 与 `message` |
+| `quota.updated` | 额度刷新完成，带 `providers`（全部已知服务）与 `updatedAtMs`；未配置的服务也会出现，`status` 为 `notConfigured` |
 
 `MediaSnapshot`：
 

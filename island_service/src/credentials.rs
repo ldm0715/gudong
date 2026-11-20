@@ -6,6 +6,11 @@ pub const LLM: &str = "guduo/translate/llm";
 pub const DEEPL: &str = "guduo/translate/deepl";
 pub const CAIYUN: &str = "guduo/translate/caiyun";
 
+pub const GLM_KEY: &str = "guduo/quota/glm";
+pub const DEEPSEEK_KEY: &str = "guduo/quota/deepseek";
+pub const OPENCODE_KEY: &str = "guduo/quota/opencode";
+pub const OPENCODE_COOKIE: &str = "guduo/quota/opencode-cookie";
+
 const USER_NAME: &str = "guduo";
 
 #[cfg(windows)]

@@ -27,6 +27,13 @@ class AppSettings {
     this.translateCaiyunKeyConfigured = false,
     this.mailPollSeconds = defaultMailPollSeconds,
     this.mailTranslateProvider = 'auto',
+    this.quotaOrder = defaultQuotaOrder,
+    this.hiddenQuotaProviders = const [],
+    this.quotaGlmRegion = 'global',
+    this.quotaGlmKeyConfigured = false,
+    this.quotaDeepseekKeyConfigured = false,
+    this.quotaOpencodeKeyConfigured = false,
+    this.quotaOpencodeCookieConfigured = false,
   });
 
   static const List<String> defaultTabOrder = [
@@ -35,8 +42,11 @@ class AppSettings {
     'translate',
     'weather',
     'media',
+    'quota',
     'diagnostics',
   ];
+
+  static const List<String> defaultQuotaOrder = ['glm', 'deepseek', 'opencode'];
 
   static const int defaultMailPollSeconds = 180;
 
@@ -86,6 +96,20 @@ class AppSettings {
       mailTranslateProvider: _normalizeTranslateProvider(
         json['mailTranslateProvider'],
       ),
+      quotaOrder: _normalizeQuotaOrder(json['quotaOrder']),
+      hiddenQuotaProviders: _normalizeHiddenQuotaProviders(
+        json['hiddenQuotaProviders'],
+      ),
+      quotaGlmRegion: json['quotaGlmRegion'] == 'bigmodel-cn'
+          ? 'bigmodel-cn'
+          : 'global',
+      quotaGlmKeyConfigured: json['quotaGlmKeyConfigured'] == true,
+      quotaDeepseekKeyConfigured:
+          json['quotaDeepseekKeyConfigured'] == true,
+      quotaOpencodeKeyConfigured:
+          json['quotaOpencodeKeyConfigured'] == true,
+      quotaOpencodeCookieConfigured:
+          json['quotaOpencodeCookieConfigured'] == true,
     );
   }
 
@@ -134,6 +158,21 @@ class AppSettings {
   /// 邮件详情翻译使用的服务，与翻译页的全局服务相互独立。
   final String mailTranslateProvider;
 
+  /// 额度服务顺序：`glm` / `deepseek` / `opencode`。
+  final List<String> quotaOrder;
+
+  /// 隐藏的额度服务，展开面板与收起态都不显示。
+  final List<String> hiddenQuotaProviders;
+
+  /// GLM 接口区域：`global`（Z.ai）/ `bigmodel-cn`（智谱开放平台）。
+  final String quotaGlmRegion;
+
+  /// 只读派生状态，来自 sidecar，不写回 config.json。
+  final bool quotaGlmKeyConfigured;
+  final bool quotaDeepseekKeyConfigured;
+  final bool quotaOpencodeKeyConfigured;
+  final bool quotaOpencodeCookieConfigured;
+
   /// 已排好序的全部页面，未知 id 被丢弃，缺失的补在末尾。
   List<IslandTab> get orderedTabs {
     final ordered = <IslandTab>[];
@@ -150,6 +189,25 @@ class AppSettings {
   /// 岛体实际显示的页面。允许为空，此时岛体只保留标题栏与设置入口。
   List<IslandTab> get visibleTabs => orderedTabs
       .where((tab) => !hiddenTabs.contains(tab.id))
+      .toList(growable: false);
+
+  /// 已排好序的额度服务 id，未知项丢弃，缺失的补在末尾。
+  List<String> get orderedQuotaProviders {
+    final ordered = <String>[];
+    for (final id in quotaOrder) {
+      if (defaultQuotaOrder.contains(id) && !ordered.contains(id)) {
+        ordered.add(id);
+      }
+    }
+    for (final id in defaultQuotaOrder) {
+      if (!ordered.contains(id)) ordered.add(id);
+    }
+    return ordered;
+  }
+
+  /// 展开面板和收起态实际使用的额度服务。
+  List<String> get visibleQuotaProviders => orderedQuotaProviders
+      .where((id) => !hiddenQuotaProviders.contains(id))
       .toList(growable: false);
 
   /// [includeRuntime] 为 true 时带上只读凭据状态，只用于设置窗口的启动参数。
@@ -176,10 +234,17 @@ class AppSettings {
     'translateMyMemoryEmail': translateMyMemoryEmail,
     'mailPollSeconds': mailPollSeconds,
     'mailTranslateProvider': mailTranslateProvider,
+    'quotaOrder': quotaOrder,
+    'hiddenQuotaProviders': hiddenQuotaProviders,
+    'quotaGlmRegion': quotaGlmRegion,
     if (includeRuntime) ...{
       'translateLlmKeyConfigured': translateLlmKeyConfigured,
       'translateDeeplKeyConfigured': translateDeeplKeyConfigured,
       'translateCaiyunKeyConfigured': translateCaiyunKeyConfigured,
+      'quotaGlmKeyConfigured': quotaGlmKeyConfigured,
+      'quotaDeepseekKeyConfigured': quotaDeepseekKeyConfigured,
+      'quotaOpencodeKeyConfigured': quotaOpencodeKeyConfigured,
+      'quotaOpencodeCookieConfigured': quotaOpencodeCookieConfigured,
     },
   };
 
@@ -208,6 +273,13 @@ class AppSettings {
     bool? translateCaiyunKeyConfigured,
     int? mailPollSeconds,
     String? mailTranslateProvider,
+    List<String>? quotaOrder,
+    List<String>? hiddenQuotaProviders,
+    String? quotaGlmRegion,
+    bool? quotaGlmKeyConfigured,
+    bool? quotaDeepseekKeyConfigured,
+    bool? quotaOpencodeKeyConfigured,
+    bool? quotaOpencodeCookieConfigured,
   }) {
     return AppSettings(
       themeId: themeId ?? this.themeId,
@@ -239,6 +311,18 @@ class AppSettings {
       mailPollSeconds: mailPollSeconds ?? this.mailPollSeconds,
       mailTranslateProvider:
           mailTranslateProvider ?? this.mailTranslateProvider,
+      quotaOrder: quotaOrder ?? this.quotaOrder,
+      hiddenQuotaProviders:
+          hiddenQuotaProviders ?? this.hiddenQuotaProviders,
+      quotaGlmRegion: quotaGlmRegion ?? this.quotaGlmRegion,
+      quotaGlmKeyConfigured:
+          quotaGlmKeyConfigured ?? this.quotaGlmKeyConfigured,
+      quotaDeepseekKeyConfigured:
+          quotaDeepseekKeyConfigured ?? this.quotaDeepseekKeyConfigured,
+      quotaOpencodeKeyConfigured:
+          quotaOpencodeKeyConfigured ?? this.quotaOpencodeKeyConfigured,
+      quotaOpencodeCookieConfigured:
+          quotaOpencodeCookieConfigured ?? this.quotaOpencodeCookieConfigured,
     );
   }
 
@@ -301,6 +385,31 @@ class AppSettings {
       for (final value in raw) {
         final id = value.toString();
         if (IslandTab.byId(id) != null && !ids.contains(id)) ids.add(id);
+      }
+    }
+    return ids;
+  }
+
+  static List<String> _normalizeQuotaOrder(Object? raw) {
+    final ids = <String>[];
+    if (raw is List) {
+      for (final value in raw) {
+        final id = value.toString();
+        if (defaultQuotaOrder.contains(id) && !ids.contains(id)) ids.add(id);
+      }
+    }
+    for (final id in defaultQuotaOrder) {
+      if (!ids.contains(id)) ids.add(id);
+    }
+    return ids;
+  }
+
+  static List<String> _normalizeHiddenQuotaProviders(Object? raw) {
+    final ids = <String>[];
+    if (raw is List) {
+      for (final value in raw) {
+        final id = value.toString();
+        if (defaultQuotaOrder.contains(id) && !ids.contains(id)) ids.add(id);
       }
     }
     return ids;

@@ -34,6 +34,7 @@ void main() {
         'translate',
         'weather',
         'media',
+        'quota',
         'diagnostics',
       ],
       'hiddenTabs': <String>[],
@@ -56,6 +57,9 @@ void main() {
       'translateMyMemoryEmail': '',
       'mailPollSeconds': 180,
       'mailTranslateProvider': 'auto',
+      'quotaOrder': ['glm', 'deepseek', 'opencode'],
+      'hiddenQuotaProviders': <String>[],
+      'quotaGlmRegion': 'global',
     });
   });
 
@@ -83,6 +87,7 @@ void main() {
       'mail',
       'translate',
       'weather',
+      'quota',
       'diagnostics',
     ]);
     expect(settings.hiddenTabs, ['weather']);
@@ -91,6 +96,7 @@ void main() {
       'messages',
       'mail',
       'translate',
+      'quota',
       'diagnostics',
     ]);
   });
@@ -103,11 +109,12 @@ void main() {
         'translate',
         'weather',
         'media',
+        'quota',
         'diagnostics',
       ],
     });
     expect(settings.visibleTabs, isEmpty);
-    expect(settings.hiddenTabs.length, 6);
+    expect(settings.hiddenTabs.length, 7);
   });
 
   test('clamps the mail poll interval to the protocol range', () {

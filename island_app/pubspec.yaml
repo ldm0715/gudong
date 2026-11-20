@@ -38,6 +38,7 @@ dependencies:
   ffi: ^2.2.0
   font_awesome_flutter: ^11.0.0
   desktop_multi_window: ^0.3.1
+  flutter_svg: ^2.3.0
 
 dev_dependencies:
   flutter_test:
@@ -64,6 +65,7 @@ flutter:
   assets:
     - assets/tray_icon.ico
     - assets/mail/
+    - assets/icons/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

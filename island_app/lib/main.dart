@@ -27,6 +27,7 @@ import 'features/island/island_layout.dart';
 import 'features/mail/mail_controller.dart';
 import 'features/media/media_controller.dart';
 import 'features/messages/messages_controller.dart';
+import 'features/quota/quota_controller.dart';
 import 'features/translate/translate_controller.dart';
 import 'features/weather/weather_controller.dart';
 
@@ -71,6 +72,7 @@ Future<void> main(List<String> args) async {
   final ime = ImeController(supervisor);
   final diagnostics = DiagnosticsController(supervisor);
   final translate = TranslateController(supervisor);
+  final quota = QuotaController(supervisor);
   final settings = SettingsController(supervisor);
   final settingsLauncher = SettingsWindowLauncher(settings);
   final island = IslandController(
@@ -133,6 +135,7 @@ Future<void> main(List<String> args) async {
         ime: ime,
         diagnostics: diagnostics,
         translate: translate,
+        quota: quota,
         settings: settings,
         settingsWindow: settingsLauncher,
         windowPosition: windowPosition,

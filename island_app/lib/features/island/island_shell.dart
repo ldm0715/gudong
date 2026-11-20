@@ -21,6 +21,8 @@ import '../media/media_controller.dart';
 import '../media/media_tab.dart';
 import '../messages/messages_controller.dart';
 import '../messages/messages_tab.dart';
+import '../quota/quota_controller.dart';
+import '../quota/quota_tab.dart';
 import '../translate/translate_controller.dart';
 import '../translate/translate_tab.dart';
 import '../weather/weather_controller.dart';
@@ -43,6 +45,7 @@ class IslandShell extends StatefulWidget {
     required this.ime,
     required this.diagnostics,
     required this.translate,
+    required this.quota,
     required this.settings,
     required this.windowPosition,
     required this.onOpenSettings,
@@ -56,6 +59,7 @@ class IslandShell extends StatefulWidget {
   final ImeController ime;
   final DiagnosticsController diagnostics;
   final TranslateController translate;
+  final QuotaController quota;
   final SettingsController settings;
   final WindowPositionKeeper windowPosition;
   final VoidCallback onOpenSettings;
@@ -116,6 +120,7 @@ class _IslandShellState extends State<IslandShell> {
                 widget.ime,
                 widget.diagnostics,
                 widget.translate,
+                widget.quota,
                 widget.settings,
               ]),
               builder: (context, _) {
@@ -183,6 +188,7 @@ class _IslandShellState extends State<IslandShell> {
                             media: widget.media,
                             diagnostics: widget.diagnostics,
                             translate: widget.translate,
+                            quota: widget.quota,
                             settings: widget.settings,
                             onOpenSettings: widget.onOpenSettings,
                             handleVisible: island.handleVisible,
@@ -233,6 +239,7 @@ class _ExpandedBody extends StatelessWidget {
     required this.media,
     required this.diagnostics,
     required this.translate,
+    required this.quota,
     required this.settings,
     required this.onOpenSettings,
     required this.handleVisible,
@@ -250,6 +257,7 @@ class _ExpandedBody extends StatelessWidget {
   final MediaController media;
   final DiagnosticsController diagnostics;
   final TranslateController translate;
+  final QuotaController quota;
   final SettingsController settings;
   final VoidCallback onOpenSettings;
   final bool handleVisible;
@@ -394,6 +402,10 @@ class _ExpandedBody extends StatelessWidget {
       ),
       IslandTab.weather => WeatherTab(controller: weather),
       IslandTab.media => MediaTab(controller: media),
+      IslandTab.quota => QuotaTab(
+        controller: quota,
+        settings: settings.settings,
+      ),
       IslandTab.diagnostics => DiagnosticsTab(
         connectionDetail: island.connectionDetail,
         diagnostics: diagnostics,

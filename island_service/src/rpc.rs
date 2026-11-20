@@ -36,6 +36,9 @@ pub const CAPABILITIES: &[&str] = &[
     "mail.list",
     "mail.read",
     "mail.markSeen",
+    "quota.get",
+    "quota.refresh",
+    "quota.setSecret",
 ];
 
 /// 一条未读提醒。`id` 是稳定键：任务栏提醒按账号，系统通知按通知编号。
@@ -74,6 +77,10 @@ pub struct State {
     pub translate_tx: Mutex<Option<std::sync::mpsc::Sender<crate::translate::Job>>>,
     /// 邮件任务队列。账号同步与缓存都在独立线程维护。
     pub mail_tx: Mutex<Option<std::sync::mpsc::Sender<crate::mail::Job>>>,
+    /// 最近一次额度快照，顺序与 `quotaOrder` 一致。
+    pub quota: Mutex<Vec<crate::quota::QuotaProvider>>,
+    /// 额度刷新命令队列。
+    pub quota_tx: Mutex<Option<std::sync::mpsc::Sender<crate::quota::Command>>>,
 }
 
 impl Default for State {
@@ -101,6 +108,8 @@ impl State {
             config,
             translate_tx: Mutex::new(None),
             mail_tx: Mutex::new(None),
+            quota: Mutex::new(Vec::new()),
+            quota_tx: Mutex::new(None),
         }
     }
 
@@ -112,6 +121,12 @@ impl State {
 
     pub fn set_mail_sender(&self, sender: std::sync::mpsc::Sender<crate::mail::Job>) {
         if let Ok(mut slot) = self.mail_tx.lock() {
+            *slot = Some(sender);
+        }
+    }
+
+    pub fn set_quota_sender(&self, sender: std::sync::mpsc::Sender<crate::quota::Command>) {
+        if let Ok(mut slot) = self.quota_tx.lock() {
             *slot = Some(sender);
         }
     }
@@ -307,6 +322,64 @@ pub fn handle(
                 .map_err(|_| RpcError::new(ERR_INTERNAL, "mail worker stopped"))?;
             Ok(Action::Pending)
         }
+        "quota.get" => {
+            let providers = state
+                .quota
+                .lock()
+                .map(|items| items.clone())
+                .unwrap_or_default();
+            let updated_at = providers
+                .iter()
+                .map(|provider| provider.updated_at_ms)
+                .max()
+                .unwrap_or_else(|| chrono::Utc::now().timestamp_millis());
+            Ok(Action::Respond(json!({
+                "providers": providers,
+                "updatedAtMs": updated_at,
+            })))
+        }
+        "quota.refresh" => {
+            let provider = params
+                .get("provider")
+                .and_then(Value::as_str)
+                .filter(|value| matches!(*value, "glm" | "deepseek" | "opencode"))
+                .map(str::to_string);
+            wake_quota(state, provider);
+            Ok(Action::Respond(json!({ "ok": true })))
+        }
+        "quota.setSecret" => {
+            let provider = params
+                .get("provider")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
+            let field = params
+                .get("field")
+                .and_then(Value::as_str)
+                .unwrap_or("apiKey");
+            let value = params
+                .get("value")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
+            let target = match (provider, field) {
+                ("glm", "apiKey") => crate::credentials::GLM_KEY,
+                ("deepseek", "apiKey") => crate::credentials::DEEPSEEK_KEY,
+                ("opencode", "apiKey") => crate::credentials::OPENCODE_KEY,
+                ("opencode", "cookie") => crate::credentials::OPENCODE_COOKIE,
+                _ => {
+                    return Err(RpcError::new(
+                        ERR_INVALID_PARAMS,
+                        "quota.setSecret requires a known provider and field",
+                    ))
+                }
+            };
+            crate::credentials::write(target, value)
+                .map_err(|message| RpcError::new(ERR_INTERNAL, message))?;
+            wake_quota(state, Some(provider.to_string()));
+            Ok(Action::Respond(json!({
+                "ok": true,
+                "configured": crate::credentials::read(target).is_some(),
+            })))
+        }
         "settings.get" => Ok(Action::Respond(json!({
             "settings": settings_snapshot(state),
         }))),
@@ -326,14 +399,28 @@ pub fn handle(
                 "translateLlmApiKey",
                 "translateDeeplApiKey",
                 "translateCaiyunToken",
+                "quotaGlmKeyConfigured",
+                "quotaDeepseekKeyConfigured",
+                "quotaOpencodeKeyConfigured",
+                "quotaOpencodeCookieConfigured",
             ] {
                 patch.remove(key);
             }
+            // 客户端每次设置保存都会带上全部键，只有真正变化的额度设置才触发刷新。
+            let previous = state.config.snapshot();
+            let quota_changed = ["quotaOrder", "quotaRefreshSeconds", "quotaGlmRegion"]
+                .iter()
+                .any(|key| previous.get(*key) != patch.get(*key));
             match state.config.merge(&patch) {
-                Ok(_) => Ok(Action::Respond(json!({
-                    "ok": true,
-                    "settings": settings_snapshot(state),
-                }))),
+                Ok(_) => {
+                    if quota_changed {
+                        wake_quota(state, None);
+                    }
+                    Ok(Action::Respond(json!({
+                        "ok": true,
+                        "settings": settings_snapshot(state),
+                    })))
+                }
                 Err(message) => Err(RpcError::new(
                     ERR_INTERNAL,
                     format!("settings save failed: {message}"),
@@ -394,7 +481,31 @@ fn settings_snapshot(state: &State) -> Map<String, Value> {
         "translateCaiyunKeyConfigured".into(),
         json!(crate::credentials::read(crate::credentials::CAIYUN).is_some()),
     );
+    settings.insert(
+        "quotaGlmKeyConfigured".into(),
+        json!(crate::credentials::read(crate::credentials::GLM_KEY).is_some()),
+    );
+    settings.insert(
+        "quotaDeepseekKeyConfigured".into(),
+        json!(crate::credentials::read(crate::credentials::DEEPSEEK_KEY).is_some()),
+    );
+    settings.insert(
+        "quotaOpencodeKeyConfigured".into(),
+        json!(crate::credentials::read(crate::credentials::OPENCODE_KEY).is_some()),
+    );
+    settings.insert(
+        "quotaOpencodeCookieConfigured".into(),
+        json!(crate::credentials::read(crate::credentials::OPENCODE_COOKIE).is_some()),
+    );
     settings
+}
+
+fn wake_quota(state: &State, provider: Option<String>) {
+    if let Ok(slot) = state.quota_tx.lock() {
+        if let Some(sender) = slot.as_ref() {
+            let _ = sender.send(crate::quota::Command::Refresh(provider));
+        }
+    }
 }
 
 fn listener_status(state: &State) -> (bool, String) {
