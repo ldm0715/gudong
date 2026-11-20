@@ -30,6 +30,7 @@ void main() {
       'showImeBanner': true,
       'tabOrder': [
         'messages',
+        'mail',
         'translate',
         'weather',
         'media',
@@ -53,6 +54,8 @@ void main() {
       'translateUserPrompt': '',
       'translateSystemPrompt': '',
       'translateMyMemoryEmail': '',
+      'mailPollSeconds': 180,
+      'mailTranslateProvider': 'auto',
     });
   });
 
@@ -77,6 +80,7 @@ void main() {
     expect(settings.tabOrder, [
       'media',
       'messages',
+      'mail',
       'translate',
       'weather',
       'diagnostics',
@@ -85,6 +89,7 @@ void main() {
     expect(settings.visibleTabs.map((tab) => tab.id), [
       'media',
       'messages',
+      'mail',
       'translate',
       'diagnostics',
     ]);
@@ -94,6 +99,7 @@ void main() {
     final settings = AppSettings.fromJson(const {
       'hiddenTabs': [
         'messages',
+        'mail',
         'translate',
         'weather',
         'media',
@@ -101,6 +107,18 @@ void main() {
       ],
     });
     expect(settings.visibleTabs, isEmpty);
-    expect(settings.hiddenTabs.length, 5);
+    expect(settings.hiddenTabs.length, 6);
+  });
+
+  test('clamps the mail poll interval to the protocol range', () {
+    expect(AppSettings.fromJson(const {'mailPollSeconds': 5}).mailPollSeconds, 60);
+    expect(
+      AppSettings.fromJson(const {'mailPollSeconds': 5000}).mailPollSeconds,
+      900,
+    );
+    expect(
+      AppSettings.fromJson(const {'mailPollSeconds': 120}).mailPollSeconds,
+      120,
+    );
   });
 }

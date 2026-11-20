@@ -59,6 +59,15 @@ impl Config {
         values.get(key).and_then(Value::as_bool).unwrap_or(default)
     }
 
+    /// 读取无符号整数设置，缺省或类型不符时返回 `default`。
+    pub fn u64(&self, key: &str, default: u64) -> u64 {
+        let values = match self.values.lock() {
+            Ok(values) => values,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        values.get(key).and_then(Value::as_u64).unwrap_or(default)
+    }
+
     /// 合并部分设置。写盘成功后才更新内存，失败时保持原值。
     pub fn merge(&self, patch: &Map<String, Value>) -> Result<Map<String, Value>, String> {
         let mut next = self.snapshot();

@@ -23,6 +23,7 @@ import 'features/diagnostics/diagnostics_controller.dart';
 import 'features/ime/ime_controller.dart';
 import 'features/island/island_controller.dart';
 import 'features/island/island_layout.dart';
+import 'features/mail/mail_controller.dart';
 import 'features/media/media_controller.dart';
 import 'features/messages/messages_controller.dart';
 import 'features/translate/translate_controller.dart';
@@ -62,6 +63,7 @@ Future<void> main(List<String> args) async {
 
   final supervisor = SidecarSupervisor();
   final messages = MessagesController(supervisor);
+  final mail = MailController(supervisor);
   final weather = WeatherController(supervisor);
   final media = MediaController(supervisor);
   final ime = ImeController(supervisor);
@@ -69,7 +71,11 @@ Future<void> main(List<String> args) async {
   final translate = TranslateController(supervisor);
   final settings = SettingsController(supervisor);
   final settingsLauncher = SettingsWindowLauncher(settings);
-  final island = IslandController(supervisor: supervisor, messages: messages);
+  final island = IslandController(
+    supervisor: supervisor,
+    messages: messages,
+    mail: mail,
+  );
   final clickThrough = ClickThroughController(windowSize: appWindowSize);
 
   // 悬停展开 / 收起：命中状态来自 16ms 的光标轮询，不依赖 Flutter 的
@@ -89,7 +95,9 @@ Future<void> main(List<String> args) async {
     final side = windowPosition.side;
     final appSettings = settings.settings;
     final showBanner =
-        island.showBanner || (appSettings.showImeBanner && ime.visible);
+        island.showBanner ||
+        island.showMailBanner ||
+        (appSettings.showImeBanner && ime.visible);
     clickThrough.setInteractiveRect(
       IslandLayout.rectFor(
         side,
@@ -117,6 +125,7 @@ Future<void> main(List<String> args) async {
         supervisor: supervisor,
         island: island,
         messages: messages,
+        mail: mail,
         weather: weather,
         media: media,
         ime: ime,

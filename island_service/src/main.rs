@@ -8,6 +8,7 @@
 mod config;
 mod credentials;
 mod lyrics;
+mod mail;
 mod media;
 mod rpc;
 mod shell;
@@ -71,6 +72,8 @@ fn main() {
     media::start(state.clone(), tx.clone());
     let translate_tx = translate::start(state.clone(), tx.clone());
     state.set_translate_sender(translate_tx);
+    let mail_tx = mail::start(state.clone(), tx.clone());
+    state.set_mail_sender(mail_tx);
 
     #[cfg(windows)]
     {

@@ -25,15 +25,20 @@ class AppSettings {
     this.translateLlmKeyConfigured = false,
     this.translateDeeplKeyConfigured = false,
     this.translateCaiyunKeyConfigured = false,
+    this.mailPollSeconds = defaultMailPollSeconds,
+    this.mailTranslateProvider = 'auto',
   });
 
   static const List<String> defaultTabOrder = [
     'messages',
+    'mail',
     'translate',
     'weather',
     'media',
     'diagnostics',
   ];
+
+  static const int defaultMailPollSeconds = 180;
 
   static const List<String> defaultTranslateAutoOrder = [
     'llm',
@@ -77,6 +82,10 @@ class AppSettings {
       translateDeeplKeyConfigured: json['translateDeeplKeyConfigured'] == true,
       translateCaiyunKeyConfigured:
           json['translateCaiyunKeyConfigured'] == true,
+      mailPollSeconds: _normalizeMailPollSeconds(json['mailPollSeconds']),
+      mailTranslateProvider: _normalizeTranslateProvider(
+        json['mailTranslateProvider'],
+      ),
     );
   }
 
@@ -119,6 +128,12 @@ class AppSettings {
   final bool translateDeeplKeyConfigured;
   final bool translateCaiyunKeyConfigured;
 
+  /// 邮件轮询间隔秒数，sidecar 会再限制在 60–900。
+  final int mailPollSeconds;
+
+  /// 邮件详情翻译使用的服务，与翻译页的全局服务相互独立。
+  final String mailTranslateProvider;
+
   /// 已排好序的全部页面，未知 id 被丢弃，缺失的补在末尾。
   List<IslandTab> get orderedTabs {
     final ordered = <IslandTab>[];
@@ -159,6 +174,8 @@ class AppSettings {
     'translateUserPrompt': translateUserPrompt,
     'translateSystemPrompt': translateSystemPrompt,
     'translateMyMemoryEmail': translateMyMemoryEmail,
+    'mailPollSeconds': mailPollSeconds,
+    'mailTranslateProvider': mailTranslateProvider,
     if (includeRuntime) ...{
       'translateLlmKeyConfigured': translateLlmKeyConfigured,
       'translateDeeplKeyConfigured': translateDeeplKeyConfigured,
@@ -189,6 +206,8 @@ class AppSettings {
     bool? translateLlmKeyConfigured,
     bool? translateDeeplKeyConfigured,
     bool? translateCaiyunKeyConfigured,
+    int? mailPollSeconds,
+    String? mailTranslateProvider,
   }) {
     return AppSettings(
       themeId: themeId ?? this.themeId,
@@ -217,6 +236,9 @@ class AppSettings {
           translateDeeplKeyConfigured ?? this.translateDeeplKeyConfigured,
       translateCaiyunKeyConfigured:
           translateCaiyunKeyConfigured ?? this.translateCaiyunKeyConfigured,
+      mailPollSeconds: mailPollSeconds ?? this.mailPollSeconds,
+      mailTranslateProvider:
+          mailTranslateProvider ?? this.mailTranslateProvider,
     );
   }
 
@@ -251,6 +273,13 @@ class AppSettings {
       if (!ids.contains(id)) ids.add(id);
     }
     return ids;
+  }
+
+  static int _normalizeMailPollSeconds(Object? raw) {
+    final value = raw is num ? raw.toInt() : defaultMailPollSeconds;
+    if (value < 60) return 60;
+    if (value > 900) return 900;
+    return value;
   }
 
   static String _normalizeTranslateProvider(Object? raw) {

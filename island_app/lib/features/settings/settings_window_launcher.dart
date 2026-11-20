@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../../core/log.dart';
 import '../../core/settings/app_settings.dart';
 import '../../core/settings/settings_controller.dart';
+import '../mail/mail_bridge.dart';
 import '../translate/translate_bridge.dart';
 import 'settings_window_args.dart';
 
@@ -31,6 +32,59 @@ class SettingsWindowLauncher {
       await translateChannel.setMethodCallHandler(_onTranslateCall);
     } catch (error) {
       AppLog.write('[settings-window] translate channel register failed: $error');
+    }
+    try {
+      await mailChannel.setMethodCallHandler(_onMailCall);
+    } catch (error) {
+      AppLog.write('[settings-window] mail channel register failed: $error');
+    }
+  }
+
+  /// 设置窗口的邮箱账号操作统一转发给 sidecar。
+  Future<dynamic> _onMailCall(MethodCall call) async {
+    final arguments = call.arguments is Map
+        ? Map<String, dynamic>.from(call.arguments as Map)
+        : <String, dynamic>{};
+    try {
+      return switch (call.method) {
+        'accounts.list' => await settings.supervisor.call(
+          'mail.accounts.list',
+          const {},
+          const Duration(seconds: 10),
+        ),
+        'accounts.add' => await settings.supervisor.call(
+          'mail.accounts.add',
+          arguments,
+          const Duration(seconds: 15),
+        ),
+        'accounts.update' => await settings.supervisor.call(
+          'mail.accounts.update',
+          arguments,
+          const Duration(seconds: 10),
+        ),
+        'accounts.remove' => await settings.supervisor.call(
+          'mail.accounts.remove',
+          arguments,
+          const Duration(seconds: 10),
+        ),
+        'refresh' => await settings.supervisor.call(
+          'mail.refresh',
+          arguments,
+          const Duration(seconds: 10),
+        ),
+        'openUrl' => await settings.supervisor.call(
+          'app.openUrl',
+          arguments,
+          const Duration(seconds: 5),
+        ),
+        _ => throw PlatformException(
+          code: 'METHOD_NOT_FOUND',
+          message: 'mail method not found: ${call.method}',
+        ),
+      };
+    } catch (error) {
+      AppLog.write('[settings-window] mail ${call.method} failed: $error');
+      rethrow;
     }
   }
 
@@ -99,6 +153,8 @@ class SettingsWindowLauncher {
           translateUserPrompt: incoming.translateUserPrompt,
           translateSystemPrompt: incoming.translateSystemPrompt,
           translateMyMemoryEmail: incoming.translateMyMemoryEmail,
+          mailPollSeconds: incoming.mailPollSeconds,
+          mailTranslateProvider: incoming.mailTranslateProvider,
         ),
       );
       return {'ok': true};

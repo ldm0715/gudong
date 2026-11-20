@@ -4,26 +4,38 @@ import 'package:flutter/foundation.dart';
 
 import '../../core/ipc/sidecar_supervisor.dart';
 import '../../core/theme/island_motion.dart';
+import '../mail/mail_controller.dart';
+import '../mail/mail_models.dart';
 import '../messages/messages_controller.dart';
 
 /// 岛体外壳状态：展开、闪烁、横幅。业务数据由各 feature controller 持有。
 class IslandController extends ChangeNotifier {
-  IslandController({required this.supervisor, required this.messages}) {
+  IslandController({
+    required this.supervisor,
+    required this.messages,
+    required this.mail,
+  }) {
     supervisor.addListener(_onChanged);
     messages.addListener(_onMessagesChanged);
+    mail.addListener(_onMailChanged);
     _lastRevision = messages.revision;
+    _lastMailRevision = mail.revision;
   }
 
   final SidecarSupervisor supervisor;
   final MessagesController messages;
+  final MailController mail;
 
   bool _expanded = false;
   bool _pulse = false;
   bool _banner = false;
+  bool _mailBanner = false;
   bool _handleVisible = false;
   int _lastRevision = 0;
+  int _lastMailRevision = 0;
   Timer? _pulseTimer;
   Timer? _bannerTimer;
+  Timer? _mailBannerTimer;
   Timer? _handleTimer;
   bool _disposed = false;
 
@@ -31,6 +43,8 @@ class IslandController extends ChangeNotifier {
   bool get pulse => _pulse;
   bool get handleVisible => _handleVisible;
   bool get showBanner => _banner && messages.hasUnread;
+  bool get showMailBanner => _mailBanner && mail.bannerItem != null;
+  MailSummary? get mailBannerItem => mail.bannerItem;
   bool get ready => supervisor.ready;
   String get connectionDetail => supervisor.detail;
 
@@ -78,6 +92,23 @@ class IslandController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void _onMailChanged() {
+    if (mail.revision != _lastMailRevision) {
+      _lastMailRevision = mail.revision;
+      if (mail.bannerItem != null) {
+        _mailBanner = true;
+        _mailBannerTimer?.cancel();
+        _mailBannerTimer = Timer(IslandMotion.bannerHold, () {
+          if (_disposed) return;
+          _mailBanner = false;
+          notifyListeners();
+        });
+        _signalPulse();
+      }
+    }
+    notifyListeners();
+  }
+
   void _showBannerForAWhile() {
     _banner = true;
     _bannerTimer?.cancel();
@@ -103,9 +134,11 @@ class IslandController extends ChangeNotifier {
     _disposed = true;
     _pulseTimer?.cancel();
     _bannerTimer?.cancel();
+    _mailBannerTimer?.cancel();
     _handleTimer?.cancel();
     supervisor.removeListener(_onChanged);
     messages.removeListener(_onMessagesChanged);
+    mail.removeListener(_onMailChanged);
     super.dispose();
   }
 }

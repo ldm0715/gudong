@@ -19,6 +19,7 @@ import 'features/diagnostics/diagnostics_controller.dart';
 import 'features/ime/ime_controller.dart';
 import 'features/island/island_controller.dart';
 import 'features/island/island_shell.dart';
+import 'features/mail/mail_controller.dart';
 import 'features/media/media_controller.dart';
 import 'features/messages/messages_controller.dart';
 import 'features/settings/settings_window_launcher.dart';
@@ -31,6 +32,7 @@ class AppScope {
     required this.supervisor,
     required this.island,
     required this.messages,
+    required this.mail,
     required this.weather,
     required this.media,
     required this.ime,
@@ -45,6 +47,7 @@ class AppScope {
   final SidecarSupervisor supervisor;
   final IslandController island;
   final MessagesController messages;
+  final MailController mail;
   final WeatherController weather;
   final MediaController media;
   final ImeController ime;
@@ -60,6 +63,7 @@ class AppScope {
     windowPosition.dispose();
     island.dispose();
     messages.dispose();
+    mail.dispose();
     weather.dispose();
     media.dispose();
     ime.dispose();
@@ -244,6 +248,7 @@ class _GuduoAppState extends State<GuduoApp> with WindowListener, TrayListener {
               body: IslandShell(
                 island: widget.scope.island,
                 messages: widget.scope.messages,
+                mail: widget.scope.mail,
                 weather: widget.scope.weather,
                 media: widget.scope.media,
                 ime: widget.scope.ime,

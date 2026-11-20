@@ -12,6 +12,12 @@ chrono = "0.4"
 base64 = "0.22"
 urlencoding = "2"
 ureq = { version = "2.12", default-features = false, features = ["tls", "gzip"] }
+imap = "2.4"
+native-tls = "0.2"
+mailparse = "0.18"
+imap-proto = "0.10"
+url = "2"
+regex = "1"
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.58", features = [

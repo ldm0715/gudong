@@ -22,6 +22,16 @@
 | `translate.setSecret` | `{provider, key}` | `{ok, configured}`；`provider` 为 `llm` / `deepl` / `caiyun`，空 `key` 表示删除 |
 | `settings.get` | `{}` | `{settings}` |
 | `settings.set` | `{settings:{...}}` | `{ok, settings}`；按 key 合并后返回全量设置 |
+| `mail.accounts.list` | `{}` | `{accounts:[MailAccount]}`；不含任何密码或令牌 |
+| `mail.accounts.add` | `{provider, email, password?, custom?, label?}` | `{account: MailAccount}`；写入账号与凭据后立即返回，连接结果由 `mail.account` 事件推送 |
+| `mail.accounts.update` | `{id, label}` | `{account: MailAccount}`；只修改别名，`label` 为空表示清除别名，不影响凭据和连接 |
+| `mail.accounts.remove` | `{id}` | `{ok}`；删除账号、凭据和内存缓存 |
+| `mail.oauth.begin` | `{provider}` | `{flowId, verificationUri, userCode, expiresIn, interval}`；目前 `provider` 只接受 `microsoft` |
+| `mail.oauth.cancel` | `{flowId}` | `{ok}`；停止等待授权 |
+| `mail.list` | `{accountId?, limit?, unreadOnly?}` | `{items:[MailSummary], accounts:[MailAccount]}`；只返回内存中最近收取的邮件 |
+| `mail.get` | `{id}` | `{item: MailDetail}`；正文已随收信缓存，通常不需要再连服务器 |
+| `mail.refresh` | `{accountId?}` | `{ok}`；立即触发一次增量收取 |
+| `mail.markSeen` | `{id?, accountId?}` | `{ok, marked, message?}`；传 `id` 只标记该封；传 `accountId` 标记该账号全部未读；都不传处理所有启用账号 |
 | `app.shutdown` | `{}` | `{ok}`，随后进程退出 |
 
 `settings` 是扁平 JSON 对象，当前键：
@@ -34,7 +44,7 @@
 | `showPlayingIndicator` | bool | 收起态播放时显示音波，默认 `true` |
 | `showImeIndicator` | bool | 收起态常驻显示输入法状态，默认 `true` |
 | `showImeBanner` | bool | 输入法切换时弹出横幅，默认 `true` |
-| `tabOrder` | string[] | 岛体 tab 顺序：`messages` / `translate` / `weather` / `media` / `diagnostics` |
+| `tabOrder` | string[] | 岛体 tab 顺序：`messages` / `translate` / `weather` / `media` / `diagnostics` / `mail` |
 | `hiddenTabs` | string[] | 隐藏的 tab；允许全部隐藏，此时岛体只显示标题栏与设置入口 |
 | `translateProvider` | string | 翻译引擎：`auto`（默认）/ `llm` / `deepl` / `caiyun` / `microsoftFree` / `mymemory` |
 | `translateBaseUrl` | string | OpenAI 兼容服务的 base URL，默认 `https://api.openai.com/v1` |
@@ -46,6 +56,8 @@
 | `translateSystemPrompt` | string | 自定义系统提示词，空表示使用内置模板，`{{to}}` 会替换为目标语言名 |
 | `translateMyMemoryEmail` | string | MyMemory 可选邮箱，作为 `de` 参数随请求发送；匿名约 5000 字符/天，填写后约 50000 字符/天 |
 | `windowX` / `windowY` | number | 窗口左上角屏幕坐标（物理像素），缺省表示按默认位置摆放 |
+| `mailPollSeconds` | number | 邮件轮询间隔秒数，默认 `180`，限制在 `60`–`900` |
+| `mailTranslateProvider` | string | 邮件翻译使用的服务，默认 `auto`；取值与 `translateProvider` 相同，两者相互独立 |
 
 `settings.get` 与 `settings.set` 的返回里还会带 `translateLlmKeyConfigured` / `translateDeeplKeyConfigured` / `translateCaiyunKeyConfigured` 三个只读布尔值。它们不写入 config.json，也不接受写入，表示对应密钥是否已在 Windows 凭据管理器里。
 
@@ -91,6 +103,10 @@
 | `weather.updated` | 实况刷新成功或失败，带 `snapshot`（可能为 `null`）与 `status` |
 | `media.changed` | 媒体信息变化，带 `media`；播放中最多 1Hz 推送进度，客户端本地插值 |
 | `media.lyrics` | 当前曲目歌词，带 `lyrics` 与 `pending`；切歌时立即发 `lyrics:null, pending:true`，抓取结束再发结果 |
+| `mail.received` | 收取到一封新邮件，带 `accountId` 与 `item`（`MailSummary`）；首次连接的最近邮件不推事件，客户端在 `mail.account` 变为 `ready` 后调用 `mail.list` |
+| `mail.account` | 账号连接状态变化，带 `account`（`MailAccount`） |
+| `mail.oauth.completed` | 微软授权成功，带 `flowId` 与新建的 `account` |
+| `mail.oauth.failed` | 微软授权失败或超时，带 `flowId` 与 `message` |
 
 `MediaSnapshot`：
 
@@ -181,20 +197,126 @@
 | `microsoftFree` | `POST edge.microsoft.com/translate/translatetext`（Edge 内部接口） | 无 |
 | `mymemory` | `GET api.mymemory.translated.net/get` | 无 |
 
-- 未显式指定 `provider` 或为 `auto` 时，按 `translateAutoOrder` 从上到下选择第一个可用引擎；缺省顺序为 LLM → DeepL → 彩云 → 微软免密钥 → MyMemory。
+- 未显式指定 `provider` 或为 `auto` 时，按 `translateAutoOrder` 从上到下依次尝试，失败后继续下一个可用引擎；缺省顺序为 LLM → DeepL → 彩云 → 微软免密钥 → MyMemory。结果里的 `provider` 是实际成功的引擎。
 - 彩云小译支持译为 `zh-CN` / `zh-TW`，以及中文译为 `en` / `ja` / `ko`；其他目标返回 `-32603`。未配置个人 Token 时使用官方公开测试 Token，可能被限流或随时失效。
 - `microsoftFree` 是非官方接口，没有文档和 SLA，可能随时失效；失败时自动回退 MyMemory，结果的 `provider` 会返回 `mymemory`。
 - `translate.models` 请求 `GET {translateBaseUrl}/models`，返回 `data[].id` 去重排序后的列表。
 - MyMemory 不支持自动识别，sidecar 按字符集推断源语言；`q` 上限 500 字节，超长文本按句子分块。匿名约 5000 字符/天，配置 `translateMyMemoryEmail` 后约 50000 字符/天。
 - MyMemory 的邮箱不是账号或密钥，只用于官方联系和识别用量，会随每次翻译请求以 `de` 参数发送；留空则不发送。
 - 大模型默认使用与沉浸式翻译一致的 system/user 提示词结构；可用 `translateSystemPrompt` / `translateUserPrompt` 覆盖。
-- 引擎失败时返回 `-32603`，`message` 为可读错误；不会自动回退到其他引擎，避免用户误以为在用大模型。
+- 显式指定 `provider` 失败时返回 `-32603`，`message` 为可读错误，不回退；`auto` 模式会继续尝试后续引擎，全部失败才返回 `-32603`。
 - 日志只记录引擎与错误，不记录原文、译文和密钥。
 
 `message.cleared` 的触发条件：
 
 - 前台切到微信 / QQ 主窗口（已查看）。
 - 系统通知从通知中心消失（点击忽略、划掉或点开后客户端收回）。
+
+## 邮件
+
+收件箱。当前阶段不发送、不回复、不删除、不移动；打开单封邮件会自动标为已读，也支持一键标记当前筛选范围。正文一律用 `BODY.PEEK` 读取。
+
+### 账号
+
+`MailAccount`：
+
+```json
+{
+  "id": "m_7f3a1c",
+  "provider": "qq",
+  "email": "user@example.com",
+  "label": "工作",
+  "authType": "password",
+  "enabled": true,
+  "custom": null,
+  "webmailUrl": "https://mail.qq.com/",
+  "state": "ready",
+  "message": "",
+  "lastSyncAt": 1794997775244,
+  "reauthRequired": false
+}
+```
+
+- `id` 由 sidecar 生成并持久化，不等同于邮箱地址，删除重加后仍可保持稳定。
+- `provider` 为 `qq` / `163` / `126` / `exmail` / `icloud` / `gmail` / `microsoft` / `custom`；主机和端口由预设决定，`custom` 使用 `custom:{host, port, username}`。
+- `authType` 为 `password` 或 `oauth2`。`password` 指邮箱授权码或应用专用密码，不是登录密码。
+- `state` 为 `idle` / `connecting` / `ready` / `auth` / `failed`；`auth` 表示授权码或令牌被拒，此时 `reauthRequired` 为 `true`。
+- `message` 是可直接展示的中文状态说明；`lastSyncAt` 为最近一次成功同步的毫秒时间戳。
+- 只支持 IMAP over TLS（通常 993），严格校验证书；不支持 143、STARTTLS 和明文连接。
+
+| provider | 主机 | 认证 | 说明 |
+| --- | --- | --- | --- |
+| `qq` | `imap.qq.com` | 授权码 | |
+| `163` | `imap.163.com` | 授权码 | 登录前需发送 RFC 2971 `ID` |
+| `126` | `imap.126.com` | 授权码 | 登录前需发送 RFC 2971 `ID` |
+| `exmail` | `imap.exmail.qq.com` | 客户端专用密码 | 企业策略可能禁用 IMAP |
+| `icloud` | `imap.mail.me.com` | App 专用密码 | 需开启双重认证 |
+| `gmail` | `imap.gmail.com` | 应用专用密码 | 需开启两步验证 |
+| `microsoft` | `outlook.office365.com` | OAuth2 + XOAUTH2 | 不支持密码直连 |
+| `custom` | 用户填写 | 密码 | 仅 993 或自定义 TLS 端口 |
+
+账号元数据写 `%APPDATA%\guduo\mail.json`，先写临时文件再替换。授权码、应用专用密码和微软 refresh token 写 Windows 凭据管理器，目标名 `guduo/mail/<id>`，任何接口都不回传。
+
+`mail.accounts.add` 只落盘并返回，不等待网络：连接、登录和首次同步都在后台进行，结果通过 `mail.account` 事件推送。相同 `provider` + 邮箱 + `custom` 端点重复添加时覆盖凭据并重置状态。
+
+### 微软 OAuth
+
+- `mail.oauth.begin` 返回设备码，用户在浏览器完成登录；sidecar 在后台轮询 token 端点，不阻塞请求。
+- 成功后自动创建 `provider=microsoft`、`authType=oauth2` 的账号并发 `mail.oauth.completed`；失败或 15 分钟超时发 `mail.oauth.failed`。
+- access token 只放内存，过期前 5 分钟刷新；refresh token 失效时账号转为 `state=auth`、`reauthRequired=true`，不自动重试。
+- scope 为 `offline_access` 与 `https://outlook.office.com/IMAP.AccessAsUser.All`。企业租户可能要求管理员同意。
+- 当前构建尚未内置 Azure 公共客户端 `client_id`：`mail.oauth.begin` 返回 `-32603`，`mail.accounts.add` 对 `microsoft` 返回 `-32602`。配置 client_id 后启用。
+
+### 邮件
+
+`MailSummary`：
+
+```json
+{
+  "id": "mail:m_7f3a1c:8123:456",
+  "accountId": "m_7f3a1c",
+  "from": "张三",
+  "fromAddress": "zhangsan@example.com",
+  "subject": "项目进度",
+  "receivedAt": 1794997775244,
+  "unread": true,
+  "snippet": "本周的进度是…",
+  "hasAttachments": false
+}
+```
+
+`MailDetail` 在摘要基础上增加：
+
+```json
+{
+  "text": "纯文本正文…",
+  "truncated": false,
+  "links": [{ "label": "查看详情", "url": "https://example.com/detail" }]
+}
+```
+
+- `id` 为 `mail:<accountId>:<uidValidity>:<uid>`；`uidValidity` 变化后旧 id 全部失效，客户端应重新 `mail.list`。
+- `receivedAt` 为毫秒时间戳；`unread` 来自 IMAP `FLAGS`。
+- 正文优先 `text/plain`；只有 HTML 时转换为纯文本，并剥离引用历史和签名；上限 64KB，超出时 `truncated=true`。
+- 不返回 HTML，不加载远程图片，不下载附件；`hasAttachments` 由 `BODYSTRUCTURE` 判断。
+- 每账号在内存中保留最近 20 封（含正文），超出淘汰；不落盘。多账号时每个账号各自保留 20 封。
+- `mail.list` 的 `limit` 按账号计算，默认 `20`，限制在 `1`–`20`；`mail.get` 只返回已缓存的正文，未缓存返回 `-32602`。
+- 首次连接读取最近 20 封写入缓存，随后推送 `mail.account` 的 `state=ready`；客户端收到后调用 `mail.list`。之后每轮只取 `UID <last+1>:*` 且每次最多 5 封，逐封推 `mail.received`。
+- 轮询间隔取 `mailPollSeconds`；连接或登录失败按 30 秒起指数退避，最长 60 秒。
+- `mail.markSeen` 使用独立短连接，避免和常驻收信连接争用；传 `id` 时先校验 `uidValidity`，变化则返回错误让客户端刷新。单个账号失败会返回 `ok:false` 和可读消息，成功账号的缓存仍会更新。
+- 客户端打开单封未读邮件时应调用 `mail.markSeen {id}`；批量已读传 `accountId` 或不传参数。
+
+### 翻译
+
+- 复用现有 `translate.run`，不新增邮件专用翻译方法。
+- 客户端把 `MailDetail.text` 或主题作为 `text` 传入；`mail.get` 返回的正文已清理引用和签名，可直接翻译。
+- 翻译按需触发，sidecar 不自动翻译、不缓存译文；客户端可按邮件 `id` + 目标语言自行缓存。
+- 翻译超时沿用 60–90 秒约定；大模型调用失败时不要静默回退到其他引擎。
+
+### 日志
+
+- 日志只记录账号 `id`、`provider`、连接状态和错误类型。
+- 不记录邮箱地址、主题、正文、验证码、授权码、access token 或 refresh token。
 
 ## 约定
 

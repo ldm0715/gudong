@@ -32,6 +32,10 @@ pub const CAPABILITIES: &[&str] = &[
     "translate.models",
     "system.openUrl",
     "settings.persist",
+    "mail.accounts",
+    "mail.list",
+    "mail.read",
+    "mail.markSeen",
 ];
 
 /// 一条未读提醒。`id` 是稳定键：任务栏提醒按账号，系统通知按通知编号。
@@ -68,6 +72,8 @@ pub struct State {
     pub config: crate::config::Config,
     /// 翻译任务队列。网络请求在线程里跑，主循环只负责入队。
     pub translate_tx: Mutex<Option<std::sync::mpsc::Sender<crate::translate::Job>>>,
+    /// 邮件任务队列。账号同步与缓存都在独立线程维护。
+    pub mail_tx: Mutex<Option<std::sync::mpsc::Sender<crate::mail::Job>>>,
 }
 
 impl Default for State {
@@ -94,11 +100,18 @@ impl State {
             ime: Mutex::new(None),
             config,
             translate_tx: Mutex::new(None),
+            mail_tx: Mutex::new(None),
         }
     }
 
     pub fn set_translate_sender(&self, sender: std::sync::mpsc::Sender<crate::translate::Job>) {
         if let Ok(mut slot) = self.translate_tx.lock() {
+            *slot = Some(sender);
+        }
+    }
+
+    pub fn set_mail_sender(&self, sender: std::sync::mpsc::Sender<crate::mail::Job>) {
+        if let Ok(mut slot) = self.mail_tx.lock() {
             *slot = Some(sender);
         }
     }
@@ -265,6 +278,33 @@ pub fn handle(
                     params: params.clone(),
                 })
                 .map_err(|_| RpcError::new(ERR_INTERNAL, "translate worker stopped"))?;
+            Ok(Action::Pending)
+        }
+        "mail.accounts.list"
+        | "mail.accounts.add"
+        | "mail.accounts.update"
+        | "mail.accounts.remove"
+        | "mail.oauth.begin"
+        | "mail.oauth.cancel"
+        | "mail.list"
+        | "mail.get"
+        | "mail.refresh"
+        | "mail.markSeen" => {
+            let sender = state
+                .mail_tx
+                .lock()
+                .ok()
+                .and_then(|slot| slot.clone());
+            let Some(sender) = sender else {
+                return Err(RpcError::new(ERR_INTERNAL, "mail worker is not running"));
+            };
+            sender
+                .send(crate::mail::Job {
+                    id: id.clone(),
+                    method: method.to_string(),
+                    params: params.clone(),
+                })
+                .map_err(|_| RpcError::new(ERR_INTERNAL, "mail worker stopped"))?;
             Ok(Action::Pending)
         }
         "settings.get" => Ok(Action::Respond(json!({

@@ -13,7 +13,7 @@ use serde_json::{json, Map, Value};
 use std::io::Read;
 use std::sync::mpsc::Sender;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::credentials;
 use crate::rpc::{self, RpcError, State, ERR_INTERNAL, ERR_INVALID_PARAMS, ERR_METHOD_NOT_FOUND};
@@ -79,7 +79,7 @@ pub fn start(state: Arc<State>, tx: Sender<Value>) -> Sender<Job> {
     job_tx
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 enum Provider {
     Llm,
     DeepL,
@@ -240,75 +240,113 @@ fn run(state: &State, params: &Value) -> Result<Value, RpcError> {
         .filter(|value| !value.is_empty())
         .or_else(|| setting(&settings, "translateProvider"))
         .unwrap_or("auto");
-    let provider = match requested {
+    let explicit = matches!(
+        requested,
+        "llm" | "deepl" | "caiyun" | "microsoftFree" | "mymemory"
+    );
+    let candidates = if explicit {
+        vec![provider_from_id(requested).expect("known provider")]
+    } else {
+        auto_candidates(&settings)
+    };
+
+    let mut last_error = String::new();
+    let started = Instant::now();
+    for provider in candidates {
+        if started.elapsed() >= Duration::from_secs(50) {
+            return Err(RpcError::new(
+                ERR_INTERNAL,
+                "翻译超时，请检查网络或更换翻译服务",
+            ));
+        }
+        let result = match provider {
+            Provider::Llm => {
+                translate_llm(&settings, text, &target).map(|text| (text, None, provider))
+            }
+            Provider::DeepL => translate_deepl(&settings, trimmed, &target)
+                .map(|(text, from)| (text, from, provider)),
+            Provider::Caiyun => translate_caiyun(&settings, text, &target)
+                .map(|(text, from)| (text, from, provider)),
+            Provider::MicrosoftFree => match translate_microsoft_free(&settings, text, &target) {
+                Ok((text, from)) => Ok((text, from, provider)),
+                Err(message) => {
+                    // 实验接口失效时退回 MyMemory，避免自动模式直接不可用。
+                    crate::log(&format!(
+                        "translate: microsoftFree failed: {message}; falling back to mymemory"
+                    ));
+                    translate_mymemory(&settings, text, &target)
+                        .map(|(text, from)| (text, from, Provider::MyMemory))
+                }
+            },
+            Provider::MyMemory => translate_mymemory(&settings, text, &target)
+                .map(|(text, from)| (text, from, provider)),
+        };
+
+        match result {
+            Ok((translated, from, actual)) => {
+                return Ok(json!({
+                    "text": translated,
+                    "provider": actual.id(),
+                    "to": target,
+                    "from": from,
+                }));
+            }
+            Err(message) => {
+                crate::log(&format!("translate: {} failed: {message}", provider.id()));
+                last_error = message;
+            }
+        }
+    }
+
+    Err(RpcError::new(
+        ERR_INTERNAL,
+        if last_error.is_empty() {
+            "没有可用的翻译引擎".to_string()
+        } else {
+            last_error
+        },
+    ))
+}
+
+fn provider_from_id(id: &str) -> Option<Provider> {
+    Some(match id {
         "llm" => Provider::Llm,
         "deepl" => Provider::DeepL,
         "caiyun" => Provider::Caiyun,
         "microsoftFree" => Provider::MicrosoftFree,
         "mymemory" => Provider::MyMemory,
-        _ => resolve_auto(&settings),
-    };
-
-    let result = match provider {
-        Provider::Llm => {
-            translate_llm(&settings, text, &target).map(|text| (text, None, provider))
-        }
-        Provider::DeepL => translate_deepl(&settings, trimmed, &target)
-            .map(|(text, from)| (text, from, provider)),
-        Provider::Caiyun => translate_caiyun(&settings, text, &target)
-            .map(|(text, from)| (text, from, provider)),
-        Provider::MicrosoftFree => match translate_microsoft_free(&settings, text, &target) {
-            Ok((text, from)) => Ok((text, from, provider)),
-            Err(message) => {
-                // 实验接口失效时退回 MyMemory，避免自动模式直接不可用。
-                crate::log(&format!(
-                    "translate: microsoftFree failed: {message}; falling back to mymemory"
-                ));
-                translate_mymemory(&settings, text, &target)
-                    .map(|(text, from)| (text, from, Provider::MyMemory))
-            }
-        },
-        Provider::MyMemory => translate_mymemory(&settings, text, &target)
-            .map(|(text, from)| (text, from, provider)),
-    };
-
-    match result {
-        Ok((translated, from, actual)) => Ok(json!({
-            "text": translated,
-            "provider": actual.id(),
-            "to": target,
-            "from": from,
-        })),
-        Err(message) => {
-            crate::log(&format!("translate: {} failed: {message}", provider.id()));
-            Err(RpcError::new(ERR_INTERNAL, message))
-        }
-    }
+        _ => return None,
+    })
 }
 
-fn resolve_auto(settings: &Map<String, Value>) -> Provider {
+/// 自动模式按设置顺序列出可用引擎，某个引擎失败后继续尝试下一个。
+fn auto_candidates(settings: &Map<String, Value>) -> Vec<Provider> {
+    let mut candidates = Vec::new();
     for id in auto_order(settings) {
-        match id.as_str() {
+        let provider = match id.as_str() {
             // Base URL 始终有默认值，配好模型和 Key 就认为大模型可用。
-            "llm" => {
+            "llm"
                 if setting(settings, "translateModel").is_some()
-                    && credentials::read(credentials::LLM).is_some()
-                {
-                    return Provider::Llm;
-                }
+                    && credentials::read(credentials::LLM).is_some() =>
+            {
+                Some(Provider::Llm)
             }
-            "deepl" => {
-                if credentials::read(credentials::DEEPL).is_some() {
-                    return Provider::DeepL;
-                }
+            "deepl" if credentials::read(credentials::DEEPL).is_some() => Some(Provider::DeepL),
+            "caiyun" => Some(Provider::Caiyun),
+            "microsoftFree" => Some(Provider::MicrosoftFree),
+            "mymemory" => Some(Provider::MyMemory),
+            _ => None,
+        };
+        if let Some(provider) = provider {
+            if !candidates.contains(&provider) {
+                candidates.push(provider);
             }
-            "caiyun" => return Provider::Caiyun,
-            "microsoftFree" => return Provider::MicrosoftFree,
-            "mymemory" => return Provider::MyMemory,
-            _ => {}
         }
     }
-    Provider::MyMemory
+    if candidates.is_empty() {
+        candidates.push(Provider::MyMemory);
+    }
+    candidates
 }
 
 /// 用户自定义优先级；未知项忽略，缺项按默认顺序补齐。
@@ -374,7 +412,7 @@ fn translate_llm(
         ]
     });
     let url = format!("{}/chat/completions", normalize_base(base));
-    let response = agent(90)
+    let response = agent(25)
         .post(&url)
         .set("Authorization", &format!("Bearer {key}"))
         .set("Content-Type", "application/json")
@@ -511,7 +549,7 @@ fn translate_deepl(
 
     let mut last_error = String::new();
     for host in [first, second] {
-        let response = agent(45)
+        let response = agent(20)
             .post(&format!("{host}/v2/translate"))
             .set("Authorization", &format!("DeepL-Auth-Key {key}"))
             .set("Content-Type", "application/json")
@@ -564,7 +602,7 @@ fn translate_caiyun(
         "media": "text",
         "request_id": format!("guduo-{}", chrono::Local::now().timestamp_millis()),
     });
-    let response = agent(30)
+    let response = agent(20)
         .post("https://api.interpreter.caiyunai.com/v1/translator")
         .set("Content-Type", "application/json")
         .set("x-authorization", &format!("token {token}"))
@@ -645,7 +683,7 @@ fn translate_microsoft_free(
         urlencoding::encode(&source_code),
         urlencoding::encode(&target_code)
     );
-    let response = agent(30)
+    let response = agent(20)
         .post(&url)
         .set("Content-Type", "application/json")
         .set(
@@ -707,7 +745,7 @@ fn mymemory_chunk(
         url.push_str("&de=");
         url.push_str(&urlencoding::encode(email));
     }
-    let response = agent(20)
+    let response = agent(15)
         .get(&url)
         .set("Accept", "application/json")
         .call()

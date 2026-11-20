@@ -14,6 +14,9 @@ import '../diagnostics/diagnostics_controller.dart';
 import '../diagnostics/diagnostics_tab.dart';
 import '../ime/ime_banner.dart';
 import '../ime/ime_controller.dart';
+import '../mail/mail_banner.dart';
+import '../mail/mail_controller.dart';
+import '../mail/mail_tab.dart';
 import '../media/media_controller.dart';
 import '../media/media_tab.dart';
 import '../messages/messages_controller.dart';
@@ -34,6 +37,7 @@ class IslandShell extends StatefulWidget {
     super.key,
     required this.island,
     required this.messages,
+    required this.mail,
     required this.weather,
     required this.media,
     required this.ime,
@@ -46,6 +50,7 @@ class IslandShell extends StatefulWidget {
 
   final IslandController island;
   final MessagesController messages;
+  final MailController mail;
   final WeatherController weather;
   final MediaController media;
   final ImeController ime;
@@ -105,6 +110,7 @@ class _IslandShellState extends State<IslandShell> {
               animation: Listenable.merge([
                 island,
                 widget.messages,
+                widget.mail,
                 widget.weather,
                 widget.media,
                 widget.ime,
@@ -116,11 +122,15 @@ class _IslandShellState extends State<IslandShell> {
                 final colors = context.islandColors;
                 final expanded = island.expanded;
                 final showBanner = island.showBanner;
+                final showMailBanner = island.showMailBanner && !showBanner;
                 final settings = widget.settings.settings;
-                // 输入法切换复用消息横幅的激活态，消息横幅优先。
+                // 消息横幅优先，其次是新邮件，最后是输入法切换。
                 final showIme =
-                    settings.showImeBanner && widget.ime.visible && !showBanner;
-                final activeBanner = showBanner || showIme;
+                    settings.showImeBanner &&
+                    widget.ime.visible &&
+                    !showBanner &&
+                    !showMailBanner;
+                final activeBanner = showBanner || showMailBanner || showIme;
                 final tabs = settings.visibleTabs;
                 final tab = tabs.contains(_tab)
                     ? _tab
@@ -168,6 +178,7 @@ class _IslandShellState extends State<IslandShell> {
                             size: IslandLayout.expandedSizeFor(side),
                             island: island,
                             messages: widget.messages,
+                            mail: widget.mail,
                             weather: widget.weather,
                             media: widget.media,
                             diagnostics: widget.diagnostics,
@@ -183,10 +194,16 @@ class _IslandShellState extends State<IslandShell> {
                           )
                         : showBanner
                         ? NotificationBanner(controller: widget.messages)
+                        : showMailBanner
+                        ? MailBanner(
+                            controller: widget.mail,
+                            item: island.mailBannerItem!,
+                          )
                         : showIme
                         ? ImeBanner(chinese: widget.ime.chinese)
                         : CollapsedBar(
                             messages: widget.messages,
+                            mail: widget.mail,
                             weather: widget.weather,
                             media: widget.media,
                             ime: widget.ime,
@@ -211,6 +228,7 @@ class _ExpandedBody extends StatelessWidget {
     required this.size,
     required this.island,
     required this.messages,
+    required this.mail,
     required this.weather,
     required this.media,
     required this.diagnostics,
@@ -227,6 +245,7 @@ class _ExpandedBody extends StatelessWidget {
   final Size size;
   final IslandController island;
   final MessagesController messages;
+  final MailController mail;
   final WeatherController weather;
   final MediaController media;
   final DiagnosticsController diagnostics;
@@ -364,6 +383,11 @@ class _ExpandedBody extends StatelessWidget {
     }
     return switch (activeTab) {
       IslandTab.messages => MessagesTab(controller: messages),
+      IslandTab.mail => MailTab(
+        controller: mail,
+        settings: settings,
+        onOpenSettings: onOpenSettings,
+      ),
       IslandTab.translate => TranslateTab(
         controller: translate,
         settings: settings,

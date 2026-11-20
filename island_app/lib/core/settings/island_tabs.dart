@@ -1,6 +1,7 @@
 /// 岛体页面标识。持久化时使用 [id]，顺序与显隐来自设置。
 enum IslandTab {
   messages('messages', '消息'),
+  mail('mail', '邮箱'),
   translate('translate', '翻译'),
   weather('weather', '天气'),
   media('media', '媒体'),
@@ -13,6 +14,7 @@ enum IslandTab {
 
   static const List<IslandTab> all = [
     IslandTab.messages,
+    IslandTab.mail,
     IslandTab.translate,
     IslandTab.weather,
     IslandTab.media,

@@ -9,6 +9,8 @@ import '../../core/theme/island_motion.dart';
 import '../../core/theme/island_typography.dart';
 import '../ime/ime_controller.dart';
 import '../ime/ime_indicator.dart';
+import '../mail/mail_controller.dart';
+import '../mail/mail_provider_badge.dart';
 import '../media/media_controller.dart';
 import '../messages/messages_controller.dart';
 import '../weather/weather_controller.dart';
@@ -24,6 +26,7 @@ class CollapsedBar extends StatefulWidget {
   const CollapsedBar({
     super.key,
     required this.messages,
+    required this.mail,
     required this.weather,
     required this.media,
     required this.ime,
@@ -34,6 +37,7 @@ class CollapsedBar extends StatefulWidget {
   });
 
   final MessagesController messages;
+  final MailController mail;
   final WeatherController weather;
   final MediaController media;
   final ImeController ime;
@@ -85,12 +89,30 @@ class _CollapsedBarState extends State<CollapsedBar> {
         widget.media.available &&
         widget.media.playing;
     final showIme = widget.showImeIndicator && widget.ime.mode != null;
+    final unreadMail = widget.mail.items.where((item) => item.unread);
+    final latestUnread = unreadMail.isEmpty ? null : unreadMail.first;
+    final latestAccount = latestUnread == null
+        ? null
+        : widget.mail.accountFor(latestUnread.accountId);
+    final mailProvider = latestAccount?.provider;
+    final mailEmail = latestAccount?.email;
+    final mailColor = colors.accent;
     final size = IslandLayout.collapsedBarSize(
       vertical: widget.vertical,
       imeIndicator: widget.showImeIndicator,
     );
     if (widget.vertical) {
-      return _buildVertical(colors, time, snapshot, showWave, showIme, size);
+      return _buildVertical(
+        colors,
+        time,
+        snapshot,
+        showWave,
+        showIme,
+        size,
+        mailProvider,
+        mailEmail,
+        mailColor,
+      );
     }
     return SizedBox(
       width: size.width,
@@ -99,27 +121,40 @@ class _CollapsedBarState extends State<CollapsedBar> {
         children: [
           const SizedBox(width: IslandMetrics.space10),
           Expanded(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(time, style: IslandTypography.clock.tint(colors.text)),
-                if (snapshot != null) ...[
-                  const SizedBox(width: IslandMetrics.space7),
-                  WeatherChip(snapshot: snapshot),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(time, style: IslandTypography.clock.tint(colors.text)),
+                  if (snapshot != null) ...[
+                    const SizedBox(width: IslandMetrics.space7),
+                    WeatherChip(snapshot: snapshot),
+                  ],
+                  if (showIme) ...[
+                    const SizedBox(width: IslandMetrics.space6),
+                    ImeIndicator(chinese: widget.ime.chinese),
+                  ],
+                  if (widget.messages.hasWechat) ...[
+                    const SizedBox(width: IslandMetrics.space8),
+                    const ClientGlyph(source: 'wechat', size: 18),
+                  ],
+                  if (widget.messages.hasQq) ...[
+                    const SizedBox(width: IslandMetrics.space4),
+                    const ClientGlyph(source: 'qq', size: 18),
+                  ],
+                  if (mailProvider != null) ...[
+                    const SizedBox(width: IslandMetrics.space6),
+                    MailProviderBadge(
+                      provider: mailProvider,
+                      email: mailEmail,
+                      size: IslandMetrics.iconLG,
+                      color: mailColor,
+                    ),
+                  ],
                 ],
-                if (showIme) ...[
-                  const SizedBox(width: IslandMetrics.space6),
-                  ImeIndicator(chinese: widget.ime.chinese),
-                ],
-                if (widget.messages.hasWechat) ...[
-                  const SizedBox(width: IslandMetrics.space8),
-                  const ClientGlyph(source: 'wechat', size: 18),
-                ],
-                if (widget.messages.hasQq) ...[
-                  const SizedBox(width: IslandMetrics.space4),
-                  const ClientGlyph(source: 'qq', size: 18),
-                ],
-              ],
+              ),
             ),
           ),
           if (showWave) const _WaveBars(),
@@ -137,6 +172,9 @@ class _CollapsedBarState extends State<CollapsedBar> {
     bool showWave,
     bool showIme,
     Size size,
+    String? mailProvider,
+    String? mailEmail,
+    Color mailColor,
   ) {
     // 窄栏放不下 "HH:MM"，拆成小时在上、分钟在下。
     final parts = time.split(':');
@@ -148,40 +186,52 @@ class _CollapsedBarState extends State<CollapsedBar> {
         children: [
           const SizedBox(height: IslandMetrics.space10),
           Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  clock,
-                  textAlign: TextAlign.center,
-                  style: IslandTypography.clockCompact.tint(colors.text),
-                ),
-                if (snapshot != null) ...[
-                  const SizedBox(height: IslandMetrics.space6),
-                  Icon(
-                    weatherIcon(snapshot.kind, snapshot.isDay),
-                    size: IslandMetrics.iconSM,
-                    color: weatherColor(colors, snapshot.kind),
-                  ),
-                  const SizedBox(height: IslandMetrics.space2),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   Text(
-                    '${snapshot.roundedTemp}°',
-                    style: IslandTypography.microStrong.tint(colors.text),
+                    clock,
+                    textAlign: TextAlign.center,
+                    style: IslandTypography.clockCompact.tint(colors.text),
                   ),
+                  if (snapshot != null) ...[
+                    const SizedBox(height: IslandMetrics.space6),
+                    Icon(
+                      weatherIcon(snapshot.kind, snapshot.isDay),
+                      size: IslandMetrics.iconSM,
+                      color: weatherColor(colors, snapshot.kind),
+                    ),
+                    const SizedBox(height: IslandMetrics.space2),
+                    Text(
+                      '${snapshot.roundedTemp}°',
+                      style: IslandTypography.microStrong.tint(colors.text),
+                    ),
+                  ],
+                  if (showIme) ...[
+                    const SizedBox(height: IslandMetrics.space6),
+                    ImeIndicator(chinese: widget.ime.chinese),
+                  ],
+                  if (widget.messages.hasWechat) ...[
+                    const SizedBox(height: IslandMetrics.space6),
+                    const ClientGlyph(source: 'wechat', size: 18),
+                  ],
+                  if (widget.messages.hasQq) ...[
+                    const SizedBox(height: IslandMetrics.space4),
+                    const ClientGlyph(source: 'qq', size: 18),
+                  ],
+                  if (mailProvider != null) ...[
+                    const SizedBox(height: IslandMetrics.space4),
+                    MailProviderBadge(
+                      provider: mailProvider,
+                      email: mailEmail,
+                      size: IslandMetrics.iconLG,
+                      color: mailColor,
+                    ),
+                  ],
                 ],
-                if (showIme) ...[
-                  const SizedBox(height: IslandMetrics.space6),
-                  ImeIndicator(chinese: widget.ime.chinese),
-                ],
-                if (widget.messages.hasWechat) ...[
-                  const SizedBox(height: IslandMetrics.space6),
-                  const ClientGlyph(source: 'wechat', size: 18),
-                ],
-                if (widget.messages.hasQq) ...[
-                  const SizedBox(height: IslandMetrics.space4),
-                  const ClientGlyph(source: 'qq', size: 18),
-                ],
-              ],
+              ),
             ),
           ),
           // 与横向版本贴右边一致：音波固定在窄栏最下方。

@@ -8,6 +8,7 @@ import '../../core/logging/crash_handler.dart';
 import '../../core/settings/app_settings.dart';
 import '../../core/theme/island_colors.dart';
 import '../translate/translate_bridge.dart';
+import 'mail_settings_page.dart';
 import 'settings_panel.dart';
 import 'settings_window_args.dart';
 import 'settings_window_native.dart';
@@ -16,6 +17,7 @@ import 'translate_settings_page.dart';
 enum SettingsSection {
   general,
   pages,
+  mail,
   translate,
   music,
   focus,
@@ -30,11 +32,12 @@ extension SettingsSectionMeta on SettingsSection {
   String get label => switch (this) {
     SettingsSection.general => '常规',
     SettingsSection.pages => '页面管理',
+    SettingsSection.mail => '邮箱',
     SettingsSection.translate => '翻译',
     SettingsSection.music => '音乐与歌词',
     SettingsSection.focus => '专注与饮水',
     SettingsSection.todos => '待办与置物',
-    SettingsSection.notifications => '通知、邮箱与日程',
+    SettingsSection.notifications => '通知与日程',
     SettingsSection.ai => 'AI 额度',
     SettingsSection.weather => '天气',
     SettingsSection.about => '关于',
@@ -43,6 +46,7 @@ extension SettingsSectionMeta on SettingsSection {
   IconData get icon => switch (this) {
     SettingsSection.general => Icons.settings_rounded,
     SettingsSection.pages => Icons.dashboard_rounded,
+    SettingsSection.mail => Icons.mail_outline_rounded,
     SettingsSection.translate => Icons.translate_rounded,
     SettingsSection.music => Icons.music_note_rounded,
     SettingsSection.focus => Icons.local_fire_department_rounded,
@@ -56,6 +60,7 @@ extension SettingsSectionMeta on SettingsSection {
   Color get tint => switch (this) {
     SettingsSection.general => const Color(0xFF8E9AAF),
     SettingsSection.pages => const Color(0xFF5B8DEF),
+    SettingsSection.mail => const Color(0xFF4F9CF9),
     SettingsSection.translate => const Color(0xFF7C6CF2),
     SettingsSection.music => const Color(0xFFF06292),
     SettingsSection.focus => const Color(0xFFF59E0B),
@@ -69,7 +74,7 @@ extension SettingsSectionMeta on SettingsSection {
   String get placeholder => switch (this) {
     SettingsSection.focus => '专注计时与喝水提醒会放在这里。',
     SettingsSection.todos => '待办、置物架和快捷入口会放在这里。',
-    SettingsSection.notifications => '通知聚合、邮箱与日程会放在这里。',
+    SettingsSection.notifications => '系统通知聚合与日程会放在这里。',
     SettingsSection.ai => 'AI 服务的额度与用量会放在这里。',
     _ => '该页面将在后续阶段接入。',
   };
@@ -354,6 +359,10 @@ class _SettingsBodyState extends State<_SettingsBody> {
         onSave: onSave,
       ),
       SettingsSection.pages => PagesSettingsPage(
+        settings: settings,
+        onSave: onSave,
+      ),
+      SettingsSection.mail => MailSettingsPage(
         settings: settings,
         onSave: onSave,
       ),
