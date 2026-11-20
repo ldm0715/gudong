@@ -9,6 +9,7 @@ import 'package:window_manager/window_manager.dart';
 import 'app.dart';
 import 'core/app_info.dart';
 import 'core/click_through/click_through_controller.dart';
+import 'core/input/keyboard_event_guard.dart';
 import 'core/ipc/sidecar_supervisor.dart';
 import 'core/log.dart';
 import 'core/logging/crash_handler.dart';
@@ -33,6 +34,7 @@ Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
   // 封面已按显示尺寸解码；限制缓存上限，避免长时间播放后图片缓存持续累积。
   PaintingBinding.instance.imageCache.maximumSizeBytes = 32 << 20;
+  unawaited(KeyboardEventGuard.install());
 
   // 多窗口：带 type=settings 参数的引擎是设置窗口，不跑岛体逻辑。
   final settingsWindow = await _settingsWindowArguments();
