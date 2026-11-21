@@ -9,6 +9,7 @@ import '../../core/logging/crash_handler.dart';
 import '../../core/settings/app_settings.dart';
 import '../../core/theme/island_colors.dart';
 import '../translate/translate_bridge.dart';
+import '../weather/weather_bridge.dart';
 import 'mail_settings_page.dart';
 import 'quota_settings_page.dart';
 import 'settings_panel.dart';
@@ -216,6 +217,11 @@ Future<void> runSettingsWindow(SettingsWindowArguments args) async {
     await translateChannel.setMethodCallHandler((call) async => null);
   } catch (error) {
     AppLog.write('[settings-window] translate channel register failed: $error');
+  }
+  try {
+    await weatherChannel.setMethodCallHandler((call) async => null);
+  } catch (error) {
+    AppLog.write('[settings-window] weather channel register failed: $error');
   }
 
   // 主窗口通过 WindowController 发送 focus / close。

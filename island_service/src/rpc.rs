@@ -27,6 +27,7 @@ pub const CAPABILITIES: &[&str] = &[
     "media.control",
     "media.lyrics",
     "weather.current",
+    "weather.search",
     "ime.status",
     "translate.text",
     "translate.models",
@@ -70,6 +71,8 @@ pub struct State {
     pub lyrics_sequence: Mutex<u64>,
     pub weather: Mutex<Option<crate::weather::WeatherSnapshot>>,
     pub weather_status: Mutex<String>,
+    /// 天气刷新与搜索命令队列。
+    pub weather_tx: Mutex<Option<std::sync::mpsc::Sender<crate::weather::Command>>>,
     /// 最近一次读到的输入法模式：`zh` / `en`，采样前为 `None`。
     pub ime: Mutex<Option<&'static str>>,
     pub config: crate::config::Config,
@@ -104,6 +107,7 @@ impl State {
             lyrics_sequence: Mutex::new(0),
             weather: Mutex::new(None),
             weather_status: Mutex::new("正在获取天气".into()),
+            weather_tx: Mutex::new(None),
             ime: Mutex::new(None),
             config,
             translate_tx: Mutex::new(None),
@@ -121,6 +125,12 @@ impl State {
 
     pub fn set_mail_sender(&self, sender: std::sync::mpsc::Sender<crate::mail::Job>) {
         if let Ok(mut slot) = self.mail_tx.lock() {
+            *slot = Some(sender);
+        }
+    }
+
+    pub fn set_weather_sender(&self, sender: std::sync::mpsc::Sender<crate::weather::Command>) {
+        if let Ok(mut slot) = self.weather_tx.lock() {
             *slot = Some(sender);
         }
     }
@@ -277,6 +287,34 @@ pub fn handle(
                 "status": status,
             })))
         }
+        "weather.search" => {
+            let query = params
+                .get("query")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .trim();
+            if query.is_empty() || query.chars().count() > 80 {
+                return Err(RpcError::new(
+                    ERR_INVALID_PARAMS,
+                    "weather.search requires a query of 1-80 characters",
+                ));
+            }
+            let sender = state
+                .weather_tx
+                .lock()
+                .ok()
+                .and_then(|slot| slot.clone());
+            let Some(sender) = sender else {
+                return Err(RpcError::new(ERR_INTERNAL, "weather worker is not running"));
+            };
+            sender
+                .send(crate::weather::Command::Search {
+                    id: id.clone(),
+                    query: query.to_string(),
+                })
+                .map_err(|_| RpcError::new(ERR_INTERNAL, "weather worker stopped"))?;
+            Ok(Action::Pending)
+        }
         "translate.run" | "translate.models" | "translate.setSecret" => {
             let sender = state
                 .translate_tx
@@ -411,10 +449,21 @@ pub fn handle(
             let quota_changed = ["quotaOrder", "quotaRefreshSeconds", "quotaGlmRegion"]
                 .iter()
                 .any(|key| previous.get(*key) != patch.get(*key));
+            let weather_changed = [
+                "weatherLocationMode",
+                "weatherLocationName",
+                "weatherLatitude",
+                "weatherLongitude",
+            ]
+            .iter()
+            .any(|key| previous.get(*key) != patch.get(*key));
             match state.config.merge(&patch) {
                 Ok(_) => {
                     if quota_changed {
                         wake_quota(state, None);
+                    }
+                    if weather_changed {
+                        wake_weather(state);
                     }
                     Ok(Action::Respond(json!({
                         "ok": true,
@@ -498,6 +547,14 @@ fn settings_snapshot(state: &State) -> Map<String, Value> {
         json!(crate::credentials::read(crate::credentials::OPENCODE_COOKIE).is_some()),
     );
     settings
+}
+
+fn wake_weather(state: &State) {
+    if let Ok(slot) = state.weather_tx.lock() {
+        if let Some(sender) = slot.as_ref() {
+            let _ = sender.send(crate::weather::Command::Refresh);
+        }
+    }
 }
 
 fn wake_quota(state: &State, provider: Option<String>) {
@@ -814,6 +871,37 @@ mod tests {
         assert_eq!(snapshot["themeId"], "midnight");
         assert!(!snapshot.contains_key("translateLlmKeyConfigured"));
         assert!(!snapshot.contains_key("translateDeeplApiKey"));
+    }
+
+    #[test]
+    fn weather_location_change_wakes_weather_worker() {
+        let state = State::default();
+        let (tx, rx) = std::sync::mpsc::channel();
+        state.set_weather_sender(tx);
+        let _ = handle(
+            &state,
+            &Value::Null,
+            "settings.set",
+            &json!({ "settings": {
+                "weatherLocationMode": "manual",
+                "weatherLatitude": 23.11667,
+                "weatherLongitude": 113.25,
+            } }),
+        )
+        .unwrap();
+        assert!(matches!(
+            rx.try_recv(),
+            Ok(crate::weather::Command::Refresh)
+        ));
+    }
+
+    #[test]
+    fn weather_search_requires_query() {
+        let state = State::default();
+        let error = handle(&state, &Value::Null, "weather.search", &json!({}))
+            .err()
+            .expect("expected error");
+        assert_eq!(error.code, ERR_INVALID_PARAMS);
     }
 
     #[test]

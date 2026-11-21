@@ -9,6 +9,8 @@ import '../../core/settings/app_settings.dart';
 import '../../core/settings/island_tabs.dart';
 import '../../core/theme/island_colors.dart';
 import '../../core/theme/island_motion.dart';
+import '../weather/weather_bridge.dart';
+import '../weather/weather_models.dart';
 
 /// 设置窗口左侧每个栏目的内容。
 class SettingsSectionLabel extends StatelessWidget {
@@ -441,7 +443,7 @@ class MusicSettingsPage extends StatelessWidget {
   }
 }
 
-class WeatherSettingsPage extends StatelessWidget {
+class WeatherSettingsPage extends StatefulWidget {
   const WeatherSettingsPage({
     super.key,
     required this.settings,
@@ -452,7 +454,89 @@ class WeatherSettingsPage extends StatelessWidget {
   final ValueChanged<AppSettings> onSave;
 
   @override
+  State<WeatherSettingsPage> createState() => _WeatherSettingsPageState();
+}
+
+class _WeatherSettingsPageState extends State<WeatherSettingsPage> {
+  final TextEditingController _query = TextEditingController();
+  List<WeatherPlace> _places = const [];
+  bool _searching = false;
+  String? _message;
+
+  @override
+  void dispose() {
+    _query.dispose();
+    super.dispose();
+  }
+
+  Future<void> _search() async {
+    final query = _query.text.trim();
+    if (query.isEmpty || _searching) return;
+    setState(() {
+      _searching = true;
+      _message = null;
+    });
+    try {
+      final result = await weatherChannel.invokeMethod<dynamic>('search', {
+        'query': query,
+      });
+      final raw = result is Map ? result['places'] : null;
+      final places = raw is List
+          ? raw
+                .whereType<Map>()
+                .map(
+                  (item) =>
+                      WeatherPlace.fromJson(Map<String, dynamic>.from(item)),
+                )
+                .toList(growable: false)
+          : const <WeatherPlace>[];
+      if (!mounted) return;
+      setState(() {
+        _places = places;
+        if (places.isEmpty) _message = '没有找到匹配的地点';
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _message = '搜索失败：$error');
+    } finally {
+      if (mounted) setState(() => _searching = false);
+    }
+  }
+
+  void _apply(WeatherPlace place) {
+    widget.onSave(
+      widget.settings.copyWith(
+        weatherLocationMode: 'manual',
+        weatherLocationName: place.label,
+        weatherLatitude: place.latitude,
+        weatherLongitude: place.longitude,
+      ),
+    );
+    _query.clear();
+    setState(() {
+      _places = const [];
+      _message = null;
+    });
+  }
+
+  void _useAuto() {
+    widget.onSave(widget.settings.copyWith(weatherLocationMode: 'auto'));
+    setState(() {
+      _places = const [];
+      _message = null;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final settings = widget.settings;
+    final colors = context.islandColors;
+    final manual = settings.weatherLocationMode == 'manual';
+    final current = manual
+        ? (settings.weatherLocationName.isEmpty
+              ? '手动位置'
+              : settings.weatherLocationName)
+        : '自动';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -464,8 +548,94 @@ class WeatherSettingsPage extends StatelessWidget {
               subtitle: '收起态在时间右侧显示当前天气',
               value: settings.showWeather,
               onChanged: (value) =>
-                  onSave(settings.copyWith(showWeather: value)),
+                  widget.onSave(settings.copyWith(showWeather: value)),
             ),
+          ],
+        ),
+        const SizedBox(height: 18),
+        const SettingsSectionLabel('定位'),
+        SettingsCard(
+          children: [
+            SettingsRow(
+              title: '当前定位',
+              subtitle: manual ? '使用手动指定的地点' : '按网络出口 IP 自动定位',
+              trailing: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 320),
+                child: Text(
+                  current,
+                  textAlign: TextAlign.right,
+                  style: TextStyle(color: colors.muted, fontSize: 12),
+                ),
+              ),
+            ),
+            if (manual) ...[
+              const SettingsDivider(),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: TextButton(
+                    onPressed: _useAuto,
+                    child: const Text('恢复自动定位'),
+                  ),
+                ),
+              ),
+            ],
+            const SettingsDivider(),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _query,
+                      style: TextStyle(color: colors.text, fontSize: 12),
+                      textInputAction: TextInputAction.search,
+                      onSubmitted: (_) => unawaited(_search()),
+                      decoration: const InputDecoration(
+                        hintText: '输入城市名，如 广州、Tokyo',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton(
+                    onPressed: _searching ? null : _search,
+                    child: Text(_searching ? '搜索中…' : '搜索'),
+                  ),
+                ],
+              ),
+            ),
+            if (_message != null) ...[
+              const SettingsDivider(),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: Text(
+                  _message!,
+                  style: TextStyle(color: colors.muted, fontSize: 11),
+                ),
+              ),
+            ],
+            for (final place in _places) ...[
+              const SettingsDivider(),
+              ListTile(
+                dense: true,
+                onTap: () => _apply(place),
+                title: Text(
+                  place.name,
+                  style: TextStyle(color: colors.text, fontSize: 13),
+                ),
+                subtitle: place.detail.isEmpty
+                    ? null
+                    : Text(
+                        place.detail,
+                        style: TextStyle(color: colors.muted, fontSize: 11),
+                      ),
+                trailing: TextButton(
+                  onPressed: () => _apply(place),
+                  child: const Text('使用'),
+                ),
+              ),
+            ],
           ],
         ),
         const SizedBox(height: 18),
@@ -475,9 +645,9 @@ class WeatherSettingsPage extends StatelessWidget {
             SettingsInfoRow(title: '刷新间隔', value: '15 分钟'),
             SettingsDivider(),
             SettingsInfoRow(
-              title: '定位与抓取',
-              subtitle: '由 sidecar 自动按出口 IP 定位',
-              value: '自动',
+              title: '数据来源',
+              subtitle: '地点搜索使用 Open-Meteo 地理编码，天气由 sidecar 抓取',
+              value: '内置',
             ),
           ],
         ),

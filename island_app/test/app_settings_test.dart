@@ -24,6 +24,8 @@ void main() {
     expect(settings.toJson(), {
       'themeId': 'light',
       'showWeather': false,
+      'weatherLocationMode': 'auto',
+      'weatherLocationName': '',
       'mediaEnabled': true,
       'showPlayingIndicator': true,
       'showImeIndicator': true,
@@ -61,6 +63,28 @@ void main() {
       'hiddenQuotaProviders': <String>[],
       'quotaGlmRegion': 'global',
     });
+  });
+
+  test('parses and serializes a manual weather location', () {
+    final settings = AppSettings.fromJson(const {
+      'weatherLocationMode': 'manual',
+      'weatherLocationName': '广州 · 广东省 · 中国',
+      'weatherLatitude': 23.11667,
+      'weatherLongitude': 113.25,
+    });
+    expect(settings.weatherLocationMode, 'manual');
+    expect(settings.weatherLocationName, '广州 · 广东省 · 中国');
+    expect(settings.weatherLatitude, 23.11667);
+    expect(settings.weatherLongitude, 113.25);
+    final json = settings.toJson();
+    expect(json['weatherLocationMode'], 'manual');
+    expect(json['weatherLatitude'], 23.11667);
+    expect(json['weatherLongitude'], 113.25);
+  });
+
+  test('falls back to auto for unknown weather location modes', () {
+    final settings = AppSettings.fromJson(const {'weatherLocationMode': 'ip'});
+    expect(settings.weatherLocationMode, 'auto');
   });
 
   test('falls back to the top edge for unknown dock sides', () {

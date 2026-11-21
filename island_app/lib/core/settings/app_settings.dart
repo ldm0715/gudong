@@ -5,6 +5,10 @@ class AppSettings {
   const AppSettings({
     this.themeId = 'midnight',
     this.showWeather = true,
+    this.weatherLocationMode = 'auto',
+    this.weatherLocationName = '',
+    this.weatherLatitude,
+    this.weatherLongitude,
     this.mediaEnabled = true,
     this.showPlayingIndicator = true,
     this.showImeIndicator = true,
@@ -65,6 +69,12 @@ class AppSettings {
     return AppSettings(
       themeId: json['themeId']?.toString() ?? 'midnight',
       showWeather: json['showWeather'] != false,
+      weatherLocationMode: json['weatherLocationMode'] == 'manual'
+          ? 'manual'
+          : 'auto',
+      weatherLocationName: json['weatherLocationName']?.toString() ?? '',
+      weatherLatitude: (json['weatherLatitude'] as num?)?.toDouble(),
+      weatherLongitude: (json['weatherLongitude'] as num?)?.toDouble(),
       mediaEnabled: json['mediaEnabled'] != false,
       showPlayingIndicator: json['showPlayingIndicator'] != false,
       showImeIndicator: json['showImeIndicator'] != false,
@@ -115,6 +125,12 @@ class AppSettings {
 
   final String themeId;
   final bool showWeather;
+
+  /// 天气定位方式：`auto` 按出口 IP 定位，`manual` 使用下方坐标。
+  final String weatherLocationMode;
+  final String weatherLocationName;
+  final double? weatherLatitude;
+  final double? weatherLongitude;
   final bool mediaEnabled;
   final bool showPlayingIndicator;
 
@@ -215,6 +231,10 @@ class AppSettings {
   Map<String, dynamic> toJson({bool includeRuntime = false}) => {
     'themeId': themeId,
     'showWeather': showWeather,
+    'weatherLocationMode': weatherLocationMode,
+    'weatherLocationName': weatherLocationName,
+    if (weatherLatitude != null) 'weatherLatitude': weatherLatitude,
+    if (weatherLongitude != null) 'weatherLongitude': weatherLongitude,
     'mediaEnabled': mediaEnabled,
     'showPlayingIndicator': showPlayingIndicator,
     'showImeIndicator': showImeIndicator,
@@ -251,6 +271,10 @@ class AppSettings {
   AppSettings copyWith({
     String? themeId,
     bool? showWeather,
+    String? weatherLocationMode,
+    String? weatherLocationName,
+    double? weatherLatitude,
+    double? weatherLongitude,
     bool? mediaEnabled,
     bool? showPlayingIndicator,
     bool? showImeIndicator,
@@ -284,6 +308,10 @@ class AppSettings {
     return AppSettings(
       themeId: themeId ?? this.themeId,
       showWeather: showWeather ?? this.showWeather,
+      weatherLocationMode: weatherLocationMode ?? this.weatherLocationMode,
+      weatherLocationName: weatherLocationName ?? this.weatherLocationName,
+      weatherLatitude: weatherLatitude ?? this.weatherLatitude,
+      weatherLongitude: weatherLongitude ?? this.weatherLongitude,
       mediaEnabled: mediaEnabled ?? this.mediaEnabled,
       showPlayingIndicator: showPlayingIndicator ?? this.showPlayingIndicator,
       showImeIndicator: showImeIndicator ?? this.showImeIndicator,

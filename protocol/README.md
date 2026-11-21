@@ -16,6 +16,7 @@
 | `media.control` | `{action, source?, position?}` | `{ok, message?}`；`action` 为 `toggle` / `next` / `previous` / `seek` |
 | `lyrics.get` | `{}` | `{lyrics: LyricsSnapshot \| null, pending}` |
 | `weather.get` | `{}` | `{snapshot, status}`；`snapshot` 可能为 `null` |
+| `weather.search` | `{query}` | `{places:[PlaceOption]}`；`query` 限 1–80 字符，网络请求在天气线程内执行 |
 | `ime.get` | `{}` | `{mode}`；`mode` 为 `zh` / `en`，首次采样前为 `null` |
 | `translate.run` | `{text, to?, provider?}` | `{text, provider, to, from?}`；`provider` 为 `llm` / `deepl` / `caiyun` / `microsoftFree` / `mymemory`，省略按设置，auto 时按可用凭据选择 |
 | `translate.models` | `{baseUrl?, apiKey?}` | `{models:[string]}`；拉取 OpenAI 兼容服务的模型列表，`apiKey` 省略时读已保存的 LLM Key |
@@ -43,6 +44,9 @@
 | --- | --- | --- |
 | `themeId` | string | 皮肤标识：`midnight`（午夜，默认）/ `daylight`（日光） |
 | `showWeather` | bool | 是否在岛体显示天气，默认 `true` |
+| `weatherLocationMode` | string | 定位方式：`auto`（默认，按出口 IP）/ `manual`（使用下方坐标） |
+| `weatherLocationName` | string | 手动定位的展示名称，如「广州 · 广东省 · 中国」 |
+| `weatherLatitude` / `weatherLongitude` | number | 手动定位坐标，`weatherLocationMode=manual` 时生效 |
 | `mediaEnabled` | bool | 是否读取 SMTC 媒体会话，默认 `true` |
 | `showPlayingIndicator` | bool | 收起态播放时显示音波，默认 `true` |
 | `showImeIndicator` | bool | 收起态常驻显示输入法状态，默认 `true` |
@@ -214,6 +218,17 @@
   "wind_kph": 19.0,
   "high_c": 24.0,
   "low_c": 18.0,
+  "hours": [
+    {
+      "time": "21:00",
+      "temp_c": 12.0,
+      "kind": "cloudy",
+      "description": "阴",
+      "is_day": false,
+      "precip_probability": 10,
+      "feels_like_c": 11.0
+    }
+  ],
   "days": [
     {
       "date": "2026-11-18",
@@ -229,8 +244,27 @@
 
 - `kind` 为 `clear` / `partly` / `cloudy` / `fog` / `drizzle` / `rain` / `snow` / `thunder`，由 sidecar 统一归一化，客户端只负责映射图标。
 - `feels_like_c` / `humidity` / `wind_kph` / `precip_probability` 可能缺省；`days` 最多 5 天。
+- `hours` 覆盖未来 24 小时，`time` 是地点本地时间 `HH:mm`；字段与 `days` 类似，额外带 `is_day`。wttr.in 路径按 3 小时粒度返回 8 个时段，Open-Meteo 路径返回逐小时 24 个点；数据缺失时为空数组。
 - 定位与抓取都在 sidecar 内完成：定位优先 ipwho.is，失败退 freeipapi；天气优先 wttr.in，失败退 Open-Meteo；wttr.in 只有 3 天预报，不足 5 天时用 7Timer 补齐。日志不记录 IP 与坐标。
+- `weatherLocationMode=manual` 时跳过 IP 定位，直接使用 `weatherLatitude` / `weatherLongitude`；搜索接口走 Open-Meteo 地理编码。设置变更后天气线程立即刷新，切回 `auto` 时重新定位。
+- `weather.search` 是网络请求，sidecar 立即返回 `Pending` 并在天气线程内完成，客户端超时应放宽到 15–20 秒。
 - 刷新间隔 15 分钟，失败后 2 分钟重试；刷新失败时保留上一次 `snapshot`。
+
+`PlaceOption`：
+
+```json
+{
+  "name": "广州",
+  "admin": "广东省",
+  "country": "中国",
+  "latitude": 23.11667,
+  "longitude": 113.25,
+  "label": "广州 · 广东省 · 中国"
+}
+```
+
+- `label` 已按「名称 · 行政区 · 国家」去重拼接，可直接展示或写入 `weatherLocationName`。
+- 最多返回 8 条；`admin`、`country` 可能缺省。
 
 ## 翻译
 

@@ -270,6 +270,10 @@ class _ExpandedBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.islandColors;
     final activeTab = tab;
+    // 天气页自己管理左右翻页栏，用岛体整宽换回更宽的显示区域。
+    final horizontalPadding = activeTab == IslandTab.weather
+        ? 0.0
+        : IslandMetrics.space14;
     return SizedBox(
       width: size.width,
       height: size.height,
@@ -339,10 +343,10 @@ class _ExpandedBody extends StatelessWidget {
               ],
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    IslandMetrics.space14,
+                  padding: EdgeInsets.fromLTRB(
+                    horizontalPadding,
                     IslandMetrics.space4,
-                    IslandMetrics.space14,
+                    horizontalPadding,
                     IslandMetrics.space12,
                   ),
                   child: _content(colors, activeTab),

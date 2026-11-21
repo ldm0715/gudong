@@ -9,6 +9,7 @@ import '../../core/settings/settings_controller.dart';
 import '../mail/mail_bridge.dart';
 import '../quota/quota_bridge.dart';
 import '../translate/translate_bridge.dart';
+import '../weather/weather_bridge.dart';
 import 'settings_window_args.dart';
 
 /// 主窗口侧：打开 / 复用独立设置窗口，并接收设置窗口的保存请求。
@@ -43,6 +44,34 @@ class SettingsWindowLauncher {
       await quotaChannel.setMethodCallHandler(_onQuotaCall);
     } catch (error) {
       AppLog.write('[settings-window] quota channel register failed: $error');
+    }
+    try {
+      await weatherChannel.setMethodCallHandler(_onWeatherCall);
+    } catch (error) {
+      AppLog.write('[settings-window] weather channel register failed: $error');
+    }
+  }
+
+  /// 设置窗口的地点搜索经主窗口转发给 sidecar。
+  Future<dynamic> _onWeatherCall(MethodCall call) async {
+    final arguments = call.arguments is Map
+        ? Map<String, dynamic>.from(call.arguments as Map)
+        : <String, dynamic>{};
+    try {
+      return switch (call.method) {
+        'search' => await settings.supervisor.call(
+          'weather.search',
+          arguments,
+          const Duration(seconds: 20),
+        ),
+        _ => throw PlatformException(
+          code: 'METHOD_NOT_FOUND',
+          message: 'weather method not found: ${call.method}',
+        ),
+      };
+    } catch (error) {
+      AppLog.write('[settings-window] weather ${call.method} failed: $error');
+      rethrow;
     }
   }
 
@@ -182,6 +211,10 @@ class SettingsWindowLauncher {
         settings.settings.copyWith(
           themeId: incoming.themeId,
           showWeather: incoming.showWeather,
+          weatherLocationMode: incoming.weatherLocationMode,
+          weatherLocationName: incoming.weatherLocationName,
+          weatherLatitude: incoming.weatherLatitude,
+          weatherLongitude: incoming.weatherLongitude,
           mediaEnabled: incoming.mediaEnabled,
           showPlayingIndicator: incoming.showPlayingIndicator,
           showImeIndicator: incoming.showImeIndicator,

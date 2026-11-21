@@ -69,7 +69,8 @@ fn main() {
         "capabilities": rpc::CAPABILITIES,
     })));
 
-    weather::start(state.clone(), tx.clone());
+    let weather_tx = weather::start(state.clone(), tx.clone());
+    state.set_weather_sender(weather_tx);
     media::start(state.clone(), tx.clone());
     let quota_tx = quota::start(state.clone(), tx.clone());
     state.set_quota_sender(quota_tx);
