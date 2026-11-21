@@ -39,6 +39,7 @@ dependencies:
   font_awesome_flutter: ^11.0.0
   desktop_multi_window: ^0.3.1
   flutter_svg: ^2.3.0
+  desktop_drop: ^0.8.4
 
 dev_dependencies:
   flutter_test:

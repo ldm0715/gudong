@@ -30,6 +30,7 @@ import 'features/messages/messages_controller.dart';
 import 'features/quota/quota_controller.dart';
 import 'features/schedule/anniversary_controller.dart';
 import 'features/schedule/schedule_controller.dart';
+import 'features/shelf/shelf_controller.dart';
 import 'features/translate/translate_controller.dart';
 import 'features/weather/weather_controller.dart';
 
@@ -77,6 +78,7 @@ Future<void> main(List<String> args) async {
   final quota = QuotaController(supervisor);
   final schedule = ScheduleController(supervisor);
   final anniversary = AnniversaryController(supervisor);
+  final shelf = ShelfController(supervisor);
   final settings = SettingsController(supervisor);
   final settingsLauncher = SettingsWindowLauncher(settings);
   final island = IslandController(
@@ -143,6 +145,7 @@ Future<void> main(List<String> args) async {
         quota: quota,
         schedule: schedule,
         anniversary: anniversary,
+        shelf: shelf,
         settings: settings,
         settingsWindow: settingsLauncher,
         windowPosition: windowPosition,

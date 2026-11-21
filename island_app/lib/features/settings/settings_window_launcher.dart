@@ -237,6 +237,8 @@ class SettingsWindowLauncher {
           mailTranslateProvider: incoming.mailTranslateProvider,
           quotaOrder: incoming.quotaOrder,
           hiddenQuotaProviders: incoming.hiddenQuotaProviders,
+          shelfMaxItems: incoming.shelfMaxItems,
+          shelfViewMode: incoming.shelfViewMode,
           quotaGlmRegion: incoming.quotaGlmRegion,
         ),
       );

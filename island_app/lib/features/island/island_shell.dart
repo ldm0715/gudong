@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/settings/island_tabs.dart';
@@ -27,6 +28,8 @@ import '../schedule/anniversary_controller.dart';
 import '../schedule/schedule_banner.dart';
 import '../schedule/schedule_controller.dart';
 import '../schedule/schedule_tab.dart';
+import '../shelf/shelf_controller.dart';
+import '../shelf/shelf_drawer.dart';
 import '../translate/translate_controller.dart';
 import '../translate/translate_tab.dart';
 import '../weather/weather_controller.dart';
@@ -52,6 +55,7 @@ class IslandShell extends StatefulWidget {
     required this.quota,
     required this.schedule,
     required this.anniversary,
+    required this.shelf,
     required this.settings,
     required this.windowPosition,
     required this.onOpenSettings,
@@ -68,6 +72,7 @@ class IslandShell extends StatefulWidget {
   final QuotaController quota;
   final ScheduleController schedule;
   final AnniversaryController anniversary;
+  final ShelfController shelf;
   final SettingsController settings;
   final WindowPositionKeeper windowPosition;
   final VoidCallback onOpenSettings;
@@ -78,16 +83,19 @@ class IslandShell extends StatefulWidget {
 
 class _IslandShellState extends State<IslandShell> {
   IslandTab _tab = IslandTab.messages;
+  bool _shelfOpen = false;
 
   @override
   void initState() {
     super.initState();
     widget.windowPosition.addListener(_onDockChanged);
+    widget.island.addListener(_onIslandChanged);
   }
 
   @override
   void dispose() {
     widget.windowPosition.removeListener(_onDockChanged);
+    widget.island.removeListener(_onIslandChanged);
     super.dispose();
   }
 
@@ -95,156 +103,207 @@ class _IslandShellState extends State<IslandShell> {
     if (mounted) setState(() {});
   }
 
+  void _onIslandChanged() {
+    // 岛体收起时一并收起抽屉，避免下次展开时突然出现。
+    if (!widget.island.expanded && _shelfOpen && mounted) {
+      widget.shelf.clearSelection();
+      setState(() => _shelfOpen = false);
+    }
+  }
+
+  void _openShelf() {
+    if (!mounted) return;
+    widget.island.setExpanded(true);
+    if (_shelfOpen) return;
+    setState(() => _shelfOpen = true);
+  }
+
+  void _onDropEnter() {
+    widget.shelf.setDragActive(true);
+    _openShelf();
+  }
+
+  void _onDropDone(DropDoneDetails details) {
+    final paths = details.files
+        .map((file) => file.path)
+        .where((path) => path.isNotEmpty)
+        .toList(growable: false);
+    widget.shelf.setDragActive(false);
+    unawaited(widget.shelf.addPaths(paths));
+    _openShelf();
+  }
+
   @override
   Widget build(BuildContext context) {
     final island = widget.island;
     final side = widget.windowPosition.side;
-    return Material(
-      color: Colors.transparent,
-      child: Align(
-        alignment: switch (side) {
-          DockEdge.top => Alignment.topCenter,
-          DockEdge.left => Alignment.centerLeft,
-          DockEdge.right => Alignment.centerRight,
-        },
-        child: Padding(
-          padding: switch (side) {
-            DockEdge.top => const EdgeInsets.only(top: IslandLayout.edgeInset),
-            DockEdge.left => const EdgeInsets.only(
-              left: IslandLayout.edgeInset,
-            ),
-            DockEdge.right => const EdgeInsets.only(
-              right: IslandLayout.edgeInset,
-            ),
+    return DropTarget(
+      onDragEntered: (_) => _onDropEnter(),
+      onDragExited: (_) => widget.shelf.setDragActive(false),
+      onDragDone: _onDropDone,
+      child: Material(
+        color: Colors.transparent,
+        child: Align(
+          alignment: switch (side) {
+            DockEdge.top => Alignment.topCenter,
+            DockEdge.left => Alignment.centerLeft,
+            DockEdge.right => Alignment.centerRight,
           },
-          child: RepaintBoundary(
-            child: AnimatedBuilder(
-              animation: Listenable.merge([
-                island,
-                widget.messages,
-                widget.mail,
-                widget.weather,
-                widget.media,
-                widget.ime,
-                widget.diagnostics,
-                widget.translate,
-                widget.quota,
-                widget.schedule,
-                widget.anniversary,
-                widget.settings,
-              ]),
-              builder: (context, _) {
-                final colors = context.islandColors;
-                final expanded = island.expanded;
-                final showBanner = island.showBanner;
-                final showMailBanner = island.showMailBanner && !showBanner;
-                final showScheduleBanner =
-                    island.showScheduleBanner && !showBanner && !showMailBanner;
-                final settings = widget.settings.settings;
-                // 消息横幅优先，其次是新邮件和日程提醒，最后是输入法切换。
-                final showIme =
-                    settings.showImeBanner &&
-                    widget.ime.visible &&
-                    !showBanner &&
-                    !showMailBanner &&
-                    !showScheduleBanner;
-                final activeBanner =
-                    showBanner ||
-                    showMailBanner ||
-                    showScheduleBanner ||
-                    showIme;
-                final tabs = settings.visibleTabs;
-                final tab = tabs.contains(_tab)
-                    ? _tab
-                    : (tabs.isEmpty ? null : tabs.first);
-                final size = expanded
-                    ? IslandLayout.expandedSizeFor(side)
-                    : activeBanner
-                    ? IslandLayout.bannerSizeFor(side)
-                    : IslandLayout.collapsedSizeFor(
-                        side,
-                        imeIndicator: settings.showImeIndicator,
-                      );
-                final radius = expanded
-                    ? IslandMetrics.radiusIslandExpanded
-                    : (activeBanner
-                          ? IslandMetrics.radiusIslandBanner
-                          : IslandMetrics.radiusIslandCollapsed);
-                return AnimatedContainer(
-                  duration: IslandMotion.base,
-                  curve: IslandMotion.standard,
-                  width: size.width,
-                  height: size.height,
-                  clipBehavior: Clip.hardEdge,
-                  decoration: BoxDecoration(
-                    color: colors.background,
-                    borderRadius: BorderRadius.circular(radius),
-                    border: Border.all(
-                      color:
-                          (island.pulse ||
-                                  (settings.showImeBanner &&
-                                      widget.ime.visible)) &&
-                              !expanded
-                          ? colors.accent.withValues(alpha: 0.75)
-                          : colors.stroke,
+          child: Padding(
+            padding: switch (side) {
+              DockEdge.top => const EdgeInsets.only(
+                top: IslandLayout.edgeInset,
+              ),
+              DockEdge.left => const EdgeInsets.only(
+                left: IslandLayout.edgeInset,
+              ),
+              DockEdge.right => const EdgeInsets.only(
+                right: IslandLayout.edgeInset,
+              ),
+            },
+            child: RepaintBoundary(
+              child: AnimatedBuilder(
+                animation: Listenable.merge([
+                  island,
+                  widget.messages,
+                  widget.mail,
+                  widget.weather,
+                  widget.media,
+                  widget.ime,
+                  widget.diagnostics,
+                  widget.translate,
+                  widget.quota,
+                  widget.schedule,
+                  widget.anniversary,
+                  widget.settings,
+                ]),
+                builder: (context, _) {
+                  final colors = context.islandColors;
+                  final expanded = island.expanded;
+                  final showBanner = island.showBanner;
+                  final showMailBanner = island.showMailBanner && !showBanner;
+                  final showScheduleBanner =
+                      island.showScheduleBanner &&
+                      !showBanner &&
+                      !showMailBanner;
+                  final settings = widget.settings.settings;
+                  // 消息横幅优先，其次是新邮件和日程提醒，最后是输入法切换。
+                  final showIme =
+                      settings.showImeBanner &&
+                      widget.ime.visible &&
+                      !showBanner &&
+                      !showMailBanner &&
+                      !showScheduleBanner;
+                  final activeBanner =
+                      showBanner ||
+                      showMailBanner ||
+                      showScheduleBanner ||
+                      showIme;
+                  final tabs = settings.visibleTabs;
+                  final tab = tabs.contains(_tab)
+                      ? _tab
+                      : (tabs.isEmpty ? null : tabs.first);
+                  final size = expanded
+                      ? IslandLayout.expandedSizeFor(side)
+                      : activeBanner
+                      ? IslandLayout.bannerSizeFor(side)
+                      : IslandLayout.collapsedSizeFor(
+                          side,
+                          imeIndicator: settings.showImeIndicator,
+                        );
+                  final radius = expanded
+                      ? IslandMetrics.radiusIslandExpanded
+                      : (activeBanner
+                            ? IslandMetrics.radiusIslandBanner
+                            : IslandMetrics.radiusIslandCollapsed);
+                  return AnimatedContainer(
+                    duration: IslandMotion.base,
+                    curve: IslandMotion.standard,
+                    width: size.width,
+                    height: size.height,
+                    clipBehavior: Clip.hardEdge,
+                    decoration: BoxDecoration(
+                      color: colors.background,
+                      borderRadius: BorderRadius.circular(radius),
+                      border: Border.all(
+                        color:
+                            (island.pulse ||
+                                    (settings.showImeBanner &&
+                                        widget.ime.visible)) &&
+                                !expanded
+                            ? colors.accent.withValues(alpha: 0.75)
+                            : colors.stroke,
+                      ),
                     ),
-                  ),
-                  child: OverflowBox(
-                    alignment: Alignment.topCenter,
-                    minWidth: 0,
-                    maxWidth: size.width,
-                    minHeight: 0,
-                    maxHeight: size.height,
-                    child: expanded
-                        ? _ExpandedBody(
-                            size: IslandLayout.expandedSizeFor(side),
-                            island: island,
-                            messages: widget.messages,
-                            mail: widget.mail,
-                            weather: widget.weather,
-                            media: widget.media,
-                            diagnostics: widget.diagnostics,
-                            translate: widget.translate,
-                            quota: widget.quota,
-                            schedule: widget.schedule,
-                            anniversary: widget.anniversary,
-                            settings: widget.settings,
-                            onOpenSettings: widget.onOpenSettings,
-                            handleVisible: island.handleVisible,
-                            onDragStart: () =>
-                                unawaited(widget.windowPosition.startDrag()),
-                            tabs: tabs,
-                            tab: tab,
-                            onTab: (tab) => setState(() => _tab = tab),
-                          )
-                        : showBanner
-                        ? NotificationBanner(controller: widget.messages)
-                        : showMailBanner
-                        ? MailBanner(
-                            controller: widget.mail,
-                            item: island.mailBannerItem!,
-                          )
-                        : showScheduleBanner
-                        ? ScheduleBanner(item: island.scheduleBannerItem!)
-                        : showIme
-                        ? ImeBanner(chinese: widget.ime.chinese)
-                        : CollapsedBar(
-                            messages: widget.messages,
-                            mail: widget.mail,
-                            weather: widget.weather,
-                            media: widget.media,
-                            schedule: widget.schedule,
-                            ime: widget.ime,
-                            showWeather: settings.showWeather,
-                            showPlayingIndicator: settings.showPlayingIndicator,
-                            showImeIndicator: settings.showImeIndicator,
-                            showScheduleIndicator:
-                                settings.showScheduleIndicator,
-                            vertical: side.isVertical,
-                          ),
-                  ),
-                );
-              },
+                    child: OverflowBox(
+                      alignment: Alignment.topCenter,
+                      minWidth: 0,
+                      maxWidth: size.width,
+                      minHeight: 0,
+                      maxHeight: size.height,
+                      child: expanded
+                          ? _ExpandedBody(
+                              size: IslandLayout.expandedSizeFor(side),
+                              island: island,
+                              messages: widget.messages,
+                              mail: widget.mail,
+                              weather: widget.weather,
+                              media: widget.media,
+                              diagnostics: widget.diagnostics,
+                              translate: widget.translate,
+                              quota: widget.quota,
+                              schedule: widget.schedule,
+                              anniversary: widget.anniversary,
+                              shelf: widget.shelf,
+                              side: side,
+                              shelfOpen: _shelfOpen,
+                              onToggleShelf: () {
+                                if (_shelfOpen) widget.shelf.clearSelection();
+                                setState(() => _shelfOpen = !_shelfOpen);
+                              },
+                              onCloseShelf: () {
+                                widget.shelf.clearSelection();
+                                setState(() => _shelfOpen = false);
+                              },
+                              settings: widget.settings,
+                              onOpenSettings: widget.onOpenSettings,
+                              handleVisible: island.handleVisible,
+                              onDragStart: () =>
+                                  unawaited(widget.windowPosition.startDrag()),
+                              tabs: tabs,
+                              tab: tab,
+                              onTab: (tab) => setState(() => _tab = tab),
+                            )
+                          : showBanner
+                          ? NotificationBanner(controller: widget.messages)
+                          : showMailBanner
+                          ? MailBanner(
+                              controller: widget.mail,
+                              item: island.mailBannerItem!,
+                            )
+                          : showScheduleBanner
+                          ? ScheduleBanner(item: island.scheduleBannerItem!)
+                          : showIme
+                          ? ImeBanner(chinese: widget.ime.chinese)
+                          : CollapsedBar(
+                              messages: widget.messages,
+                              mail: widget.mail,
+                              weather: widget.weather,
+                              media: widget.media,
+                              schedule: widget.schedule,
+                              ime: widget.ime,
+                              showWeather: settings.showWeather,
+                              showPlayingIndicator:
+                                  settings.showPlayingIndicator,
+                              showImeIndicator: settings.showImeIndicator,
+                              showScheduleIndicator:
+                                  settings.showScheduleIndicator,
+                              vertical: side.isVertical,
+                            ),
+                    ),
+                  );
+                },
+              ),
             ),
           ),
         ),
@@ -266,6 +325,11 @@ class _ExpandedBody extends StatelessWidget {
     required this.quota,
     required this.schedule,
     required this.anniversary,
+    required this.shelf,
+    required this.side,
+    required this.shelfOpen,
+    required this.onToggleShelf,
+    required this.onCloseShelf,
     required this.settings,
     required this.onOpenSettings,
     required this.handleVisible,
@@ -286,6 +350,11 @@ class _ExpandedBody extends StatelessWidget {
   final QuotaController quota;
   final ScheduleController schedule;
   final AnniversaryController anniversary;
+  final ShelfController shelf;
+  final DockEdge side;
+  final bool shelfOpen;
+  final VoidCallback onToggleShelf;
+  final VoidCallback onCloseShelf;
   final SettingsController settings;
   final VoidCallback onOpenSettings;
   final bool handleVisible;
@@ -293,6 +362,12 @@ class _ExpandedBody extends StatelessWidget {
   final List<IslandTab> tabs;
   final IslandTab? tab;
   final ValueChanged<IslandTab> onTab;
+
+  Offset get _shelfHiddenOffset => switch (side) {
+    DockEdge.top => const Offset(0, -1),
+    DockEdge.left => const Offset(-1, 0),
+    DockEdge.right => const Offset(1, 0),
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -335,6 +410,20 @@ class _ExpandedBody extends StatelessWidget {
                     const Spacer(),
                     _StatusPill(ok: island.ready, label: island.statusLabel),
                     const SizedBox(width: IslandMetrics.space2),
+                    InkWell(
+                      borderRadius: BorderRadius.circular(
+                        IslandMetrics.radiusPill,
+                      ),
+                      onTap: onToggleShelf,
+                      child: Padding(
+                        padding: const EdgeInsets.all(IslandMetrics.space4),
+                        child: Icon(
+                          Icons.inbox_outlined,
+                          size: IslandMetrics.iconSM,
+                          color: shelfOpen ? colors.accent : colors.muted,
+                        ),
+                      ),
+                    ),
                     InkWell(
                       borderRadius: BorderRadius.circular(
                         IslandMetrics.radiusPill,
@@ -416,6 +505,22 @@ class _ExpandedBody extends StatelessWidget {
                 ),
               ),
             ),
+          Positioned.fill(
+            child: IgnorePointer(
+              ignoring: !shelfOpen,
+              child: AnimatedSlide(
+                offset: shelfOpen ? Offset.zero : _shelfHiddenOffset,
+                duration: IslandMotion.base,
+                curve: IslandMotion.standard,
+                child: ShelfDrawer(
+                  controller: shelf,
+                  settings: settings,
+                  side: side,
+                  onClose: onCloseShelf,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );

@@ -45,6 +45,12 @@
 | `anniversary.add` | `{title, date}` | `{item:AnniversaryItem}`；`title` 1–80 字符，`date` 为 `YYYY-MM-DD` |
 | `anniversary.update` | `{id, title?, date?}` | `{item:AnniversaryItem}`；至少传一个字段 |
 | `anniversary.remove` | `{id}` | `{ok}`；删除后不可恢复 |
+| `shelf.list` | `{}` | `{items:[ShelfItem]}`；按加入时间倒序 |
+| `shelf.add` | `{paths:[string]}` | `{items, added, skipped:[{path, reason}]}`；单次 1–64 个路径，`reason` 为 `missing` / `limit` / `invalid` |
+| `shelf.remove` | `{id}` | `{ok}`；只删除中转站条目，不动原文件 |
+| `shelf.removeMany` | `{ids:[string]}` | `{ok, removed}`；批量删除条目，不动原文件 |
+| `shelf.clear` | `{}` | `{ok, removed}`；清空全部条目 |
+| `shelf.reveal` | `{id}` | `{ok}`；在资源管理器中定位原文件 |
 | `app.shutdown` | `{}` | `{ok}`，随后进程退出 |
 
 `settings` 是扁平 JSON 对象，当前键：
@@ -79,6 +85,8 @@
 | `hiddenQuotaProviders` | string[] | 隐藏的额度服务；展开面板与收起态都不显示 |
 | `quotaGlmRegion` | string | GLM 区域：`global`（Z.ai，默认）/ `bigmodel-cn`（智谱开放平台） |
 | `quotaRefreshSeconds` | number | 额度刷新间隔秒数，默认 `300`，限制在 `60`–`3600` |
+| `shelfMaxItems` | number | 中转站条目上限，默认 `100`，限制在 `10`–`500`；达到上限后拒绝新条目，不淘汰旧条目 |
+| `shelfViewMode` | string | 中转站默认视图：`list`（列表，默认）/ `grid`（图标网格） |
 
 `settings.get` 与 `settings.set` 的返回里还会带 `translateLlmKeyConfigured` / `translateDeeplKeyConfigured` / `translateCaiyunKeyConfigured` 三个只读布尔值，以及 `quotaGlmKeyConfigured` / `quotaDeepseekKeyConfigured` / `quotaOpencodeKeyConfigured` / `quotaOpencodeCookieConfigured`。它们不写入 config.json，也不接受写入，表示对应密钥是否已在 Windows 凭据管理器里。
 
@@ -171,6 +179,8 @@
 | `schedule.updated` | 日程新增、修改、删除或触发后推送最新全量列表，带 `items` |
 | `schedule.fired` | 日程到点，带 `item`；sidecar 同时播放系统提示音并发送 Windows 气泡通知 |
 | `anniversary.updated` | 倒计时 / 纪念日新增、修改或删除后推送最新全量列表，带 `items` |
+| `shelf.updated` | 中转站条目新增、删除、清空或重复拖入置顶后推送最新全量列表，带 `items` |
+| `shelf.icon` | 某个条目的系统缩略图 / 原始图标生成完成，带 `id` 与 `data`（PNG data URL）；每个条目只推一次，客户端按 `id` 缓存 |
 
 `ScheduleItem`：
 
@@ -206,6 +216,30 @@
 - 剩余 / 已过天数由客户端按本地日期计算，sidecar 不推送每日变化。
 - 倒计时与纪念日写在 `%APPDATA%\guduo\anniversaries.json`，先写临时文件再替换，最多 200 条。
 - 该页面位于日程 tab 的第二页，不单独占用 `tabOrder`。
+
+`ShelfItem`：
+
+```json
+{
+  "id": "f_18f2a3b4c5d_0",
+  "path": "C:\\Users\\me\\Desktop\\report.pdf",
+  "name": "report.pdf",
+  "kind": "document",
+  "size": 1048576,
+  "modifiedMs": 1794997775244,
+  "addedAtMs": 1794997775244,
+  "missing": false
+}
+```
+
+- 中转站是引用式存储：只记录路径，不复制文件内容，因此没有单文件大小和总容量限制。
+- `kind` 为 `image` / `video` / `audio` / `document` / `archive` / `installer` / `folder` / `file`，由 sidecar 按扩展名归类，客户端只负责映射图标。
+- `missing=true` 表示原文件已不存在；条目保留，不自动删除，`shelf.reveal` 会拒绝失效条目。
+- 相同路径重复拖入会置顶并刷新元数据，不新增条目；达到 `shelfMaxItems` 后返回 `reason=limit`，不淘汰旧条目。
+- 索引写 `%APPDATA%\guduo\shelf.json`，先写临时文件再替换。启动时重新检查路径存在性。
+- 图标由 sidecar 在后台线程用 `IShellItemImageFactory` 生成 96 px 缩略图；文件夹和无法生成缩略图的文件退回 shell 原始图标。编码为 PNG 后通过 `shelf.icon` 推送，生成失败不推送，客户端退回分类图标。
+- 拖入和拖出都由 Flutter 侧原生拖放实现：拖入拿到文件路径后调用 `shelf.add`；拖出直接由窗口进程把 `CF_HDROP` 交给目标程序，不经过 sidecar。
+- 不在 sidecar 里调用 `DoDragDrop`：OLE 拖拽循环需要稳定的 UI 线程消息循环，后台线程一旦收不到鼠标抬起消息会占住全局鼠标捕获，影响资源管理器等所有程序的拖放。
 
 `MediaSnapshot`：
 

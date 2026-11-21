@@ -14,6 +14,8 @@ mod media;
 mod quota;
 mod rpc;
 mod schedule;
+mod shelf;
+mod shelf_icons;
 mod shell;
 mod single_instance;
 mod toast;
@@ -86,6 +88,9 @@ fn main() {
     state.set_schedule_sender(schedule_tx);
     let anniversary_tx = anniversary::start(tx.clone());
     state.set_anniversary_sender(anniversary_tx);
+    let icon_tx = shelf_icons::start(tx.clone());
+    let shelf_tx = shelf::start(state.clone(), tx.clone(), icon_tx);
+    state.set_shelf_sender(shelf_tx);
 
     #[cfg(windows)]
     {

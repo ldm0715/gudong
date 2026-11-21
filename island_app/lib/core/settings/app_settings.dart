@@ -39,6 +39,8 @@ class AppSettings {
     this.quotaDeepseekKeyConfigured = false,
     this.quotaOpencodeKeyConfigured = false,
     this.quotaOpencodeCookieConfigured = false,
+    this.shelfMaxItems = defaultShelfMaxItems,
+    this.shelfViewMode = 'list',
   });
 
   static const List<String> defaultTabOrder = [
@@ -55,6 +57,8 @@ class AppSettings {
   static const List<String> defaultQuotaOrder = ['glm', 'deepseek', 'opencode'];
 
   static const int defaultMailPollSeconds = 180;
+
+  static const int defaultShelfMaxItems = 100;
 
   static const List<String> defaultTranslateAutoOrder = [
     'llm',
@@ -119,6 +123,8 @@ class AppSettings {
       quotaOpencodeKeyConfigured: json['quotaOpencodeKeyConfigured'] == true,
       quotaOpencodeCookieConfigured:
           json['quotaOpencodeCookieConfigured'] == true,
+      shelfMaxItems: _normalizeShelfMaxItems(json['shelfMaxItems']),
+      shelfViewMode: _normalizeShelfViewMode(json['shelfViewMode']),
     );
   }
 
@@ -191,6 +197,12 @@ class AppSettings {
   final bool quotaOpencodeKeyConfigured;
   final bool quotaOpencodeCookieConfigured;
 
+  /// 中转站条目上限，引用式存储只限制列表长度。
+  final int shelfMaxItems;
+
+  /// 中转站默认视图：`list`（列表）或 `grid`（图标网格）。
+  final String shelfViewMode;
+
   /// 已排好序的全部页面，未知 id 被丢弃，缺失的补在末尾。
   List<IslandTab> get orderedTabs {
     final ordered = <IslandTab>[];
@@ -260,6 +272,8 @@ class AppSettings {
     'quotaOrder': quotaOrder,
     'hiddenQuotaProviders': hiddenQuotaProviders,
     'quotaGlmRegion': quotaGlmRegion,
+    'shelfMaxItems': shelfMaxItems,
+    'shelfViewMode': shelfViewMode,
     if (includeRuntime) ...{
       'translateLlmKeyConfigured': translateLlmKeyConfigured,
       'translateDeeplKeyConfigured': translateDeeplKeyConfigured,
@@ -308,6 +322,8 @@ class AppSettings {
     bool? quotaDeepseekKeyConfigured,
     bool? quotaOpencodeKeyConfigured,
     bool? quotaOpencodeCookieConfigured,
+    int? shelfMaxItems,
+    String? shelfViewMode,
   }) {
     return AppSettings(
       themeId: themeId ?? this.themeId,
@@ -357,6 +373,8 @@ class AppSettings {
           quotaOpencodeKeyConfigured ?? this.quotaOpencodeKeyConfigured,
       quotaOpencodeCookieConfigured:
           quotaOpencodeCookieConfigured ?? this.quotaOpencodeCookieConfigured,
+      shelfMaxItems: shelfMaxItems ?? this.shelfMaxItems,
+      shelfViewMode: shelfViewMode ?? this.shelfViewMode,
     );
   }
 
@@ -391,6 +409,16 @@ class AppSettings {
       if (!ids.contains(id)) ids.add(id);
     }
     return ids;
+  }
+
+  static String _normalizeShelfViewMode(Object? raw) =>
+      raw == 'grid' ? 'grid' : 'list';
+
+  static int _normalizeShelfMaxItems(Object? raw) {
+    final value = raw is num ? raw.toInt() : defaultShelfMaxItems;
+    if (value < 10) return 10;
+    if (value > 500) return 500;
+    return value;
   }
 
   static int _normalizeMailPollSeconds(Object? raw) {

@@ -26,6 +26,7 @@ import 'features/quota/quota_controller.dart';
 import 'features/schedule/anniversary_controller.dart';
 import 'features/schedule/schedule_controller.dart';
 import 'features/settings/settings_window_launcher.dart';
+import 'features/shelf/shelf_controller.dart';
 import 'features/translate/translate_controller.dart';
 import 'features/weather/weather_controller.dart';
 
@@ -44,6 +45,7 @@ class AppScope {
     required this.quota,
     required this.schedule,
     required this.anniversary,
+    required this.shelf,
     required this.settings,
     required this.settingsWindow,
     required this.windowPosition,
@@ -62,6 +64,7 @@ class AppScope {
   final QuotaController quota;
   final ScheduleController schedule;
   final AnniversaryController anniversary;
+  final ShelfController shelf;
   final SettingsController settings;
   final SettingsWindowLauncher settingsWindow;
   final WindowPositionKeeper windowPosition;
@@ -81,6 +84,7 @@ class AppScope {
     quota.dispose();
     schedule.dispose();
     anniversary.dispose();
+    shelf.dispose();
     settings.dispose();
     await supervisor.close();
     clickThrough.dispose();
@@ -269,6 +273,7 @@ class _GuduoAppState extends State<GuduoApp> with WindowListener, TrayListener {
                 quota: widget.scope.quota,
                 schedule: widget.scope.schedule,
                 anniversary: widget.scope.anniversary,
+                shelf: widget.scope.shelf,
                 settings: widget.scope.settings,
                 windowPosition: widget.scope.windowPosition,
                 onOpenSettings: () =>

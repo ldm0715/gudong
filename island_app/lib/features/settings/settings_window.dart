@@ -8,6 +8,7 @@ import '../../core/log.dart';
 import '../../core/logging/crash_handler.dart';
 import '../../core/settings/app_settings.dart';
 import '../../core/theme/island_colors.dart';
+import '../shelf/shelf_settings_page.dart';
 import '../translate/translate_bridge.dart';
 import '../weather/weather_bridge.dart';
 import 'mail_settings_page.dart';
@@ -39,7 +40,7 @@ extension SettingsSectionMeta on SettingsSection {
     SettingsSection.translate => '翻译',
     SettingsSection.music => '音乐与歌词',
     SettingsSection.focus => '专注与饮水',
-    SettingsSection.todos => '待办与置物',
+    SettingsSection.todos => '中转站',
     SettingsSection.notifications => '通知与日程',
     SettingsSection.ai => 'AI 额度',
     SettingsSection.weather => '天气',
@@ -53,7 +54,7 @@ extension SettingsSectionMeta on SettingsSection {
     SettingsSection.translate => Icons.translate_rounded,
     SettingsSection.music => Icons.music_note_rounded,
     SettingsSection.focus => Icons.local_fire_department_rounded,
-    SettingsSection.todos => Icons.checklist_rounded,
+    SettingsSection.todos => Icons.inbox_rounded,
     SettingsSection.notifications => Icons.notifications_rounded,
     SettingsSection.ai => Icons.auto_awesome_rounded,
     SettingsSection.weather => Icons.wb_sunny_rounded,
@@ -387,6 +388,10 @@ class _SettingsBodyState extends State<_SettingsBody> {
         onSave: onSave,
       ),
       SettingsSection.notifications => ScheduleSettingsPage(
+        settings: settings,
+        onSave: onSave,
+      ),
+      SettingsSection.todos => ShelfSettingsPage(
         settings: settings,
         onSave: onSave,
       ),

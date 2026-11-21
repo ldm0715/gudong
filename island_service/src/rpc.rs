@@ -49,6 +49,12 @@ pub const CAPABILITIES: &[&str] = &[
     "anniversary.add",
     "anniversary.update",
     "anniversary.remove",
+    "shelf.list",
+    "shelf.add",
+    "shelf.remove",
+    "shelf.removeMany",
+    "shelf.clear",
+    "shelf.reveal",
 ];
 
 /// 一条未读提醒。`id` 是稳定键：任务栏提醒按账号，系统通知按通知编号。
@@ -97,6 +103,8 @@ pub struct State {
     pub schedule_tx: Mutex<Option<std::sync::mpsc::Sender<crate::schedule::Command>>>,
     /// 倒计时与纪念日读写队列。
     pub anniversary_tx: Mutex<Option<std::sync::mpsc::Sender<crate::anniversary::Command>>>,
+    /// 中转站读写队列。
+    pub shelf_tx: Mutex<Option<std::sync::mpsc::Sender<crate::shelf::Command>>>,
 }
 
 impl Default for State {
@@ -129,6 +137,7 @@ impl State {
             quota_tx: Mutex::new(None),
             schedule_tx: Mutex::new(None),
             anniversary_tx: Mutex::new(None),
+            shelf_tx: Mutex::new(None),
         }
     }
 
@@ -170,6 +179,12 @@ impl State {
         sender: std::sync::mpsc::Sender<crate::anniversary::Command>,
     ) {
         if let Ok(mut slot) = self.anniversary_tx.lock() {
+            *slot = Some(sender);
+        }
+    }
+
+    pub fn set_shelf_sender(&self, sender: std::sync::mpsc::Sender<crate::shelf::Command>) {
+        if let Ok(mut slot) = self.shelf_tx.lock() {
             *slot = Some(sender);
         }
     }
@@ -500,6 +515,25 @@ pub fn handle(
                 .map_err(|_| {
                     RpcError::new(ERR_INTERNAL, "anniversary worker stopped")
                 })?;
+            Ok(Action::Pending)
+        }
+        "shelf.list"
+        | "shelf.add"
+        | "shelf.remove"
+        | "shelf.removeMany"
+        | "shelf.clear"
+        | "shelf.reveal" => {
+            let sender = state.shelf_tx.lock().ok().and_then(|slot| slot.clone());
+            let Some(sender) = sender else {
+                return Err(RpcError::new(ERR_INTERNAL, "shelf worker is not running"));
+            };
+            sender
+                .send(crate::shelf::Command {
+                    id: id.clone(),
+                    method: method.to_string(),
+                    params: params.clone(),
+                })
+                .map_err(|_| RpcError::new(ERR_INTERNAL, "shelf worker stopped"))?;
             Ok(Action::Pending)
         }
         "settings.get" => Ok(Action::Respond(json!({

@@ -64,6 +64,8 @@ void main() {
       'quotaOrder': ['glm', 'deepseek', 'opencode'],
       'hiddenQuotaProviders': <String>[],
       'quotaGlmRegion': 'global',
+      'shelfMaxItems': 100,
+      'shelfViewMode': 'list',
     });
   });
 
@@ -158,6 +160,18 @@ void main() {
     expect(
       AppSettings.fromJson(const {'mailPollSeconds': 120}).mailPollSeconds,
       120,
+    );
+  });
+
+  test('clamps the shelf item limit to the protocol range', () {
+    expect(AppSettings.fromJson(const {'shelfMaxItems': 1}).shelfMaxItems, 10);
+    expect(
+      AppSettings.fromJson(const {'shelfMaxItems': 999}).shelfMaxItems,
+      500,
+    );
+    expect(
+      AppSettings.fromJson(const {'shelfMaxItems': 200}).shelfMaxItems,
+      200,
     );
   });
 }
