@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -205,11 +204,16 @@ class _AnniversaryPageState extends State<AnniversaryPage> {
                   ? _composerPane(colors)
                   : items.isEmpty
                   ? _empty(colors)
-                  : ListView.separated(
+                  : GridView.builder(
                       padding: EdgeInsets.zero,
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            mainAxisSpacing: IslandMetrics.space6,
+                            crossAxisSpacing: IslandMetrics.space6,
+                            mainAxisExtent: 100,
+                          ),
                       itemCount: items.length,
-                      separatorBuilder: (_, _) =>
-                          const SizedBox(height: IslandMetrics.space6),
                       itemBuilder: (context, index) {
                         final item = items[index];
                         return _AnniversaryCard(
@@ -404,130 +408,103 @@ class _AnniversaryCard extends StatelessWidget {
     final colors = context.islandColors;
     final days = item.daysFrom(DateTime.now());
     final past = days < 0;
-    final status = days > 0
-        ? '还有'
+    final today = days == 0;
+    final tone = past ? colors.muted : colors.accent;
+    final status = today
+        ? ''
         : past
         ? '已过'
-        : '';
-    final count = days == 0 ? '今天' : '${days.abs()}';
+        : '还有';
     final date = item.localDate;
-    final tones = [colors.accent, colors.rain, colors.qq, colors.warning];
-    final seed = item.id.codeUnits.fold<int>(0, (sum, unit) => sum + unit);
-    final base = tones[seed % tones.length];
 
     return Semantics(
       button: true,
-      label: '${item.title}，${days == 0 ? '今天' : '${days.abs()} 天'}',
+      label: '${item.title}，${today ? '今天' : '$status ${days.abs()} 天'}',
       hint: '点击编辑',
       excludeSemantics: true,
       child: InkWell(
         onTap: onEdit,
-        borderRadius: BorderRadius.circular(IslandMetrics.radiusCard),
+        borderRadius: BorderRadius.circular(IslandMetrics.radiusControl),
         child: Container(
-          height: 96,
-          padding: const EdgeInsets.all(IslandMetrics.space10),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                base.withValues(alpha: 0.55),
-                base.withValues(alpha: 0.18),
-                colors.surface,
-              ],
-              stops: const [0, 0.6, 1],
-            ),
-            borderRadius: BorderRadius.circular(IslandMetrics.radiusCard),
-            border: Border.all(color: colors.stroke),
+          padding: const EdgeInsets.fromLTRB(
+            IslandMetrics.space8,
+            IslandMetrics.space2,
+            IslandMetrics.space4,
+            IslandMetrics.space6,
           ),
-          child: Row(
+          decoration: BoxDecoration(
+            color: colors.surface,
+            borderRadius: BorderRadius.circular(IslandMetrics.radiusControl),
+            border: Border.all(color: colors.divider),
+          ),
+          child: Column(
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Row(
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  item.title,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: IslandTypography.bodyStrong.tint(
-                                    colors.text,
-                                  ),
-                                ),
-                              ),
-                              if (status.isNotEmpty) ...[
-                                const SizedBox(width: IslandMetrics.space3),
-                                Text(
-                                  status,
-                                  style: IslandTypography.microStrong.tint(
-                                    colors.text.withValues(alpha: 0.85),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                        ScheduleSmallIconButton(
-                          icon: Icons.close_rounded,
-                          tooltip: '删除',
-                          compact: true,
-                          onTap: onDelete,
-                        ),
-                      ],
-                    ),
-                    const Spacer(),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          count,
-                          style: IslandTypography.displayLarge.tint(
-                            colors.text,
-                          ),
-                        ),
-                        if (days != 0) ...[
-                          const SizedBox(width: IslandMetrics.space3),
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 2),
-                            child: Text(
-                              '天',
-                              style: IslandTypography.caption.tint(
-                                colors.text.withValues(alpha: 0.8),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: IslandMetrics.space2),
-                    Text(
-                      formatAnniversaryDate(date ?? DateTime.now()),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      item.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: IslandTypography.micro.tint(
-                        colors.text.withValues(alpha: 0.75),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: IslandMetrics.space8),
-              RepaintBoundary(
-                child: SizedBox(
-                  width: 58,
-                  height: 58,
-                  child: CustomPaint(
-                    painter: _ClockDialPainter(
-                      color: colors.text.withValues(alpha: 0.65),
+                      style: IslandTypography.bodyStrong.tint(colors.text),
                     ),
                   ),
+                  ScheduleSmallIconButton(
+                    icon: Icons.close_rounded,
+                    tooltip: '删除',
+                    compact: true,
+                    onTap: onDelete,
+                  ),
+                ],
+              ),
+              Expanded(
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (status.isNotEmpty)
+                        Text(
+                          status,
+                          style: IslandTypography.micro.tint(colors.muted),
+                        ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            today ? '今天' : '${days.abs()}',
+                            style:
+                                (today
+                                        ? IslandTypography.title
+                                        : IslandTypography.displayLarge)
+                                    .tint(tone),
+                          ),
+                          if (!today) ...[
+                            const SizedBox(width: IslandMetrics.space2),
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                bottom: IslandMetrics.space2,
+                              ),
+                              child: Text(
+                                '天',
+                                style: IslandTypography.caption.tint(
+                                  colors.muted,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
+              ),
+              Text(
+                formatAnniversaryDate(date ?? DateTime.now()),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: IslandTypography.micro.tint(colors.muted),
               ),
             ],
           ),
@@ -535,52 +512,4 @@ class _AnniversaryCard extends StatelessWidget {
       ),
     );
   }
-}
-
-/// 参考图右侧的时钟表盘，固定指向 3 点方向。
-class _ClockDialPainter extends CustomPainter {
-  const _ClockDialPainter({required this.color});
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.shortestSide / 2 - 1;
-
-    canvas.drawCircle(
-      center,
-      radius,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2
-        ..color = color,
-    );
-
-    final tick = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1
-      ..color = color.withValues(alpha: 0.7);
-    for (var index = 0; index < 12; index++) {
-      final angle = index * math.pi / 6;
-      final direction = Offset(math.sin(angle), -math.cos(angle));
-      canvas.drawLine(
-        center + direction * (radius - 4),
-        center + direction * radius,
-        tick,
-      );
-    }
-
-    final hand = Paint()
-      ..color = color
-      ..strokeWidth = 2.2
-      ..strokeCap = StrokeCap.round;
-    canvas.drawLine(center, center + Offset(radius * 0.48, 0), hand);
-    canvas.drawLine(center, center - Offset(0, radius * 0.62), hand);
-    canvas.drawCircle(center, 1.5, Paint()..color = color);
-  }
-
-  @override
-  bool shouldRepaint(covariant _ClockDialPainter oldDelegate) =>
-      oldDelegate.color != color;
 }
