@@ -8,6 +8,7 @@ import '../../core/theme/island_colors.dart';
 import '../../core/theme/island_metrics.dart';
 import '../../core/theme/island_motion.dart';
 import '../../core/theme/island_typography.dart';
+import '../../core/widgets/selection_toolbar.dart';
 import 'translate_controller.dart';
 import 'translate_languages.dart';
 
@@ -239,6 +240,11 @@ class _TranslateTabState extends State<TranslateTab> {
                         child: SingleChildScrollView(
                           child: SelectableText(
                             _resultText(controller),
+                            contextMenuBuilder: (context, state) =>
+                                IslandSelectionToolbar(
+                                  anchors: state.contextMenuAnchors,
+                                  items: state.contextMenuButtonItems,
+                                ),
                             style: IslandTypography.body.copyWith(
                               color: controller.error.isNotEmpty
                                   ? colors.warning

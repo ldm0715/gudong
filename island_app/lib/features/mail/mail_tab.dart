@@ -1,12 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/settings/settings_controller.dart';
 import '../../core/theme/island_colors.dart';
 import '../../core/theme/island_metrics.dart';
 import '../../core/theme/island_motion.dart';
 import '../../core/theme/island_typography.dart';
+import '../../core/widgets/selection_toolbar.dart';
 import '../translate/translate_languages.dart';
 import 'mail_controller.dart';
 import 'mail_models.dart';
@@ -28,31 +30,31 @@ class MailTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final detail = controller.detail;
-    if (detail != null) {
-      return _MailDetailView(
-        controller: controller,
-        detail: detail,
-        target: settings.settings.translateTarget,
-        provider: settings.settings.mailTranslateProvider,
-        onTargetChanged: (code) => unawaited(
-          settings.save(
-            settings.settings.copyWith(translateTarget: code),
+    // 列表保留在树中，返回时沿用原来的滚动位置。
+    return IndexedStack(
+      index: detail == null ? 0 : 1,
+      sizing: StackFit.expand,
+      children: [
+        _MailListView(controller: controller, onOpenSettings: onOpenSettings),
+        if (detail == null)
+          const SizedBox.shrink()
+        else
+          _MailDetailView(
+            controller: controller,
+            detail: detail,
+            target: settings.settings.translateTarget,
+            provider: settings.settings.mailTranslateProvider,
+            onTargetChanged: (code) => unawaited(
+              settings.save(settings.settings.copyWith(translateTarget: code)),
+            ),
           ),
-        ),
-      );
-    }
-    return _MailListView(
-      controller: controller,
-      onOpenSettings: onOpenSettings,
+      ],
     );
   }
 }
 
 class _MailListView extends StatelessWidget {
-  const _MailListView({
-    required this.controller,
-    required this.onOpenSettings,
-  });
+  const _MailListView({required this.controller, required this.onOpenSettings});
 
   final MailController controller;
   final VoidCallback onOpenSettings;
@@ -506,8 +508,7 @@ class _MailRow extends StatelessWidget {
                             style: IslandTypography.micro
                                 .tint(colors.muted)
                                 .copyWith(
-                                  fontFeatures:
-                                      IslandTypography.tabularFigures,
+                                  fontFeatures: IslandTypography.tabularFigures,
                                 ),
                           ),
                       ],
@@ -531,10 +532,7 @@ class _MailRow extends StatelessWidget {
 }
 
 class _EmptyInbox extends StatelessWidget {
-  const _EmptyInbox({
-    required this.accounts,
-    required this.onOpenSettings,
-  });
+  const _EmptyInbox({required this.accounts, required this.onOpenSettings});
 
   final List<MailAccount> accounts;
   final VoidCallback onOpenSettings;
@@ -558,9 +556,7 @@ class _EmptyInbox extends StatelessWidget {
             ? Icons.error_outline_rounded
             : Icons.sync_rounded,
         title: '${account.displayName} ${account.stateLabel}',
-        detail: account.message.isNotEmpty
-            ? account.message
-            : '正在读取最近 20 封邮件',
+        detail: account.message.isNotEmpty ? account.message : '正在读取最近 20 封邮件',
         action: pending.length > 1 ? '还有 ${pending.length - 1} 个账号' : null,
         onAction: onOpenSettings,
       );
@@ -876,6 +872,11 @@ class _MailDetailView extends StatelessWidget {
                 size: IslandMetrics.iconXS,
                 color: colors.muted,
               ),
+            if (body.isNotEmpty)
+              _CopyBodyButton(
+                text: body,
+                tooltip: showTranslation ? '复制译文' : '复制正文',
+              ),
             _IconTap(
               icon: Icons.translate_rounded,
               tooltip: controller.translating
@@ -968,52 +969,94 @@ class _MailDetailView extends StatelessWidget {
                 right: IslandMetrics.space6,
                 bottom: IslandMetrics.space6,
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (showTranslation)
-                    Padding(
-                      padding: const EdgeInsets.only(
-                        bottom: IslandMetrics.space4,
+              child: SelectionArea(
+                contextMenuBuilder: (context, state) => IslandSelectionToolbar(
+                  anchors: state.contextMenuAnchors,
+                  items: state.contextMenuButtonItems,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (showTranslation)
+                      Padding(
+                        padding: const EdgeInsets.only(
+                          bottom: IslandMetrics.space4,
+                        ),
+                        child: Text(
+                          '译文 · ${translateLanguageLabel(target)}',
+                          style: IslandTypography.microStrong.tint(
+                            colors.accent,
+                          ),
+                        ),
                       ),
-                      child: Text(
-                        '译文 · ${translateLanguageLabel(target)}',
-                        style: IslandTypography.microStrong.tint(colors.accent),
-                      ),
-                    ),
-                  Text(
-                    body.isEmpty ? '（这封邮件没有正文）' : body,
-                    style: IslandTypography.body
-                        .tint(colors.text)
-                        .copyWith(height: 1.45),
-                  ),
-                  if (detail.truncated) ...[
-                    const SizedBox(height: IslandMetrics.space6),
                     Text(
-                      '正文过长，已截断',
-                      style: IslandTypography.micro.tint(colors.muted),
+                      body.isEmpty ? '（这封邮件没有正文）' : body,
+                      style: IslandTypography.body
+                          .tint(colors.text)
+                          .copyWith(height: 1.45),
                     ),
-                  ],
-                  if (detail.links.isNotEmpty) ...[
-                    const SizedBox(height: IslandMetrics.space8),
-                    Divider(height: 1, color: colors.divider),
-                    const SizedBox(height: IslandMetrics.space4),
-                    Text(
-                      '邮件中的链接',
-                      style: IslandTypography.microStrong.tint(colors.muted),
-                    ),
-                    for (final link in detail.links.take(3))
-                      _MailLinkRow(
-                        link: link,
-                        onTap: () => unawaited(controller.openLink(link.url)),
+                    if (detail.truncated) ...[
+                      const SizedBox(height: IslandMetrics.space6),
+                      Text(
+                        '正文过长，已截断',
+                        style: IslandTypography.micro.tint(colors.muted),
                       ),
+                    ],
+                    if (detail.links.isNotEmpty) ...[
+                      const SizedBox(height: IslandMetrics.space8),
+                      Divider(height: 1, color: colors.divider),
+                      const SizedBox(height: IslandMetrics.space4),
+                      Text(
+                        '邮件中的链接',
+                        style: IslandTypography.microStrong.tint(colors.muted),
+                      ),
+                      for (final link in detail.links.take(3))
+                        _MailLinkRow(
+                          link: link,
+                          onTap: () => unawaited(controller.openLink(link.url)),
+                        ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           ),
         ),
       ],
+    );
+  }
+}
+
+/// 一键复制当前显示的正文，快捷键以外提供鼠标可达的入口。
+class _CopyBodyButton extends StatefulWidget {
+  const _CopyBodyButton({required this.text, required this.tooltip});
+
+  final String text;
+  final String tooltip;
+
+  @override
+  State<_CopyBodyButton> createState() => _CopyBodyButtonState();
+}
+
+class _CopyBodyButtonState extends State<_CopyBodyButton> {
+  bool _copied = false;
+
+  Future<void> _copy() async {
+    if (widget.text.isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: widget.text));
+    if (!mounted) return;
+    setState(() => _copied = true);
+    Future<void>.delayed(IslandMotion.feedbackHold, () {
+      if (mounted) setState(() => _copied = false);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _IconTap(
+      icon: _copied ? Icons.check_rounded : Icons.copy_rounded,
+      tooltip: _copied ? '已复制' : widget.tooltip,
+      onTap: () => unawaited(_copy()),
     );
   }
 }
