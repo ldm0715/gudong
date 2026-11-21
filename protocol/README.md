@@ -41,6 +41,10 @@
 | `schedule.update` | `{id, title?, atMs?}` | `{item:ScheduleItem}`；至少传一个字段，改成未来时间会重置 `fired` |
 | `schedule.remove` | `{id}` | `{ok}`；删除后不可恢复 |
 | `schedule.clearExpired` | `{}` | `{ok, removed}`；删除所有 `fired=true` 的日程，返回删除数量 |
+| `anniversary.list` | `{}` | `{items:[AnniversaryItem]}`；按 `date` 升序 |
+| `anniversary.add` | `{title, date}` | `{item:AnniversaryItem}`；`title` 1–80 字符，`date` 为 `YYYY-MM-DD` |
+| `anniversary.update` | `{id, title?, date?}` | `{item:AnniversaryItem}`；至少传一个字段 |
+| `anniversary.remove` | `{id}` | `{ok}`；删除后不可恢复 |
 | `app.shutdown` | `{}` | `{ok}`，随后进程退出 |
 
 `settings` 是扁平 JSON 对象，当前键：
@@ -166,6 +170,7 @@
 | `quota.updated` | 额度刷新完成，带 `providers`（全部已知服务）与 `updatedAtMs`；未配置的服务也会出现，`status` 为 `notConfigured` |
 | `schedule.updated` | 日程新增、修改、删除或触发后推送最新全量列表，带 `items` |
 | `schedule.fired` | 日程到点，带 `item`；sidecar 同时播放系统提示音并发送 Windows 气泡通知 |
+| `anniversary.updated` | 倒计时 / 纪念日新增、修改或删除后推送最新全量列表，带 `items` |
 
 `ScheduleItem`：
 
@@ -185,6 +190,22 @@
 - 启动时已过点但未触发的日程会被直接标记为已触发，不补发横幅、提示音或 Windows 通知。
 - 已触发日程保留 7 天，之后由 sidecar 自动清理；客户端也可调用 `schedule.clearExpired` 手动清理。
 - 到点检查在 sidecar 线程内完成，客户端只消费 `schedule.fired` 与 `schedule.updated`。
+
+`AnniversaryItem`：
+
+```json
+{
+  "id": "a_18f2a3b4c5d_0",
+  "title": "加入 广大黄埔研究院",
+  "date": "2025-09-04",
+  "createdAtMs": 1794997775244
+}
+```
+
+- `date` 是本地日历日期 `YYYY-MM-DD`，必须是合法日期，不接受 `2025-9-4` 这类非补零格式。
+- 剩余 / 已过天数由客户端按本地日期计算，sidecar 不推送每日变化。
+- 倒计时与纪念日写在 `%APPDATA%\guduo\anniversaries.json`，先写临时文件再替换，最多 200 条。
+- 该页面位于日程 tab 的第二页，不单独占用 `tabOrder`。
 
 `MediaSnapshot`：
 

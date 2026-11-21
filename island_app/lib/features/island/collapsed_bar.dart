@@ -95,7 +95,7 @@ class _CollapsedBarState extends State<CollapsedBar> {
         widget.media.playing;
     final showIme = widget.showImeIndicator && widget.ime.mode != null;
     final hasScheduleToday =
-        widget.showScheduleIndicator && widget.schedule.itemsOn(now).isNotEmpty;
+        widget.showScheduleIndicator && widget.schedule.hasPendingOn(now);
     final unreadMail = widget.mail.items.where((item) => item.unread);
     final latestUnread = unreadMail.isEmpty ? null : unreadMail.first;
     final latestAccount = latestUnread == null

@@ -4,9 +4,12 @@ import 'package:flutter/services.dart';
 import '../../core/ipc/json_rpc_client.dart';
 import '../../core/theme/island_colors.dart';
 import '../../core/theme/island_metrics.dart';
-import '../../core/theme/island_motion.dart';
 import '../../core/theme/island_typography.dart';
+import '../../core/widgets/page_edge_button.dart';
+import 'anniversary_controller.dart';
+import 'anniversary_page.dart';
 import 'schedule_controller.dart';
+import 'schedule_controls.dart';
 import 'schedule_models.dart';
 
 /// 展开态日程页：左侧当天事宜，右侧月历。
@@ -14,15 +17,21 @@ import 'schedule_models.dart';
 /// 月历用圆点颜色标出有日程的日期，点击日期切换左侧列表。
 /// 新建直接保存，编辑与删除都需要二次确认。
 class ScheduleTab extends StatefulWidget {
-  const ScheduleTab({super.key, required this.controller});
+  const ScheduleTab({
+    super.key,
+    required this.controller,
+    required this.anniversary,
+  });
 
   final ScheduleController controller;
+  final AnniversaryController anniversary;
 
   @override
   State<ScheduleTab> createState() => _ScheduleTabState();
 }
 
 class _ScheduleTabState extends State<ScheduleTab> {
+  int _page = 0;
   late DateTime _month;
   late DateTime _selected;
   final TextEditingController _title = TextEditingController();
@@ -33,7 +42,7 @@ class _ScheduleTabState extends State<ScheduleTab> {
   ScheduleItem? _editing;
   String _error = '';
   bool _saving = false;
-  _Confirm? _confirm;
+  ScheduleConfirm? _confirm;
 
   @override
   void initState() {
@@ -183,7 +192,7 @@ class _ScheduleTabState extends State<ScheduleTab> {
       return;
     }
     setState(() {
-      _confirm = _Confirm(
+      _confirm = ScheduleConfirm(
         title: '保存修改？',
         detail: '$title · ${formatScheduleDate(at)} ${formatScheduleTime(at)}',
         confirmLabel: '保存',
@@ -232,7 +241,7 @@ class _ScheduleTabState extends State<ScheduleTab> {
 
   void _askDelete(ScheduleItem item) {
     setState(() {
-      _confirm = _Confirm(
+      _confirm = ScheduleConfirm(
         title: '删除「${item.title}」？',
         detail:
             '${formatScheduleDate(item.at)} '
@@ -246,7 +255,7 @@ class _ScheduleTabState extends State<ScheduleTab> {
 
   void _askClearExpired(int count) {
     setState(() {
-      _confirm = _Confirm(
+      _confirm = ScheduleConfirm(
         title: '清理已过期日程？',
         detail: '将删除 $count 条已经提醒过的日程，删除后无法恢复',
         confirmLabel: '清理',
@@ -299,10 +308,47 @@ class _ScheduleTabState extends State<ScheduleTab> {
 
   @override
   Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          width: IslandMetrics.iconSM,
+          child: PageEdgeButton(
+            icon: Icons.chevron_left_rounded,
+            tooltip: '日程',
+            enabled: _page > 0,
+            onTap: () => setState(() => _page = 0),
+          ),
+        ),
+        Expanded(
+          child: _page == 0
+              ? _schedulePage(context)
+              : AnniversaryPage(controller: widget.anniversary),
+        ),
+        SizedBox(
+          width: IslandMetrics.iconSM,
+          child: PageEdgeButton(
+            icon: Icons.chevron_right_rounded,
+            tooltip: '倒计时与纪念日',
+            enabled: _page < 1,
+            onTap: () => setState(() => _page = 1),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _schedulePage(BuildContext context) {
     final colors = context.islandColors;
-    final items = widget.controller.itemsOn(_selected);
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    // 已触发或时间已过的日程视为失效，不再出现在日历和当天列表里。
+    final items = widget.controller
+        .itemsOn(_selected)
+        .where((item) => !item.fired && item.atMs > nowMs)
+        .toList(growable: false);
     final counts = <String, int>{};
     for (final item in widget.controller.items) {
+      if (item.fired || item.atMs <= nowMs) continue;
       final key = scheduleDayKey(item.at);
       counts[key] = (counts[key] ?? 0) + 1;
     }
@@ -318,7 +364,7 @@ class _ScheduleTabState extends State<ScheduleTab> {
         ),
         if (_confirm != null)
           Positioned.fill(
-            child: _ConfirmOverlay(
+            child: ScheduleConfirmOverlay(
               colors: colors,
               confirm: _confirm!,
               onCancel: () => setState(() => _confirm = null),
@@ -347,14 +393,14 @@ class _ScheduleTabState extends State<ScheduleTab> {
             const Spacer(),
             if (!_composer) ...[
               if (expired > 0) ...[
-                _SmallIconButton(
+                ScheduleSmallIconButton(
                   icon: Icons.auto_delete_outlined,
                   tooltip: '清理已过期',
                   onTap: () => _askClearExpired(expired),
                 ),
                 const SizedBox(width: IslandMetrics.space2),
               ],
-              _SmallIconButton(
+              ScheduleSmallIconButton(
                 icon: Icons.add_rounded,
                 tooltip: '新建日程',
                 onTap: _openComposer,
@@ -441,7 +487,7 @@ class _ScheduleTabState extends State<ScheduleTab> {
                   ),
                 ),
               ),
-              _SmallIconButton(
+              ScheduleSmallIconButton(
                 icon: Icons.close_rounded,
                 tooltip: '删除',
                 compact: true,
@@ -485,7 +531,7 @@ class _ScheduleTabState extends State<ScheduleTab> {
           inputFormatters: [LengthLimitingTextInputFormatter(80)],
           style: IslandTypography.body.copyWith(color: colors.text),
           cursorColor: colors.accent,
-          decoration: _inputDecoration(colors, '事项标题'),
+          decoration: scheduleInputDecoration(colors, '事项标题'),
         ),
         const SizedBox(height: IslandMetrics.space6),
         Row(
@@ -532,18 +578,18 @@ class _ScheduleTabState extends State<ScheduleTab> {
                 cursorColor: colors.accent,
                 onChanged: (_) => _timeEdited = true,
                 onSubmitted: (_) => _submit(),
-                decoration: _inputDecoration(colors, 'HH:mm').copyWith(
+                decoration: scheduleInputDecoration(colors, 'HH:mm').copyWith(
                   contentPadding: const EdgeInsets.all(IslandMetrics.space6),
                 ),
               ),
             ),
             const Spacer(),
-            _PillButton(
+            SchedulePillButton(
               label: '取消',
               onTap: _saving ? null : () => setState(_resetComposer),
             ),
             const SizedBox(width: IslandMetrics.space4),
-            _PillButton(
+            SchedulePillButton(
               label: _saving ? '保存中' : '保存',
               primary: true,
               onTap: _saving ? null : _submit,
@@ -565,31 +611,6 @@ class _ScheduleTabState extends State<ScheduleTab> {
           style: IslandTypography.micro.tint(colors.muted),
         ),
       ],
-    );
-  }
-
-  InputDecoration _inputDecoration(IslandColors colors, String hint) {
-    final border = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(IslandMetrics.radiusControl),
-      borderSide: BorderSide(color: colors.stroke),
-    );
-    return InputDecoration(
-      isDense: true,
-      filled: true,
-      fillColor: colors.surface,
-      hintText: hint,
-      hintStyle: IslandTypography.caption.tint(colors.muted),
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: IslandMetrics.space8,
-        vertical: IslandMetrics.space7,
-      ),
-      border: border,
-      enabledBorder: border,
-      disabledBorder: border,
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(IslandMetrics.radiusControl),
-        borderSide: BorderSide(color: colors.accent),
-      ),
     );
   }
 
@@ -622,7 +643,7 @@ class _ScheduleTabState extends State<ScheduleTab> {
       children: [
         Row(
           children: [
-            _SmallIconButton(
+            ScheduleSmallIconButton(
               icon: Icons.chevron_left_rounded,
               tooltip: '上个月',
               onTap: () => _changeMonth(-1),
@@ -634,7 +655,7 @@ class _ScheduleTabState extends State<ScheduleTab> {
                 style: IslandTypography.captionStrong.tint(colors.text),
               ),
             ),
-            _SmallIconButton(
+            ScheduleSmallIconButton(
               icon: Icons.chevron_right_rounded,
               tooltip: '下个月',
               onTap: () => _changeMonth(1),
@@ -752,183 +773,6 @@ class _DayCell extends StatelessWidget {
                       ),
               ),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Confirm {
-  const _Confirm({
-    required this.title,
-    required this.detail,
-    required this.confirmLabel,
-    required this.onConfirm,
-    this.danger = false,
-  });
-
-  final String title;
-  final String detail;
-  final String confirmLabel;
-  final VoidCallback onConfirm;
-  final bool danger;
-}
-
-class _ConfirmOverlay extends StatelessWidget {
-  const _ConfirmOverlay({
-    required this.colors,
-    required this.confirm,
-    required this.onCancel,
-  });
-
-  final IslandColors colors;
-  final _Confirm confirm;
-  final VoidCallback onCancel;
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: onCancel,
-            child: ColoredBox(color: colors.background.withValues(alpha: 0.72)),
-          ),
-        ),
-        Center(
-          child: Container(
-            width: 260,
-            padding: const EdgeInsets.all(IslandMetrics.space12),
-            decoration: BoxDecoration(
-              color: colors.background,
-              borderRadius: BorderRadius.circular(IslandMetrics.radiusPanel),
-              border: Border.all(color: colors.stroke),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  confirm.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: IslandTypography.subhead.tint(colors.text),
-                ),
-                const SizedBox(height: IslandMetrics.space4),
-                Text(
-                  confirm.detail,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: IslandTypography.micro.tint(colors.muted),
-                ),
-                const SizedBox(height: IslandMetrics.space10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    _PillButton(label: '取消', onTap: onCancel),
-                    const SizedBox(width: IslandMetrics.space6),
-                    _PillButton(
-                      label: confirm.confirmLabel,
-                      primary: true,
-                      danger: confirm.danger,
-                      onTap: confirm.onConfirm,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _PillButton extends StatelessWidget {
-  const _PillButton({
-    required this.label,
-    required this.onTap,
-    this.primary = false,
-    this.danger = false,
-  });
-
-  final String label;
-  final VoidCallback? onTap;
-  final bool primary;
-  final bool danger;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.islandColors;
-    final enabled = onTap != null;
-    final background = primary
-        ? (danger ? colors.warning : colors.accent)
-        : colors.surface;
-    final foreground = primary ? colors.background : colors.text;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(IslandMetrics.radiusControl),
-      child: Container(
-        height: 26,
-        padding: const EdgeInsets.symmetric(horizontal: IslandMetrics.space10),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: background,
-          borderRadius: BorderRadius.circular(IslandMetrics.radiusControl),
-          border: primary ? null : Border.all(color: colors.stroke),
-        ),
-        child: Text(
-          label,
-          style: IslandTypography.captionStrong.tint(
-            enabled ? foreground : foreground.withValues(alpha: 0.4),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SmallIconButton extends StatelessWidget {
-  const _SmallIconButton({
-    required this.icon,
-    required this.tooltip,
-    required this.onTap,
-    this.compact = false,
-  });
-
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback? onTap;
-  final bool compact;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.islandColors;
-    final enabled = onTap != null;
-    return Tooltip(
-      message: tooltip,
-      waitDuration: IslandMotion.tooltipDelay,
-      child: Semantics(
-        button: true,
-        label: tooltip,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(IslandMetrics.radiusChip),
-          hoverColor: colors.surface,
-          highlightColor: colors.chip,
-          child: Padding(
-            padding: EdgeInsets.all(
-              compact ? IslandMetrics.space4 : IslandMetrics.space6,
-            ),
-            child: Icon(
-              icon,
-              size: compact ? IslandMetrics.iconXS : IslandMetrics.iconSM,
-              color: enabled
-                  ? colors.muted
-                  : colors.muted.withValues(alpha: 0.4),
-            ),
           ),
         ),
       ),

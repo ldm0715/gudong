@@ -23,6 +23,7 @@ import '../messages/messages_controller.dart';
 import '../messages/messages_tab.dart';
 import '../quota/quota_controller.dart';
 import '../quota/quota_tab.dart';
+import '../schedule/anniversary_controller.dart';
 import '../schedule/schedule_banner.dart';
 import '../schedule/schedule_controller.dart';
 import '../schedule/schedule_tab.dart';
@@ -50,6 +51,7 @@ class IslandShell extends StatefulWidget {
     required this.translate,
     required this.quota,
     required this.schedule,
+    required this.anniversary,
     required this.settings,
     required this.windowPosition,
     required this.onOpenSettings,
@@ -65,6 +67,7 @@ class IslandShell extends StatefulWidget {
   final TranslateController translate;
   final QuotaController quota;
   final ScheduleController schedule;
+  final AnniversaryController anniversary;
   final SettingsController settings;
   final WindowPositionKeeper windowPosition;
   final VoidCallback onOpenSettings;
@@ -127,6 +130,7 @@ class _IslandShellState extends State<IslandShell> {
                 widget.translate,
                 widget.quota,
                 widget.schedule,
+                widget.anniversary,
                 widget.settings,
               ]),
               builder: (context, _) {
@@ -203,6 +207,7 @@ class _IslandShellState extends State<IslandShell> {
                             translate: widget.translate,
                             quota: widget.quota,
                             schedule: widget.schedule,
+                            anniversary: widget.anniversary,
                             settings: widget.settings,
                             onOpenSettings: widget.onOpenSettings,
                             handleVisible: island.handleVisible,
@@ -260,6 +265,7 @@ class _ExpandedBody extends StatelessWidget {
     required this.translate,
     required this.quota,
     required this.schedule,
+    required this.anniversary,
     required this.settings,
     required this.onOpenSettings,
     required this.handleVisible,
@@ -279,6 +285,7 @@ class _ExpandedBody extends StatelessWidget {
   final TranslateController translate;
   final QuotaController quota;
   final ScheduleController schedule;
+  final AnniversaryController anniversary;
   final SettingsController settings;
   final VoidCallback onOpenSettings;
   final bool handleVisible;
@@ -292,7 +299,8 @@ class _ExpandedBody extends StatelessWidget {
     final colors = context.islandColors;
     final activeTab = tab;
     // 天气页自己管理左右翻页栏，用岛体整宽换回更宽的显示区域。
-    final horizontalPadding = activeTab == IslandTab.weather
+    final horizontalPadding =
+        activeTab == IslandTab.weather || activeTab == IslandTab.schedule
         ? 0.0
         : IslandMetrics.space14;
     return SizedBox(
@@ -434,7 +442,10 @@ class _ExpandedBody extends StatelessWidget {
         controller: quota,
         settings: settings.settings,
       ),
-      IslandTab.schedule => ScheduleTab(controller: schedule),
+      IslandTab.schedule => ScheduleTab(
+        controller: schedule,
+        anniversary: anniversary,
+      ),
       IslandTab.diagnostics => DiagnosticsTab(
         connectionDetail: island.connectionDetail,
         diagnostics: diagnostics,

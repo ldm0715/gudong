@@ -35,6 +35,13 @@ class ScheduleController extends ChangeNotifier {
         .toList(growable: false);
   }
 
+  /// 当天是否还有未触发且时间未到的日程。
+  bool hasPendingOn(DateTime day, {DateTime? now}) {
+    final current = now ?? DateTime.now();
+    final currentMs = current.millisecondsSinceEpoch;
+    return itemsOn(day).any((item) => !item.fired && item.atMs > currentMs);
+  }
+
   Future<ScheduleItem> add({
     required String title,
     required DateTime at,

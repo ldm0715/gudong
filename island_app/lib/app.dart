@@ -23,6 +23,7 @@ import 'features/mail/mail_controller.dart';
 import 'features/media/media_controller.dart';
 import 'features/messages/messages_controller.dart';
 import 'features/quota/quota_controller.dart';
+import 'features/schedule/anniversary_controller.dart';
 import 'features/schedule/schedule_controller.dart';
 import 'features/settings/settings_window_launcher.dart';
 import 'features/translate/translate_controller.dart';
@@ -42,6 +43,7 @@ class AppScope {
     required this.translate,
     required this.quota,
     required this.schedule,
+    required this.anniversary,
     required this.settings,
     required this.settingsWindow,
     required this.windowPosition,
@@ -59,6 +61,7 @@ class AppScope {
   final TranslateController translate;
   final QuotaController quota;
   final ScheduleController schedule;
+  final AnniversaryController anniversary;
   final SettingsController settings;
   final SettingsWindowLauncher settingsWindow;
   final WindowPositionKeeper windowPosition;
@@ -77,6 +80,7 @@ class AppScope {
     translate.dispose();
     quota.dispose();
     schedule.dispose();
+    anniversary.dispose();
     settings.dispose();
     await supervisor.close();
     clickThrough.dispose();
@@ -264,6 +268,7 @@ class _GuduoAppState extends State<GuduoApp> with WindowListener, TrayListener {
                 translate: widget.scope.translate,
                 quota: widget.scope.quota,
                 schedule: widget.scope.schedule,
+                anniversary: widget.scope.anniversary,
                 settings: widget.scope.settings,
                 windowPosition: widget.scope.windowPosition,
                 onOpenSettings: () =>

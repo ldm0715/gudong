@@ -5,6 +5,7 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod anniversary;
 mod config;
 mod credentials;
 mod lyrics;
@@ -83,6 +84,8 @@ fn main() {
     let toast_tx = toast::start();
     let schedule_tx = schedule::start(tx.clone(), toast_tx);
     state.set_schedule_sender(schedule_tx);
+    let anniversary_tx = anniversary::start(tx.clone());
+    state.set_anniversary_sender(anniversary_tx);
 
     #[cfg(windows)]
     {
