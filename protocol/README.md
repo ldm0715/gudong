@@ -17,6 +17,7 @@
 | `lyrics.get` | `{}` | `{lyrics: LyricsSnapshot \| null, pending}` |
 | `weather.get` | `{}` | `{snapshot, status}`；`snapshot` 可能为 `null` |
 | `weather.search` | `{query}` | `{places:[PlaceOption]}`；`query` 限 1–80 字符，网络请求在天气线程内执行 |
+| `weather.refresh` | `{}` | `{ok}`；立即触发一次实况刷新，结果通过 `weather.updated` 推送 |
 | `ime.get` | `{}` | `{mode}`；`mode` 为 `zh` / `en`，首次采样前为 `null` |
 | `translate.run` | `{text, to?, provider?}` | `{text, provider, to, from?}`；`provider` 为 `llm` / `deepl` / `caiyun` / `microsoftFree` / `mymemory`，省略按设置，auto 时按可用凭据选择 |
 | `translate.models` | `{baseUrl?, apiKey?}` | `{models:[string]}`；拉取 OpenAI 兼容服务的模型列表，`apiKey` 省略时读已保存的 LLM Key |

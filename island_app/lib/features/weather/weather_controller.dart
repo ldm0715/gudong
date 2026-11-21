@@ -18,9 +18,14 @@ class WeatherController extends ChangeNotifier {
   WeatherSnapshot? _snapshot;
   String _status = '正在获取天气';
   bool _loaded = false;
+  bool _refreshing = false;
+  Timer? _refreshGuard;
 
   WeatherSnapshot? get snapshot => _snapshot;
   String get status => _status;
+
+  /// 手动刷新是否进行中；结果到达（`weather.updated`）后复位。
+  bool get refreshing => _refreshing;
 
   Future<void> refresh() async {
     try {
@@ -30,6 +35,35 @@ class WeatherController extends ChangeNotifier {
     } catch (error) {
       AppLog.write('[weather] refresh failed: $error');
     }
+  }
+
+  /// 手动触发一次实况刷新。网络请求在 sidecar 天气线程里执行，
+  /// 这里只负责请求与“进行中”状态，结果走 `weather.updated`。
+  Future<void> forceRefresh() async {
+    if (_refreshing || !supervisor.ready) return;
+    _refreshing = true;
+    notifyListeners();
+    // 网络极差时刷新可能拖到一分钟以上，兜底复位避免按钮一直转圈。
+    _refreshGuard?.cancel();
+    _refreshGuard = Timer(const Duration(seconds: 60), _finishRefresh);
+    try {
+      await supervisor.call(
+        'weather.refresh',
+        const {},
+        const Duration(seconds: 5),
+      );
+    } catch (error) {
+      AppLog.write('[weather] manual refresh failed: $error');
+      _finishRefresh();
+    }
+  }
+
+  void _finishRefresh() {
+    _refreshGuard?.cancel();
+    _refreshGuard = null;
+    if (!_refreshing) return;
+    _refreshing = false;
+    notifyListeners();
   }
 
   void _onSupervisorChanged() {
@@ -45,6 +79,9 @@ class WeatherController extends ChangeNotifier {
   void _onEvent(Map<String, dynamic> event) {
     if (event['type'] != 'weather.updated') return;
     _apply(event);
+    _refreshGuard?.cancel();
+    _refreshGuard = null;
+    _refreshing = false;
     notifyListeners();
   }
 
@@ -59,6 +96,7 @@ class WeatherController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _refreshGuard?.cancel();
     _subscription?.cancel();
     supervisor.removeListener(_onSupervisorChanged);
     super.dispose();

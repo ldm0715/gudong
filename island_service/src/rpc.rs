@@ -28,6 +28,7 @@ pub const CAPABILITIES: &[&str] = &[
     "media.lyrics",
     "weather.current",
     "weather.search",
+    "weather.refresh",
     "ime.status",
     "translate.text",
     "translate.models",
@@ -362,6 +363,10 @@ pub fn handle(
                 })
                 .map_err(|_| RpcError::new(ERR_INTERNAL, "weather worker stopped"))?;
             Ok(Action::Pending)
+        }
+        "weather.refresh" => {
+            wake_weather(state);
+            Ok(Action::Respond(json!({ "ok": true })))
         }
         "translate.run" | "translate.models" | "translate.setSecret" => {
             let sender = state
@@ -989,6 +994,22 @@ mod tests {
         assert_eq!(snapshot["themeId"], "midnight");
         assert!(!snapshot.contains_key("translateLlmKeyConfigured"));
         assert!(!snapshot.contains_key("translateDeeplApiKey"));
+    }
+
+    #[test]
+    fn weather_refresh_wakes_weather_worker() {
+        let state = State::default();
+        let (tx, rx) = std::sync::mpsc::channel();
+        state.set_weather_sender(tx);
+        let action = handle(&state, &Value::Null, "weather.refresh", &json!({})).unwrap();
+        match action {
+            Action::Respond(value) => assert_eq!(value["ok"], true),
+            _ => panic!("expected immediate response"),
+        }
+        assert!(matches!(
+            rx.try_recv(),
+            Ok(crate::weather::Command::Refresh)
+        ));
     }
 
     #[test]

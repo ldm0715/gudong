@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
 import '../../core/theme/island_colors.dart';
 import '../../core/theme/island_metrics.dart';
+import '../../core/theme/island_motion.dart';
 import '../../core/theme/island_typography.dart';
 import '../../core/widgets/page_edge_button.dart';
 import 'weather_controller.dart';
@@ -27,7 +29,11 @@ class _WeatherTabState extends State<WeatherTab> {
   Widget build(BuildContext context) {
     final snapshot = widget.controller.snapshot;
     if (snapshot == null) {
-      return _EmptyWeather(status: widget.controller.status);
+      return _EmptyWeather(
+        status: widget.controller.status,
+        refreshing: widget.controller.refreshing,
+        onRefresh: () => unawaited(widget.controller.forceRefresh()),
+      );
     }
 
     final pages = snapshot.hours.isEmpty ? 1 : 2;
@@ -49,8 +55,16 @@ class _WeatherTabState extends State<WeatherTab> {
           ),
         Expanded(
           child: page == 0
-              ? _CurrentWeatherPage(snapshot: snapshot)
-              : _HourlyPage(hours: snapshot.hours),
+              ? _CurrentWeatherPage(
+                  snapshot: snapshot,
+                  refreshing: widget.controller.refreshing,
+                  onRefresh: () => unawaited(widget.controller.forceRefresh()),
+                )
+              : _HourlyPage(
+                  hours: snapshot.hours,
+                  refreshing: widget.controller.refreshing,
+                  onRefresh: () => unawaited(widget.controller.forceRefresh()),
+                ),
         ),
         if (showArrows)
           SizedBox(
@@ -68,9 +82,15 @@ class _WeatherTabState extends State<WeatherTab> {
 }
 
 class _EmptyWeather extends StatelessWidget {
-  const _EmptyWeather({required this.status});
+  const _EmptyWeather({
+    required this.status,
+    required this.refreshing,
+    required this.onRefresh,
+  });
 
   final String status;
+  final bool refreshing;
+  final VoidCallback onRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -87,7 +107,34 @@ class _EmptyWeather extends StatelessWidget {
           const SizedBox(height: IslandMetrics.space8),
           Text('天气暂时取不到', style: IslandTypography.subhead.tint(colors.text)),
           const SizedBox(height: IslandMetrics.space4),
-          Text(status, style: IslandTypography.caption.tint(colors.muted)),
+          Text(
+            status,
+            maxLines: 2,
+            textAlign: TextAlign.center,
+            overflow: TextOverflow.ellipsis,
+            style: IslandTypography.caption.tint(colors.muted),
+          ),
+          const SizedBox(height: IslandMetrics.space8),
+          InkWell(
+            borderRadius: BorderRadius.circular(IslandMetrics.radiusControl),
+            onTap: refreshing ? null : onRefresh,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: IslandMetrics.space10,
+                vertical: IslandMetrics.space4,
+              ),
+              decoration: BoxDecoration(
+                color: colors.accent.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(
+                  IslandMetrics.radiusControl,
+                ),
+              ),
+              child: Text(
+                refreshing ? '正在刷新…' : '重新获取',
+                style: IslandTypography.caption.tint(colors.accent),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -96,9 +143,15 @@ class _EmptyWeather extends StatelessWidget {
 
 /// 第一页：保持原有的实时天气、体感指标与 5 天预报。
 class _CurrentWeatherPage extends StatelessWidget {
-  const _CurrentWeatherPage({required this.snapshot});
+  const _CurrentWeatherPage({
+    required this.snapshot,
+    required this.refreshing,
+    required this.onRefresh,
+  });
 
   final WeatherSnapshot snapshot;
+  final bool refreshing;
+  final VoidCallback onRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -163,16 +216,22 @@ class _CurrentWeatherPage extends StatelessWidget {
                         style: IslandTypography.displayLarge.tint(colors.text),
                       ),
                       const Spacer(),
-                      if (updated != null)
-                        Padding(
-                          padding: const EdgeInsets.only(
-                            top: IslandMetrics.space2,
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (updated != null) ...[
+                            Text(
+                              '$updated 更新',
+                              style: IslandTypography.micro.tint(colors.muted),
+                            ),
+                            const SizedBox(width: IslandMetrics.space2),
+                          ],
+                          _RefreshWeatherButton(
+                            refreshing: refreshing,
+                            onTap: onRefresh,
                           ),
-                          child: Text(
-                            '$updated 更新',
-                            style: IslandTypography.micro.tint(colors.muted),
-                          ),
-                        ),
+                        ],
+                      ),
                     ],
                   ),
                   const SizedBox(height: IslandMetrics.space7),
@@ -262,9 +321,15 @@ class _CurrentWeatherPage extends StatelessWidget {
 
 /// 第二页：整页 24 小时温度曲线。
 class _HourlyPage extends StatelessWidget {
-  const _HourlyPage({required this.hours});
+  const _HourlyPage({
+    required this.hours,
+    required this.refreshing,
+    required this.onRefresh,
+  });
 
   final List<WeatherHour> hours;
+  final bool refreshing;
+  final VoidCallback onRefresh;
 
   /// 曲线与上下图标 / 时间行共用 8 个采样点，保证对齐。
   List<WeatherHour> get _stops {
@@ -287,7 +352,7 @@ class _HourlyPage extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
-          height: 12,
+          height: IslandMetrics.hitTargetMin,
           child: Row(
             children: [
               Text(
@@ -299,6 +364,8 @@ class _HourlyPage extends StatelessWidget {
                 '最高 $maxTemp° · 最低 $minTemp°',
                 style: IslandTypography.micro.tint(colors.muted),
               ),
+              const SizedBox(width: IslandMetrics.space2),
+              _RefreshWeatherButton(refreshing: refreshing, onTap: onRefresh),
             ],
           ),
         ),
@@ -492,6 +559,52 @@ class _HourlyChartPainter extends CustomPainter {
       if (other[index] != temps[index]) return false;
     }
     return true;
+  }
+}
+
+/// 手动刷新实况；刷新中显示转圈并禁止重复点击。
+class _RefreshWeatherButton extends StatelessWidget {
+  const _RefreshWeatherButton({required this.refreshing, required this.onTap});
+
+  final bool refreshing;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.islandColors;
+    final label = refreshing ? '正在刷新天气' : '刷新天气';
+    return Semantics(
+      button: true,
+      label: label,
+      child: Tooltip(
+        message: label,
+        waitDuration: IslandMotion.tooltipDelay,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(IslandMetrics.radiusChip),
+          onTap: refreshing ? null : onTap,
+          child: SizedBox(
+            width: IslandMetrics.hitTargetMin,
+            height: IslandMetrics.hitTargetMin,
+            child: Center(
+              child: refreshing
+                  ? SizedBox(
+                      width: IslandMetrics.iconSM,
+                      height: IslandMetrics.iconSM,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 1.5,
+                        color: colors.accent,
+                      ),
+                    )
+                  : Icon(
+                      Icons.refresh_rounded,
+                      size: IslandMetrics.iconSM,
+                      color: colors.muted,
+                    ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
