@@ -7,6 +7,8 @@ import '../../core/theme/island_motion.dart';
 import '../mail/mail_controller.dart';
 import '../mail/mail_models.dart';
 import '../messages/messages_controller.dart';
+import '../schedule/schedule_controller.dart';
+import '../schedule/schedule_models.dart';
 
 /// 岛体外壳状态：展开、闪烁、横幅。业务数据由各 feature controller 持有。
 class IslandController extends ChangeNotifier {
@@ -14,28 +16,35 @@ class IslandController extends ChangeNotifier {
     required this.supervisor,
     required this.messages,
     required this.mail,
+    required this.schedule,
   }) {
     supervisor.addListener(_onChanged);
     messages.addListener(_onMessagesChanged);
     mail.addListener(_onMailChanged);
+    schedule.addListener(_onScheduleChanged);
     _lastRevision = messages.revision;
     _lastMailRevision = mail.revision;
+    _lastScheduleRevision = schedule.revision;
   }
 
   final SidecarSupervisor supervisor;
   final MessagesController messages;
   final MailController mail;
+  final ScheduleController schedule;
 
   bool _expanded = false;
   bool _pulse = false;
   bool _banner = false;
   bool _mailBanner = false;
+  bool _scheduleBanner = false;
   bool _handleVisible = false;
   int _lastRevision = 0;
   int _lastMailRevision = 0;
+  int _lastScheduleRevision = 0;
   Timer? _pulseTimer;
   Timer? _bannerTimer;
   Timer? _mailBannerTimer;
+  Timer? _scheduleBannerTimer;
   Timer? _handleTimer;
   bool _disposed = false;
 
@@ -45,6 +54,8 @@ class IslandController extends ChangeNotifier {
   bool get showBanner => _banner && messages.hasUnread;
   bool get showMailBanner => _mailBanner && mail.bannerItem != null;
   MailSummary? get mailBannerItem => mail.bannerItem;
+  bool get showScheduleBanner => _scheduleBanner && schedule.bannerItem != null;
+  ScheduleItem? get scheduleBannerItem => schedule.bannerItem;
   bool get ready => supervisor.ready;
   String get connectionDetail => supervisor.detail;
 
@@ -109,6 +120,23 @@ class IslandController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void _onScheduleChanged() {
+    if (schedule.revision != _lastScheduleRevision) {
+      _lastScheduleRevision = schedule.revision;
+      if (schedule.bannerItem != null) {
+        _scheduleBanner = true;
+        _scheduleBannerTimer?.cancel();
+        _scheduleBannerTimer = Timer(IslandMotion.bannerHold, () {
+          if (_disposed) return;
+          _scheduleBanner = false;
+          notifyListeners();
+        });
+        _signalPulse();
+      }
+    }
+    notifyListeners();
+  }
+
   void _showBannerForAWhile() {
     _banner = true;
     _bannerTimer?.cancel();
@@ -135,10 +163,12 @@ class IslandController extends ChangeNotifier {
     _pulseTimer?.cancel();
     _bannerTimer?.cancel();
     _mailBannerTimer?.cancel();
+    _scheduleBannerTimer?.cancel();
     _handleTimer?.cancel();
     supervisor.removeListener(_onChanged);
     messages.removeListener(_onMessagesChanged);
     mail.removeListener(_onMailChanged);
+    schedule.removeListener(_onScheduleChanged);
     super.dispose();
   }
 }

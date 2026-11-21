@@ -40,6 +40,11 @@ pub const CAPABILITIES: &[&str] = &[
     "quota.get",
     "quota.refresh",
     "quota.setSecret",
+    "schedule.list",
+    "schedule.add",
+    "schedule.update",
+    "schedule.remove",
+    "schedule.clearExpired",
 ];
 
 /// 一条未读提醒。`id` 是稳定键：任务栏提醒按账号，系统通知按通知编号。
@@ -84,6 +89,8 @@ pub struct State {
     pub quota: Mutex<Vec<crate::quota::QuotaProvider>>,
     /// 额度刷新命令队列。
     pub quota_tx: Mutex<Option<std::sync::mpsc::Sender<crate::quota::Command>>>,
+    /// 日程读写与到点检查队列。
+    pub schedule_tx: Mutex<Option<std::sync::mpsc::Sender<crate::schedule::Command>>>,
 }
 
 impl Default for State {
@@ -114,6 +121,7 @@ impl State {
             mail_tx: Mutex::new(None),
             quota: Mutex::new(Vec::new()),
             quota_tx: Mutex::new(None),
+            schedule_tx: Mutex::new(None),
         }
     }
 
@@ -137,6 +145,15 @@ impl State {
 
     pub fn set_quota_sender(&self, sender: std::sync::mpsc::Sender<crate::quota::Command>) {
         if let Ok(mut slot) = self.quota_tx.lock() {
+            *slot = Some(sender);
+        }
+    }
+
+    pub fn set_schedule_sender(
+        &self,
+        sender: std::sync::mpsc::Sender<crate::schedule::Command>,
+    ) {
+        if let Ok(mut slot) = self.schedule_tx.lock() {
             *slot = Some(sender);
         }
     }
@@ -417,6 +434,31 @@ pub fn handle(
                 "ok": true,
                 "configured": crate::credentials::read(target).is_some(),
             })))
+        }
+        "schedule.list"
+        | "schedule.add"
+        | "schedule.update"
+        | "schedule.remove"
+        | "schedule.clearExpired" => {
+            let sender = state
+                .schedule_tx
+                .lock()
+                .ok()
+                .and_then(|slot| slot.clone());
+            let Some(sender) = sender else {
+                return Err(RpcError::new(
+                    ERR_INTERNAL,
+                    "schedule worker is not running",
+                ));
+            };
+            sender
+                .send(crate::schedule::Command {
+                    id: id.clone(),
+                    method: method.to_string(),
+                    params: params.clone(),
+                })
+                .map_err(|_| RpcError::new(ERR_INTERNAL, "schedule worker stopped"))?;
+            Ok(Action::Pending)
         }
         "settings.get" => Ok(Action::Respond(json!({
             "settings": settings_snapshot(state),

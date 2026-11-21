@@ -6,6 +6,7 @@ enum IslandTab {
   weather('weather', '天气'),
   media('media', '媒体'),
   quota('quota', '额度'),
+  schedule('schedule', '日程'),
   diagnostics('diagnostics', '诊断');
 
   const IslandTab(this.id, this.label);
@@ -20,6 +21,7 @@ enum IslandTab {
     IslandTab.weather,
     IslandTab.media,
     IslandTab.quota,
+    IslandTab.schedule,
     IslandTab.diagnostics,
   ];
 

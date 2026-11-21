@@ -386,6 +386,10 @@ class _SettingsBodyState extends State<_SettingsBody> {
         settings: settings,
         onSave: onSave,
       ),
+      SettingsSection.notifications => ScheduleSettingsPage(
+        settings: settings,
+        onSave: onSave,
+      ),
       SettingsSection.about => const AboutSettingsPage(),
       _ => PlaceholderSettingsPage(description: _section.placeholder),
     };

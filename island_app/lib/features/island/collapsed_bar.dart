@@ -13,6 +13,7 @@ import '../mail/mail_controller.dart';
 import '../mail/mail_provider_badge.dart';
 import '../media/media_controller.dart';
 import '../messages/messages_controller.dart';
+import '../schedule/schedule_controller.dart';
 import '../weather/weather_controller.dart';
 import '../weather/weather_models.dart';
 import '../weather/weather_widgets.dart';
@@ -29,10 +30,12 @@ class CollapsedBar extends StatefulWidget {
     required this.mail,
     required this.weather,
     required this.media,
+    required this.schedule,
     required this.ime,
     required this.showWeather,
     required this.showPlayingIndicator,
     required this.showImeIndicator,
+    required this.showScheduleIndicator,
     this.vertical = false,
   });
 
@@ -40,10 +43,12 @@ class CollapsedBar extends StatefulWidget {
   final MailController mail;
   final WeatherController weather;
   final MediaController media;
+  final ScheduleController schedule;
   final ImeController ime;
   final bool showWeather;
   final bool showPlayingIndicator;
   final bool showImeIndicator;
+  final bool showScheduleIndicator;
   final bool vertical;
 
   @override
@@ -89,6 +94,8 @@ class _CollapsedBarState extends State<CollapsedBar> {
         widget.media.available &&
         widget.media.playing;
     final showIme = widget.showImeIndicator && widget.ime.mode != null;
+    final hasScheduleToday =
+        widget.showScheduleIndicator && widget.schedule.itemsOn(now).isNotEmpty;
     final unreadMail = widget.mail.items.where((item) => item.unread);
     final latestUnread = unreadMail.isEmpty ? null : unreadMail.first;
     final latestAccount = latestUnread == null
@@ -108,6 +115,7 @@ class _CollapsedBarState extends State<CollapsedBar> {
         snapshot,
         showWave,
         showIme,
+        hasScheduleToday,
         size,
         mailProvider,
         mailEmail,
@@ -128,6 +136,10 @@ class _CollapsedBarState extends State<CollapsedBar> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(time, style: IslandTypography.clock.tint(colors.text)),
+                  if (hasScheduleToday) ...[
+                    const SizedBox(width: IslandMetrics.space6),
+                    const _ScheduleGlyph(),
+                  ],
                   if (snapshot != null) ...[
                     const SizedBox(width: IslandMetrics.space7),
                     WeatherChip(snapshot: snapshot),
@@ -171,6 +183,7 @@ class _CollapsedBarState extends State<CollapsedBar> {
     WeatherSnapshot? snapshot,
     bool showWave,
     bool showIme,
+    bool hasScheduleToday,
     Size size,
     String? mailProvider,
     String? mailEmail,
@@ -196,6 +209,10 @@ class _CollapsedBarState extends State<CollapsedBar> {
                     textAlign: TextAlign.center,
                     style: IslandTypography.clockCompact.tint(colors.text),
                   ),
+                  if (hasScheduleToday) ...[
+                    const SizedBox(height: IslandMetrics.space6),
+                    const _ScheduleGlyph(),
+                  ],
                   if (snapshot != null) ...[
                     const SizedBox(height: IslandMetrics.space6),
                     Icon(
@@ -238,6 +255,28 @@ class _CollapsedBarState extends State<CollapsedBar> {
           if (showWave) const _WaveBars(),
           const SizedBox(height: IslandMetrics.space10),
         ],
+      ),
+    );
+  }
+}
+
+/// 当天有日程时在收起态显示的闹钟标识。
+class _ScheduleGlyph extends StatelessWidget {
+  const _ScheduleGlyph();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.islandColors;
+    return Tooltip(
+      message: '今日有日程',
+      waitDuration: IslandMotion.tooltipDelay,
+      child: Semantics(
+        label: '今日有日程',
+        child: Icon(
+          Icons.alarm_rounded,
+          size: IslandMetrics.iconSM,
+          color: colors.accent,
+        ),
       ),
     );
   }

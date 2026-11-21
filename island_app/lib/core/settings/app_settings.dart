@@ -13,6 +13,7 @@ class AppSettings {
     this.showPlayingIndicator = true,
     this.showImeIndicator = true,
     this.showImeBanner = true,
+    this.showScheduleIndicator = true,
     this.tabOrder = defaultTabOrder,
     this.hiddenTabs = const [],
     this.dockSide = 'top',
@@ -47,6 +48,7 @@ class AppSettings {
     'weather',
     'media',
     'quota',
+    'schedule',
     'diagnostics',
   ];
 
@@ -79,14 +81,14 @@ class AppSettings {
       showPlayingIndicator: json['showPlayingIndicator'] != false,
       showImeIndicator: json['showImeIndicator'] != false,
       showImeBanner: json['showImeBanner'] != false,
+      showScheduleIndicator: json['showScheduleIndicator'] != false,
       tabOrder: _normalizeOrder(json['tabOrder']),
       hiddenTabs: _normalizeHidden(json['hiddenTabs']),
       dockSide: _normalizeDockSide(json['dockSide']),
       dockOffset: (json['dockOffset'] as num?)?.toDouble(),
       translateProvider: _normalizeTranslateProvider(json['translateProvider']),
       translateBaseUrl:
-          json['translateBaseUrl']?.toString() ??
-          'https://api.openai.com/v1',
+          json['translateBaseUrl']?.toString() ?? 'https://api.openai.com/v1',
       translateModel: json['translateModel']?.toString() ?? '',
       translateTarget: json['translateTarget']?.toString() ?? 'zh-CN',
       translateSource: json['translateSource']?.toString() ?? 'auto',
@@ -96,8 +98,7 @@ class AppSettings {
       translateUserPrompt:
           json['translateUserPrompt']?.toString() ?? defaultTranslateUserPrompt,
       translateSystemPrompt: json['translateSystemPrompt']?.toString() ?? '',
-      translateMyMemoryEmail:
-          json['translateMyMemoryEmail']?.toString() ?? '',
+      translateMyMemoryEmail: json['translateMyMemoryEmail']?.toString() ?? '',
       translateLlmKeyConfigured: json['translateLlmKeyConfigured'] == true,
       translateDeeplKeyConfigured: json['translateDeeplKeyConfigured'] == true,
       translateCaiyunKeyConfigured:
@@ -114,10 +115,8 @@ class AppSettings {
           ? 'bigmodel-cn'
           : 'global',
       quotaGlmKeyConfigured: json['quotaGlmKeyConfigured'] == true,
-      quotaDeepseekKeyConfigured:
-          json['quotaDeepseekKeyConfigured'] == true,
-      quotaOpencodeKeyConfigured:
-          json['quotaOpencodeKeyConfigured'] == true,
+      quotaDeepseekKeyConfigured: json['quotaDeepseekKeyConfigured'] == true,
+      quotaOpencodeKeyConfigured: json['quotaOpencodeKeyConfigured'] == true,
       quotaOpencodeCookieConfigured:
           json['quotaOpencodeCookieConfigured'] == true,
     );
@@ -139,6 +138,9 @@ class AppSettings {
 
   /// 输入法切换时弹出横幅。
   final bool showImeBanner;
+
+  /// 当天有日程时在收起态显示闹钟图标。
+  final bool showScheduleIndicator;
   final List<String> tabOrder;
   final List<String> hiddenTabs;
 
@@ -239,6 +241,7 @@ class AppSettings {
     'showPlayingIndicator': showPlayingIndicator,
     'showImeIndicator': showImeIndicator,
     'showImeBanner': showImeBanner,
+    'showScheduleIndicator': showScheduleIndicator,
     'tabOrder': tabOrder,
     'hiddenTabs': hiddenTabs,
     'dockSide': dockSide,
@@ -279,6 +282,7 @@ class AppSettings {
     bool? showPlayingIndicator,
     bool? showImeIndicator,
     bool? showImeBanner,
+    bool? showScheduleIndicator,
     List<String>? tabOrder,
     List<String>? hiddenTabs,
     String? dockSide,
@@ -316,6 +320,8 @@ class AppSettings {
       showPlayingIndicator: showPlayingIndicator ?? this.showPlayingIndicator,
       showImeIndicator: showImeIndicator ?? this.showImeIndicator,
       showImeBanner: showImeBanner ?? this.showImeBanner,
+      showScheduleIndicator:
+          showScheduleIndicator ?? this.showScheduleIndicator,
       tabOrder: tabOrder ?? this.tabOrder,
       hiddenTabs: hiddenTabs ?? this.hiddenTabs,
       dockSide: dockSide ?? this.dockSide,
@@ -327,7 +333,8 @@ class AppSettings {
       translateSource: translateSource ?? this.translateSource,
       translateAutoOrder: translateAutoOrder ?? this.translateAutoOrder,
       translateUserPrompt: translateUserPrompt ?? this.translateUserPrompt,
-      translateSystemPrompt: translateSystemPrompt ?? this.translateSystemPrompt,
+      translateSystemPrompt:
+          translateSystemPrompt ?? this.translateSystemPrompt,
       translateMyMemoryEmail:
           translateMyMemoryEmail ?? this.translateMyMemoryEmail,
       translateLlmKeyConfigured:
@@ -340,8 +347,7 @@ class AppSettings {
       mailTranslateProvider:
           mailTranslateProvider ?? this.mailTranslateProvider,
       quotaOrder: quotaOrder ?? this.quotaOrder,
-      hiddenQuotaProviders:
-          hiddenQuotaProviders ?? this.hiddenQuotaProviders,
+      hiddenQuotaProviders: hiddenQuotaProviders ?? this.hiddenQuotaProviders,
       quotaGlmRegion: quotaGlmRegion ?? this.quotaGlmRegion,
       quotaGlmKeyConfigured:
           quotaGlmKeyConfigured ?? this.quotaGlmKeyConfigured,

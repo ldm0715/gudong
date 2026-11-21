@@ -30,6 +30,7 @@ void main() {
       'showPlayingIndicator': true,
       'showImeIndicator': true,
       'showImeBanner': true,
+      'showScheduleIndicator': true,
       'tabOrder': [
         'messages',
         'mail',
@@ -37,6 +38,7 @@ void main() {
         'weather',
         'media',
         'quota',
+        'schedule',
         'diagnostics',
       ],
       'hiddenTabs': <String>[],
@@ -112,6 +114,7 @@ void main() {
       'translate',
       'weather',
       'quota',
+      'schedule',
       'diagnostics',
     ]);
     expect(settings.hiddenTabs, ['weather']);
@@ -121,6 +124,7 @@ void main() {
       'mail',
       'translate',
       'quota',
+      'schedule',
       'diagnostics',
     ]);
   });
@@ -134,15 +138,19 @@ void main() {
         'weather',
         'media',
         'quota',
+        'schedule',
         'diagnostics',
       ],
     });
     expect(settings.visibleTabs, isEmpty);
-    expect(settings.hiddenTabs.length, 7);
+    expect(settings.hiddenTabs.length, 8);
   });
 
   test('clamps the mail poll interval to the protocol range', () {
-    expect(AppSettings.fromJson(const {'mailPollSeconds': 5}).mailPollSeconds, 60);
+    expect(
+      AppSettings.fromJson(const {'mailPollSeconds': 5}).mailPollSeconds,
+      60,
+    );
     expect(
       AppSettings.fromJson(const {'mailPollSeconds': 5000}).mailPollSeconds,
       900,

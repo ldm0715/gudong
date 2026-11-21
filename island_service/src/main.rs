@@ -12,8 +12,10 @@ mod mail;
 mod media;
 mod quota;
 mod rpc;
+mod schedule;
 mod shell;
 mod single_instance;
+mod toast;
 mod translate;
 mod weather;
 #[cfg(windows)]
@@ -78,6 +80,9 @@ fn main() {
     state.set_translate_sender(translate_tx);
     let mail_tx = mail::start(state.clone(), tx.clone());
     state.set_mail_sender(mail_tx);
+    let toast_tx = toast::start();
+    let schedule_tx = schedule::start(tx.clone(), toast_tx);
+    state.set_schedule_sender(schedule_tx);
 
     #[cfg(windows)]
     {

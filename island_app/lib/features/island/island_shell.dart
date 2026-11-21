@@ -23,6 +23,9 @@ import '../messages/messages_controller.dart';
 import '../messages/messages_tab.dart';
 import '../quota/quota_controller.dart';
 import '../quota/quota_tab.dart';
+import '../schedule/schedule_banner.dart';
+import '../schedule/schedule_controller.dart';
+import '../schedule/schedule_tab.dart';
 import '../translate/translate_controller.dart';
 import '../translate/translate_tab.dart';
 import '../weather/weather_controller.dart';
@@ -46,6 +49,7 @@ class IslandShell extends StatefulWidget {
     required this.diagnostics,
     required this.translate,
     required this.quota,
+    required this.schedule,
     required this.settings,
     required this.windowPosition,
     required this.onOpenSettings,
@@ -60,6 +64,7 @@ class IslandShell extends StatefulWidget {
   final DiagnosticsController diagnostics;
   final TranslateController translate;
   final QuotaController quota;
+  final ScheduleController schedule;
   final SettingsController settings;
   final WindowPositionKeeper windowPosition;
   final VoidCallback onOpenSettings;
@@ -121,6 +126,7 @@ class _IslandShellState extends State<IslandShell> {
                 widget.diagnostics,
                 widget.translate,
                 widget.quota,
+                widget.schedule,
                 widget.settings,
               ]),
               builder: (context, _) {
@@ -128,14 +134,21 @@ class _IslandShellState extends State<IslandShell> {
                 final expanded = island.expanded;
                 final showBanner = island.showBanner;
                 final showMailBanner = island.showMailBanner && !showBanner;
+                final showScheduleBanner =
+                    island.showScheduleBanner && !showBanner && !showMailBanner;
                 final settings = widget.settings.settings;
-                // 消息横幅优先，其次是新邮件，最后是输入法切换。
+                // 消息横幅优先，其次是新邮件和日程提醒，最后是输入法切换。
                 final showIme =
                     settings.showImeBanner &&
                     widget.ime.visible &&
                     !showBanner &&
-                    !showMailBanner;
-                final activeBanner = showBanner || showMailBanner || showIme;
+                    !showMailBanner &&
+                    !showScheduleBanner;
+                final activeBanner =
+                    showBanner ||
+                    showMailBanner ||
+                    showScheduleBanner ||
+                    showIme;
                 final tabs = settings.visibleTabs;
                 final tab = tabs.contains(_tab)
                     ? _tab
@@ -189,6 +202,7 @@ class _IslandShellState extends State<IslandShell> {
                             diagnostics: widget.diagnostics,
                             translate: widget.translate,
                             quota: widget.quota,
+                            schedule: widget.schedule,
                             settings: widget.settings,
                             onOpenSettings: widget.onOpenSettings,
                             handleVisible: island.handleVisible,
@@ -205,6 +219,8 @@ class _IslandShellState extends State<IslandShell> {
                             controller: widget.mail,
                             item: island.mailBannerItem!,
                           )
+                        : showScheduleBanner
+                        ? ScheduleBanner(item: island.scheduleBannerItem!)
                         : showIme
                         ? ImeBanner(chinese: widget.ime.chinese)
                         : CollapsedBar(
@@ -212,10 +228,13 @@ class _IslandShellState extends State<IslandShell> {
                             mail: widget.mail,
                             weather: widget.weather,
                             media: widget.media,
+                            schedule: widget.schedule,
                             ime: widget.ime,
                             showWeather: settings.showWeather,
                             showPlayingIndicator: settings.showPlayingIndicator,
                             showImeIndicator: settings.showImeIndicator,
+                            showScheduleIndicator:
+                                settings.showScheduleIndicator,
                             vertical: side.isVertical,
                           ),
                   ),
@@ -240,6 +259,7 @@ class _ExpandedBody extends StatelessWidget {
     required this.diagnostics,
     required this.translate,
     required this.quota,
+    required this.schedule,
     required this.settings,
     required this.onOpenSettings,
     required this.handleVisible,
@@ -258,6 +278,7 @@ class _ExpandedBody extends StatelessWidget {
   final DiagnosticsController diagnostics;
   final TranslateController translate;
   final QuotaController quota;
+  final ScheduleController schedule;
   final SettingsController settings;
   final VoidCallback onOpenSettings;
   final bool handleVisible;
@@ -328,15 +349,18 @@ class _ExpandedBody extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(
                     horizontal: IslandMetrics.space12,
                   ),
-                  child: Row(
-                    children: [
-                      for (final item in tabs)
-                        _TabButton(
-                          label: item.label,
-                          selected: activeTab == item,
-                          onTap: () => onTab(item),
-                        ),
-                    ],
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        for (final item in tabs)
+                          _TabButton(
+                            label: item.label,
+                            selected: activeTab == item,
+                            onTap: () => onTab(item),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(height: IslandMetrics.space4),
@@ -410,6 +434,7 @@ class _ExpandedBody extends StatelessWidget {
         controller: quota,
         settings: settings.settings,
       ),
+      IslandTab.schedule => ScheduleTab(controller: schedule),
       IslandTab.diagnostics => DiagnosticsTab(
         connectionDetail: island.connectionDetail,
         diagnostics: diagnostics,

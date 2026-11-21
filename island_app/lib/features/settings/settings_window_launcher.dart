@@ -33,7 +33,9 @@ class SettingsWindowLauncher {
     try {
       await translateChannel.setMethodCallHandler(_onTranslateCall);
     } catch (error) {
-      AppLog.write('[settings-window] translate channel register failed: $error');
+      AppLog.write(
+        '[settings-window] translate channel register failed: $error',
+      );
     }
     try {
       await mailChannel.setMethodCallHandler(_onMailCall);
@@ -219,6 +221,7 @@ class SettingsWindowLauncher {
           showPlayingIndicator: incoming.showPlayingIndicator,
           showImeIndicator: incoming.showImeIndicator,
           showImeBanner: incoming.showImeBanner,
+          showScheduleIndicator: incoming.showScheduleIndicator,
           tabOrder: incoming.tabOrder,
           hiddenTabs: incoming.hiddenTabs,
           translateProvider: incoming.translateProvider,

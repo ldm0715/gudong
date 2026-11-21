@@ -28,6 +28,7 @@ import 'features/mail/mail_controller.dart';
 import 'features/media/media_controller.dart';
 import 'features/messages/messages_controller.dart';
 import 'features/quota/quota_controller.dart';
+import 'features/schedule/schedule_controller.dart';
 import 'features/translate/translate_controller.dart';
 import 'features/weather/weather_controller.dart';
 
@@ -73,12 +74,14 @@ Future<void> main(List<String> args) async {
   final diagnostics = DiagnosticsController(supervisor);
   final translate = TranslateController(supervisor);
   final quota = QuotaController(supervisor);
+  final schedule = ScheduleController(supervisor);
   final settings = SettingsController(supervisor);
   final settingsLauncher = SettingsWindowLauncher(settings);
   final island = IslandController(
     supervisor: supervisor,
     messages: messages,
     mail: mail,
+    schedule: schedule,
   );
   final clickThrough = ClickThroughController(windowSize: appWindowSize);
 
@@ -136,6 +139,7 @@ Future<void> main(List<String> args) async {
         diagnostics: diagnostics,
         translate: translate,
         quota: quota,
+        schedule: schedule,
         settings: settings,
         settingsWindow: settingsLauncher,
         windowPosition: windowPosition,

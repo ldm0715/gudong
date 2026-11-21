@@ -388,6 +388,53 @@ class _PageRow extends StatelessWidget {
   }
 }
 
+class ScheduleSettingsPage extends StatelessWidget {
+  const ScheduleSettingsPage({
+    super.key,
+    required this.settings,
+    required this.onSave,
+  });
+
+  final AppSettings settings;
+  final ValueChanged<AppSettings> onSave;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.islandColors;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SettingsSectionLabel('日程'),
+        SettingsCard(
+          children: [
+            SettingsSwitchRow(
+              title: '显示今日日程图标',
+              subtitle: '当天有日程时，收起态显示闹钟图标',
+              value: settings.showScheduleIndicator,
+              onChanged: (value) =>
+                  onSave(settings.copyWith(showScheduleIndicator: value)),
+            ),
+            const SettingsDivider(),
+            const SettingsInfoRow(
+              title: '提醒方式',
+              subtitle: '到点后在收起态显示横幅，同时发送 Windows 通知',
+              value: '横幅 + 系统通知',
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Text(
+            '日程保存在本机，重启后仍然保留；已触发的日程保留 7 天后自动清理。',
+            style: TextStyle(color: colors.muted, fontSize: 11),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class MusicSettingsPage extends StatelessWidget {
   const MusicSettingsPage({
     super.key,

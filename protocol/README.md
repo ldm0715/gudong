@@ -36,6 +36,11 @@
 | `quota.get` | `{}` | `{providers:[QuotaProvider], updatedAtMs}`；返回最近一次快照，未刷新过时为空数组 |
 | `quota.refresh` | `{provider?}` | `{ok}`；`provider` 为 `glm` / `deepseek` / `opencode`，省略表示全部；结果通过 `quota.updated` 推送 |
 | `quota.setSecret` | `{provider, field, value}` | `{ok, configured}`；`field` 为 `apiKey`（三家）或 `cookie`（仅 `opencode`）；`value` 为空表示删除 |
+| `schedule.list` | `{}` | `{items:[ScheduleItem]}`；按 `atMs` 升序，含已触发条目 |
+| `schedule.add` | `{title, atMs}` | `{item:ScheduleItem}`；`title` 1–80 字符，`atMs` 必须晚于当前时间 |
+| `schedule.update` | `{id, title?, atMs?}` | `{item:ScheduleItem}`；至少传一个字段，改成未来时间会重置 `fired` |
+| `schedule.remove` | `{id}` | `{ok}`；删除后不可恢复 |
+| `schedule.clearExpired` | `{}` | `{ok, removed}`；删除所有 `fired=true` 的日程，返回删除数量 |
 | `app.shutdown` | `{}` | `{ok}`，随后进程退出 |
 
 `settings` 是扁平 JSON 对象，当前键：
@@ -51,7 +56,8 @@
 | `showPlayingIndicator` | bool | 收起态播放时显示音波，默认 `true` |
 | `showImeIndicator` | bool | 收起态常驻显示输入法状态，默认 `true` |
 | `showImeBanner` | bool | 输入法切换时弹出横幅，默认 `true` |
-| `tabOrder` | string[] | 岛体 tab 顺序：`messages` / `mail` / `translate` / `weather` / `media` / `quota` / `diagnostics` |
+| `showScheduleIndicator` | bool | 当天有日程时在收起态显示闹钟图标，默认 `true` |
+| `tabOrder` | string[] | 岛体 tab 顺序：`messages` / `mail` / `translate` / `weather` / `media` / `quota` / `schedule` / `diagnostics` |
 | `hiddenTabs` | string[] | 隐藏的 tab；允许全部隐藏，此时岛体只显示标题栏与设置入口 |
 | `translateProvider` | string | 翻译引擎：`auto`（默认）/ `llm` / `deepl` / `caiyun` / `microsoftFree` / `mymemory` |
 | `translateBaseUrl` | string | OpenAI 兼容服务的 base URL，默认 `https://api.openai.com/v1` |
@@ -158,6 +164,27 @@
 | `mail.oauth.completed` | 微软授权成功，带 `flowId` 与新建的 `account` |
 | `mail.oauth.failed` | 微软授权失败或超时，带 `flowId` 与 `message` |
 | `quota.updated` | 额度刷新完成，带 `providers`（全部已知服务）与 `updatedAtMs`；未配置的服务也会出现，`status` 为 `notConfigured` |
+| `schedule.updated` | 日程新增、修改、删除或触发后推送最新全量列表，带 `items` |
+| `schedule.fired` | 日程到点，带 `item`；sidecar 同时播放系统提示音并发送 Windows 气泡通知 |
+
+`ScheduleItem`：
+
+```json
+{
+  "id": "s_18f2a3b4c5d_0",
+  "title": "项目周会",
+  "atMs": 1795000000000,
+  "fired": false,
+  "createdAtMs": 1794997775244
+}
+```
+
+- `atMs` 是本地时间对应的 Unix 毫秒时间戳，用于日历分组与到点检查。
+- `fired` 为 `true` 表示已经提醒过；修改 `atMs` 会重置为 `false`。
+- 日程写 `%APPDATA%\guduo\schedule.json`，先写临时文件再替换，最多 500 条；启动时自动过滤标题为空或时间非法的条目。
+- 启动时已过点但未触发的日程会被直接标记为已触发，不补发横幅、提示音或 Windows 通知。
+- 已触发日程保留 7 天，之后由 sidecar 自动清理；客户端也可调用 `schedule.clearExpired` 手动清理。
+- 到点检查在 sidecar 线程内完成，客户端只消费 `schedule.fired` 与 `schedule.updated`。
 
 `MediaSnapshot`：
 
