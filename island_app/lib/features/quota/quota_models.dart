@@ -46,7 +46,13 @@ class QuotaWindow {
   /// 有百分比才画进度条；余额这类没有分母的窗口只显示数值。
   bool get hasMeter => showMeter && usedPercent != null;
 
-  double get meterValue => ((usedPercent ?? 0) / 100).clamp(0.0, 1.0);
+  /// 剩余比例。服务端没给 `remainingPercent` 时用已用比例反推。
+  double? get effectiveRemainingPercent =>
+      remainingPercent ?? (usedPercent == null ? null : 100 - usedPercent!);
+
+  /// 按剩余额度填充，读起来像电池电量。
+  double get remainingValue =>
+      ((effectiveRemainingPercent ?? 0) / 100).clamp(0.0, 1.0);
 }
 
 class QuotaProvider {

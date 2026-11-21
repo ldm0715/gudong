@@ -63,6 +63,34 @@ void main() {
     expect(find.text('余额'), findsWidgets);
   });
 
+  testWidgets('linear quota meter fills its full height', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Center(
+          child: SizedBox(
+            width: 120,
+            child: LinearQuotaMeter(
+              value: 0.5,
+              color: Color(0xFF2ED573),
+              thickness: 6,
+            ),
+          ),
+        ),
+      ),
+    );
+    final boxes = find
+        .descendant(
+          of: find.byType(LinearQuotaMeter),
+          matching: find.byType(ColoredBox),
+        )
+        .evaluate()
+        .toList();
+    expect(boxes.length, 2);
+    for (final box in boxes) {
+      expect((box.renderObject as RenderBox).size.height, 6);
+    }
+  });
+
   testWidgets('a single quota card sizes to its content', (tester) async {
     await tester.pumpWidget(
       MaterialApp(

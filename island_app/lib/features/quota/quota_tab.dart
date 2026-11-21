@@ -13,11 +13,7 @@ import 'quota_models.dart';
 
 /// 展开态额度面板：服务按设置顺序纵向排列，内容超出时滚动。
 class QuotaTab extends StatefulWidget {
-  const QuotaTab({
-    super.key,
-    required this.controller,
-    required this.settings,
-  });
+  const QuotaTab({super.key, required this.controller, required this.settings});
 
   final QuotaController controller;
   final AppSettings settings;
@@ -54,8 +50,7 @@ class _QuotaTabState extends State<QuotaTab> {
     return ListView.separated(
       padding: EdgeInsets.zero,
       itemCount: providers.length,
-      separatorBuilder: (_, _) =>
-          const SizedBox(height: IslandMetrics.space6),
+      separatorBuilder: (_, _) => const SizedBox(height: IslandMetrics.space6),
       itemBuilder: (context, index) =>
           QuotaProviderCard(provider: providers[index]),
     );
@@ -83,7 +78,6 @@ class QuotaProviderCard extends StatelessWidget {
     final colors = context.islandColors;
     final primary = provider.sessionWindow ?? provider.secondaryWindow;
     final tone = quotaTone(colors, primary?.usedPercent);
-    final reset = formatReset(primary?.resetsAt);
     return Container(
       padding: const EdgeInsets.fromLTRB(
         IslandMetrics.space10,
@@ -136,9 +130,9 @@ class QuotaProviderCard extends StatelessWidget {
               const SizedBox(width: IslandMetrics.space8),
               if (primary?.hasMeter == true)
                 QuotaRing(
-                  value: primary!.meterValue,
+                  value: primary!.remainingValue,
                   color: tone,
-                  label: formatPercent(primary.usedPercent),
+                  label: formatPercent(primary.effectiveRemainingPercent),
                 )
               else if (!provider.ok)
                 Text(
@@ -148,12 +142,11 @@ class QuotaProviderCard extends StatelessWidget {
             ],
           ),
           if (provider.ok && provider.windows.isNotEmpty) ...[
-            const SizedBox(height: IslandMetrics.space7),
+            const SizedBox(height: IslandMetrics.space4),
             for (final window in provider.windows)
               _QuotaWindowRow(
                 window: window,
                 color: quotaTone(colors, window.usedPercent),
-                showReset: !identical(window, primary),
               ),
           ] else if (!provider.ok) ...[
             const SizedBox(height: IslandMetrics.space6),
@@ -166,14 +159,6 @@ class QuotaProviderCard extends StatelessWidget {
               style: IslandTypography.micro.tint(colors.muted),
             ),
           ],
-          if (reset.isNotEmpty) ...[
-            const SizedBox(height: IslandMetrics.space4),
-            Text(
-              '$reset后重置',
-              textAlign: TextAlign.right,
-              style: IslandTypography.micro.tint(colors.muted),
-            ),
-          ],
         ],
       ),
     );
@@ -181,37 +166,24 @@ class QuotaProviderCard extends StatelessWidget {
 }
 
 class _QuotaWindowRow extends StatelessWidget {
-  const _QuotaWindowRow({
-    required this.window,
-    required this.color,
-    required this.showReset,
-  });
+  const _QuotaWindowRow({required this.window, required this.color});
 
   final QuotaWindow window;
   final Color color;
-  final bool showReset;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.islandColors;
     if (!window.hasMeter) {
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: IslandMetrics.space3),
+        padding: const EdgeInsets.only(top: IslandMetrics.space6),
         child: Row(
           children: [
-            SizedBox(
-              width: 36,
-              child: Text(
-                quotaWindowLabel(window),
-                style: IslandTypography.micro.tint(colors.muted),
-              ),
+            Text(
+              quotaWindowLabel(window),
+              style: IslandTypography.micro.tint(colors.muted),
             ),
-            Expanded(
-              child: Text(
-                '可用余额',
-                style: IslandTypography.micro.tint(colors.muted),
-              ),
-            ),
+            const Spacer(),
             Text(
               formatBalance(window),
               style: IslandTypography.bodyStrong.tint(colors.text),
@@ -220,51 +192,38 @@ class _QuotaWindowRow extends StatelessWidget {
         ),
       );
     }
-    final reset = showReset ? formatReset(window.resetsAt) : '';
+    final reset = formatReset(window.resetsAt);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: IslandMetrics.space2),
-      child: Row(
+      padding: const EdgeInsets.only(top: IslandMetrics.space6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox(
-            width: 36,
-            child: Text(
-              quotaWindowLabel(window),
-              style: IslandTypography.micro.tint(colors.muted),
-            ),
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                LinearQuotaMeter(value: window.meterValue, color: color),
-                const SizedBox(height: IslandMetrics.space2),
-                Row(
-                  children: [
-                    Text(
-                      '剩余 ${formatPercent(window.remainingPercent)}',
-                      style: IslandTypography.micro.tint(colors.muted),
-                    ),
-                    if (reset.isNotEmpty) ...[
-                      const Spacer(),
-                      Text(
-                        '$reset后重置',
-                        style: IslandTypography.micro.tint(colors.muted),
-                      ),
-                    ],
-                  ],
+          Row(
+            children: [
+              Text(
+                quotaWindowLabel(window),
+                style: IslandTypography.micro.tint(colors.muted),
+              ),
+              const Spacer(),
+              if (reset.isNotEmpty) ...[
+                Text(
+                  '$reset后重置',
+                  style: IslandTypography.micro.tint(colors.muted),
                 ),
+                const SizedBox(width: IslandMetrics.space8),
               ],
-            ),
+              Text(
+                formatPercent(window.effectiveRemainingPercent),
+                style: IslandTypography.microStrong.tint(color),
+              ),
+            ],
           ),
-          const SizedBox(width: IslandMetrics.space6),
-          SizedBox(
-            width: 32,
-            child: Text(
-              formatPercent(window.usedPercent),
-              textAlign: TextAlign.right,
-              style: IslandTypography.microStrong.tint(color),
-            ),
+          const SizedBox(height: IslandMetrics.space4),
+          LinearQuotaMeter(
+            value: window.remainingValue,
+            color: color,
+            thickness: IslandMetrics.space6,
           ),
         ],
       ),
@@ -293,12 +252,9 @@ class QuotaRing extends StatelessWidget {
         width: 32,
         height: 32,
         child: CustomPaint(
-          painter: _RingPainter(value: value, color: color, track: colors.divider),
+          painter: _RingPainter(value: value, color: color, track: colors.chip),
           child: Center(
-            child: Text(
-              label,
-              style: IslandTypography.microStrong.tint(color),
-            ),
+            child: Text(label, style: IslandTypography.microStrong.tint(color)),
           ),
         ),
       ),
@@ -346,31 +302,42 @@ class _RingPainter extends CustomPainter {
       old.value != value || old.color != color || old.track != track;
 }
 
-/// 横向比例条。
+/// 横向比例条，按剩余额度填充。
 class LinearQuotaMeter extends StatelessWidget {
   const LinearQuotaMeter({
     super.key,
     required this.value,
     required this.color,
+    this.thickness = IslandMetrics.space4,
   });
 
   final double value;
   final Color color;
+  final double thickness;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.islandColors;
-    final filled = (value * 100).round().clamp(1, 100);
-    final rest = 100 - filled;
+    final ratio = value.clamp(0.0, 1.0);
+    final filled = (ratio * 1000).round();
+    final rest = 1000 - filled;
     return ClipRRect(
-      borderRadius: BorderRadius.circular(IslandMetrics.radiusBar),
+      borderRadius: BorderRadius.circular(IslandMetrics.pill(thickness)),
       child: SizedBox(
-        height: IslandMetrics.space3,
+        height: thickness,
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded(flex: filled, child: ColoredBox(color: color)),
+            if (filled > 0)
+              Expanded(
+                flex: filled,
+                child: ColoredBox(color: color),
+              ),
             if (rest > 0)
-              Expanded(flex: rest, child: ColoredBox(color: colors.divider)),
+              Expanded(
+                flex: rest,
+                child: ColoredBox(color: colors.chip),
+              ),
           ],
         ),
       ),

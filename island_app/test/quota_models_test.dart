@@ -29,6 +29,10 @@ void main() {
     expect(provider.ok, isTrue);
     expect(provider.shortLabel, 'GLM');
     expect(provider.sessionWindow?.usedPercent, 32.4);
+    expect(
+      provider.sessionWindow?.effectiveRemainingPercent,
+      closeTo(67.6, 0.001),
+    );
     expect(provider.secondaryWindow?.kind, 'weekly');
     expect(formatPercent(32.4), '32%');
   });
@@ -51,6 +55,9 @@ void main() {
       formatReset(now.add(const Duration(hours: 3, minutes: 20)), now: now),
       '3 小时 20 分',
     );
-    expect(formatReset(now.subtract(const Duration(minutes: 1)), now: now), '即将重置');
+    expect(
+      formatReset(now.subtract(const Duration(minutes: 1)), now: now),
+      '即将重置',
+    );
   });
 }
