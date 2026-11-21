@@ -24,7 +24,6 @@ enum SettingsSection {
   mail,
   translate,
   music,
-  focus,
   todos,
   notifications,
   ai,
@@ -39,7 +38,6 @@ extension SettingsSectionMeta on SettingsSection {
     SettingsSection.mail => '邮箱',
     SettingsSection.translate => '翻译',
     SettingsSection.music => '音乐与歌词',
-    SettingsSection.focus => '专注与饮水',
     SettingsSection.todos => '中转站',
     SettingsSection.notifications => '通知与日程',
     SettingsSection.ai => 'AI 额度',
@@ -53,7 +51,6 @@ extension SettingsSectionMeta on SettingsSection {
     SettingsSection.mail => Icons.mail_outline_rounded,
     SettingsSection.translate => Icons.translate_rounded,
     SettingsSection.music => Icons.music_note_rounded,
-    SettingsSection.focus => Icons.local_fire_department_rounded,
     SettingsSection.todos => Icons.inbox_rounded,
     SettingsSection.notifications => Icons.notifications_rounded,
     SettingsSection.ai => Icons.auto_awesome_rounded,
@@ -67,19 +64,11 @@ extension SettingsSectionMeta on SettingsSection {
     SettingsSection.mail => const Color(0xFF4F9CF9),
     SettingsSection.translate => const Color(0xFF7C6CF2),
     SettingsSection.music => const Color(0xFFF06292),
-    SettingsSection.focus => const Color(0xFFF59E0B),
     SettingsSection.todos => const Color(0xFF34C77B),
     SettingsSection.notifications => const Color(0xFF5B8DEF),
     SettingsSection.ai => const Color(0xFF2BB5A0),
     SettingsSection.weather => const Color(0xFF4FC3F7),
     SettingsSection.about => const Color(0xFF8E9AAF),
-  };
-
-  String get placeholder => switch (this) {
-    SettingsSection.focus => '专注计时与喝水提醒会放在这里。',
-    SettingsSection.todos => '待办、置物架和快捷入口会放在这里。',
-    SettingsSection.notifications => '系统通知聚合与日程会放在这里。',
-    _ => '该页面将在后续阶段接入。',
   };
 }
 
@@ -396,7 +385,6 @@ class _SettingsBodyState extends State<_SettingsBody> {
         onSave: onSave,
       ),
       SettingsSection.about => const AboutSettingsPage(),
-      _ => PlaceholderSettingsPage(description: _section.placeholder),
     };
   }
 }
