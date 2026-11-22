@@ -1558,7 +1558,7 @@ mod tests {
 
     #[test]
     fn parse_pi_finds_title_and_final_reply() {
-        let path = temp_path("guduo-pi-test");
+        let path = temp_path("gudong-pi-test");
         let text = [
             r#"{"type":"session","version":3,"id":"01a1e732-a5c0-774a-983e-9d57e1e57175","timestamp":"2026-11-17T01:50:18.561Z","cwd":"F:\\My_Project\\guduo"}"#,
             r#"{"type":"title","title":"修复邮件视图返回与复制问题","source":"auto"}"#,
@@ -1581,7 +1581,7 @@ mod tests {
 
     #[test]
     fn parse_codex_marks_completed_turn() {
-        let path = temp_path("guduo-codex-test.jsonl");
+        let path = temp_path("gudong-codex-test.jsonl");
         let text = [
             r#"{"timestamp":"2026-11-22T05:00:00.000Z","type":"session_meta","payload":{"session_id":"s1","cwd":"F:\\My_Project\\guduo"}}"#,
             r#"{"timestamp":"2026-11-22T05:00:01.000Z","type":"event_msg","payload":{"type":"task_started","started_at":1795323601}}"#,

@@ -77,7 +77,7 @@ unsafe fn run(
     let hwnd = CreateWindowExW(
         WS_EX_TOOLWINDOW,
         w!("STATIC"),
-        w!("GuduoWechatListener"),
+        w!("GudongWechatListener"),
         WS_POPUP,
         0,
         0,

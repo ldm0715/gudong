@@ -1,4 +1,4 @@
-//! 用户配置：`%APPDATA%\guduo\config.json`。
+//! 用户配置：`%APPDATA%\gudong\config.json`。
 //!
 //! 写入先落临时文件再替换，避免断电或崩溃留下半个文件。
 //! 凭据不放在这里，Phase 2 接 Windows Credential Manager。
@@ -105,8 +105,7 @@ impl Config {
 }
 
 fn default_path() -> Option<PathBuf> {
-    let base = std::env::var_os("APPDATA")?;
-    Some(PathBuf::from(base).join("guduo").join("config.json"))
+    crate::paths::app_data_dir().map(|dir| dir.join("config.json"))
 }
 
 fn write_atomic(path: &Path, values: &Map<String, Value>) -> Result<(), String> {

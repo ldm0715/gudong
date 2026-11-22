@@ -1,4 +1,4 @@
-# Guduo
+# gudong
 
 Windows 顶部的灵动岛：Flutter 负责岛体与动画，Rust sidecar 负责系统集成。当前处于 Phase 2，窗口、IPC、消息提醒、SMTC 媒体与歌词、页面管理已可用。
 

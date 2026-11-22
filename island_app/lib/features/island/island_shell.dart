@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/app_info.dart';
 import '../../core/settings/island_tabs.dart';
 import '../../core/settings/settings_controller.dart';
 import '../../core/theme/island_colors.dart';
@@ -40,7 +41,6 @@ import '../volume/volume_banner.dart';
 import '../volume/volume_controller.dart';
 import '../weather/weather_controller.dart';
 import '../weather/weather_tab.dart';
-import 'client_glyph.dart';
 import 'collapsed_bar.dart';
 import 'island_controller.dart';
 import 'island_layout.dart';
@@ -437,17 +437,17 @@ class _ExpandedBody extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    if (messages.unread.isNotEmpty) ...[
-                      ClientGlyph(
-                        source: messages.hasQq && !messages.hasWechat
-                            ? 'qq'
-                            : 'wechat',
-                        size: IslandMetrics.iconXL,
-                      ),
-                      const SizedBox(width: IslandMetrics.space8),
-                    ],
+                    Image.asset(
+                      'assets/branding/logo.png',
+                      width: IslandMetrics.iconLG,
+                      height: IslandMetrics.iconLG,
+                      cacheWidth: (IslandMetrics.iconLG * 2).round(),
+                      cacheHeight: (IslandMetrics.iconLG * 2).round(),
+                      filterQuality: FilterQuality.medium,
+                    ),
+                    const SizedBox(width: IslandMetrics.space6),
                     Text(
-                      'Guduo Island',
+                      appName,
                       style: IslandTypography.title.tint(colors.text),
                     ),
                     const Spacer(),

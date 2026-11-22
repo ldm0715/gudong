@@ -208,7 +208,7 @@ fn send_id(mut stream: Stream) -> Result<IdOutcome, ConnectError> {
     }
 
     let command = format!(
-        "a0001 ID (\"name\" \"guduo\" \"version\" \"{}\" \"vendor\" \"guduo\" \"support-email\" \"noreply@guduo.app\")\r\n",
+        "a0001 ID (\"name\" \"gudong\" \"version\" \"{}\" \"vendor\" \"gudong\" \"support-email\" \"noreply@gudong.app\")\r\n",
         env!("CARGO_PKG_VERSION")
     );
     stream

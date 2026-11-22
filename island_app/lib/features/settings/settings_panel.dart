@@ -705,6 +705,58 @@ class _WeatherSettingsPageState extends State<WeatherSettingsPage> {
   }
 }
 
+class _AboutHeader extends StatelessWidget {
+  const _AboutHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.islandColors;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Image.asset(
+              'assets/branding/logo.png',
+              width: 64,
+              height: 64,
+              cacheWidth: 128,
+              cacheHeight: 128,
+              filterQuality: FilterQuality.medium,
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    appName,
+                    style: TextStyle(
+                      color: colors.text,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    appTagline,
+                    style: TextStyle(color: colors.muted, fontSize: 12),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'v$appVersion',
+                    style: TextStyle(color: colors.muted, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class AboutSettingsPage extends StatelessWidget {
   const AboutSettingsPage({super.key});
 
@@ -723,6 +775,8 @@ class AboutSettingsPage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const _AboutHeader(),
+        const SizedBox(height: 18),
         const SettingsSectionLabel('版本'),
         const SettingsCard(
           children: [SettingsInfoRow(title: '客户端', value: appVersion)],
@@ -750,7 +804,7 @@ class AboutSettingsPage extends StatelessWidget {
         const SettingsSectionLabel('配置文件'),
         const SettingsCard(
           children: [
-            SettingsInfoRow(title: '路径', value: r'%APPDATA%\guduo\config.json'),
+            SettingsInfoRow(title: '路径', value: r'%APPDATA%\gudong\config.json'),
           ],
         ),
       ],

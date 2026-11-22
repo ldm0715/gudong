@@ -2,7 +2,7 @@
 name = "island_service"
 version = "0.1.0"
 edition = "2021"
-description = "Guduo island system sidecar"
+description = "gudong system sidecar"
 license = "MIT"
 
 [dependencies]

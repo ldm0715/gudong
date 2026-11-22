@@ -1,6 +1,6 @@
 //! 中转站：引用式文件暂存，只记路径不搬内容。
 //!
-//! 索引写在 `%APPDATA%\guduo\shelf.json`，读写都在独立线程里执行。
+//! 索引写在 `%APPDATA%\gudong\shelf.json`，读写都在独立线程里执行。
 //! 拖入和拖出都由 Flutter 侧原生拖放处理，这里只负责索引与元数据。
 
 use serde::{Deserialize, Serialize};
@@ -392,8 +392,7 @@ fn write_atomic(path: &Path, items: &[ShelfItem]) -> Result<(), String> {
 }
 
 fn default_path() -> Option<PathBuf> {
-    let base = std::env::var_os("APPDATA")?;
-    Some(PathBuf::from(base).join("guduo").join("shelf.json"))
+    crate::paths::app_data_dir().map(|dir| dir.join("shelf.json"))
 }
 
 fn display_name(path: &str) -> String {
@@ -464,7 +463,7 @@ mod tests {
 
     fn existing_file(name: &str) -> String {
         let mut path = std::env::temp_dir();
-        path.push(format!("guduo-shelf-{}-{name}", std::process::id()));
+        path.push(format!("gudong-shelf-{}-{name}", std::process::id()));
         std::fs::write(&path, b"x").unwrap();
         path.to_string_lossy().to_string()
     }
@@ -524,7 +523,7 @@ mod tests {
     #[test]
     fn store_round_trips_through_disk() {
         let mut path = std::env::temp_dir();
-        path.push(format!("guduo-shelf-test-{}.json", std::process::id()));
+        path.push(format!("gudong-shelf-test-{}.json", std::process::id()));
         let store = Store {
             path: Some(path.clone()),
             items: vec![item("a", "C:\\a.txt")],

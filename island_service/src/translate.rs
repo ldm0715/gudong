@@ -600,7 +600,7 @@ fn translate_caiyun(
         "trans_type": trans_type,
         "detect": trans_type.starts_with("auto2"),
         "media": "text",
-        "request_id": format!("guduo-{}", chrono::Local::now().timestamp_millis()),
+        "request_id": format!("gudong-{}", chrono::Local::now().timestamp_millis()),
     });
     let response = agent(20)
         .post("https://api.interpreter.caiyunai.com/v1/translator")

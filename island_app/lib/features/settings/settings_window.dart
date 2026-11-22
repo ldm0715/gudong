@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/app_info.dart';
 import '../../core/input/keyboard_event_guard.dart';
 import '../../core/log.dart';
 import '../../core/logging/crash_handler.dart';
@@ -206,7 +207,7 @@ Future<void> runSettingsWindow(SettingsWindowArguments args) async {
   CrashHandler.install();
   unawaited(KeyboardEventGuard.install());
   AppLog.write('[settings-window] engine started');
-  SettingsNativeWindow.prepare(title: 'Guduo 设置');
+  SettingsNativeWindow.prepare(title: '$appName 设置');
   // 与主窗口组成双向通道，翻译配置页通过它获取模型和保存密钥。
   try {
     await translateChannel.setMethodCallHandler((call) async => null);
@@ -251,7 +252,7 @@ class SettingsWindowApp extends StatefulWidget {
 
 class _SettingsWindowAppState extends State<SettingsWindowApp> {
   static const _channel = WindowMethodChannel(
-    'guduo.settings',
+    'gudong.settings',
     mode: ChannelMode.unidirectional,
   );
 
@@ -278,7 +279,7 @@ class _SettingsWindowAppState extends State<SettingsWindowApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Guduo 设置',
+      title: '$appName 设置',
       theme: _theme,
       home: Scaffold(
         backgroundColor: _colors.windowBackground,

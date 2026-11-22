@@ -22,7 +22,7 @@ Future<void> prepareAppWindow() async {
     backgroundColor: Colors.transparent,
     skipTaskbar: true,
     alwaysOnTop: true,
-    title: 'guduo_island',
+    title: 'gudong_island',
     titleBarStyle: TitleBarStyle.hidden,
     windowButtonVisibility: false,
   );
@@ -39,7 +39,7 @@ Future<void> prepareAppWindow() async {
     await windowManager.setBackgroundColor(Colors.transparent);
     await windowManager.setAlwaysOnTop(true);
     await windowManager.setSkipTaskbar(true);
-    await windowManager.setTitle('guduo_island');
+    await windowManager.setTitle('gudong_island');
     await windowManager.setSize(appWindowSize);
     await windowManager.setAlignment(Alignment.topCenter);
     await windowManager.setPreventClose(true);

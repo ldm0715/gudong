@@ -102,7 +102,7 @@
 
 `settings.get` 与 `settings.set` 的返回里还会带 `translateLlmKeyConfigured` / `translateDeeplKeyConfigured` / `translateCaiyunKeyConfigured` 三个只读布尔值，以及 `quotaGlmKeyConfigured` / `quotaDeepseekKeyConfigured` / `quotaOpencodeKeyConfigured` / `quotaOpencodeCookieConfigured`。它们不写入 config.json，也不接受写入，表示对应密钥是否已在 Windows 凭据管理器里。
 
-设置落盘到 `%APPDATA%\guduo\config.json`，先写临时文件再替换。`settings.set` 只合并传入的 key，未传的键保持不变；值必须是合法 JSON，空 key 返回 `-32602`。翻译密钥通过 `translate.setSecret` 写入 Windows 凭据管理器（目标名 `guduo/translate/llm`、`guduo/translate/deepl`、`guduo/translate/caiyun`），不落 config.json。额度凭据通过 `quota.setSecret` 写入同一凭据管理器（目标名 `guduo/quota/glm`、`guduo/quota/deepseek`、`guduo/quota/opencode`、`guduo/quota/opencode-cookie`）。
+设置落盘到 `%APPDATA%\gudong\config.json`，先写临时文件再替换。`settings.set` 只合并传入的 key，未传的键保持不变；值必须是合法 JSON，空 key 返回 `-32602`。翻译密钥通过 `translate.setSecret` 写入 Windows 凭据管理器（目标名 `gudong/translate/llm`、`gudong/translate/deepl`、`gudong/translate/caiyun`），不落 config.json。额度凭据通过 `quota.setSecret` 写入同一凭据管理器（目标名 `gudong/quota/glm`、`gudong/quota/deepseek`、`gudong/quota/opencode`、`gudong/quota/opencode-cookie`）。
 
 `QuotaProvider`：
 
@@ -269,7 +269,7 @@
 
 - `atMs` 是本地时间对应的 Unix 毫秒时间戳，用于日历分组与到点检查。
 - `fired` 为 `true` 表示已经提醒过；修改 `atMs` 会重置为 `false`。
-- 日程写 `%APPDATA%\guduo\schedule.json`，先写临时文件再替换，最多 500 条；启动时自动过滤标题为空或时间非法的条目。
+- 日程写 `%APPDATA%\gudong\schedule.json`，先写临时文件再替换，最多 500 条；启动时自动过滤标题为空或时间非法的条目。
 - 启动时已过点但未触发的日程会被直接标记为已触发，不补发横幅、提示音或 Windows 通知。
 - 已触发日程保留 7 天，之后由 sidecar 自动清理；客户端也可调用 `schedule.clearExpired` 手动清理。
 - 到点检查在 sidecar 线程内完成，客户端只消费 `schedule.fired` 与 `schedule.updated`。
@@ -287,7 +287,7 @@
 
 - `date` 是本地日历日期 `YYYY-MM-DD`，必须是合法日期，不接受 `2025-9-4` 这类非补零格式。
 - 剩余 / 已过天数由客户端按本地日期计算，sidecar 不推送每日变化。
-- 倒计时与纪念日写在 `%APPDATA%\guduo\anniversaries.json`，先写临时文件再替换，最多 200 条。
+- 倒计时与纪念日写在 `%APPDATA%\gudong\anniversaries.json`，先写临时文件再替换，最多 200 条。
 - 该页面位于日程 tab 的第二页，不单独占用 `tabOrder`。
 
 `ShelfItem`：
@@ -309,7 +309,7 @@
 - `kind` 为 `image` / `video` / `audio` / `document` / `archive` / `installer` / `folder` / `file`，由 sidecar 按扩展名归类，客户端只负责映射图标。
 - `missing=true` 表示原文件已不存在；条目保留，不自动删除，`shelf.reveal` 会拒绝失效条目。
 - 相同路径重复拖入会置顶并刷新元数据，不新增条目；达到 `shelfMaxItems` 后返回 `reason=limit`，不淘汰旧条目。
-- 索引写 `%APPDATA%\guduo\shelf.json`，先写临时文件再替换。启动时重新检查路径存在性。
+- 索引写 `%APPDATA%\gudong\shelf.json`，先写临时文件再替换。启动时重新检查路径存在性。
 - 图标由 sidecar 在后台线程用 `IShellItemImageFactory` 生成 96 px 缩略图；文件夹和无法生成缩略图的文件退回 shell 原始图标。编码为 PNG 后通过 `shelf.icon` 推送，生成失败不推送，客户端退回分类图标。
 - 拖入和拖出都由 Flutter 侧原生拖放实现：拖入拿到文件路径后调用 `shelf.add`；拖出直接由窗口进程把 `CF_HDROP` 交给目标程序，不经过 sidecar。
 - 不在 sidecar 里调用 `DoDragDrop`：OLE 拖拽循环需要稳定的 UI 线程消息循环，后台线程一旦收不到鼠标抬起消息会占住全局鼠标捕获，影响资源管理器等所有程序的拖放。
@@ -516,7 +516,7 @@
 | `microsoft` | `outlook.office365.com` | OAuth2 + XOAUTH2 | 不支持密码直连 |
 | `custom` | 用户填写 | 密码 | 仅 993 或自定义 TLS 端口 |
 
-账号元数据写 `%APPDATA%\guduo\mail.json`，先写临时文件再替换。授权码、应用专用密码和微软 refresh token 写 Windows 凭据管理器，目标名 `guduo/mail/<id>`，任何接口都不回传。
+账号元数据写 `%APPDATA%\gudong\mail.json`，先写临时文件再替换。授权码、应用专用密码和微软 refresh token 写 Windows 凭据管理器，目标名 `gudong/mail/<id>`，任何接口都不回传。
 
 `mail.accounts.add` 只落盘并返回，不等待网络：连接、登录和首次同步都在后台进行，结果通过 `mail.account` 事件推送。相同 `provider` + 邮箱 + `custom` 端点重复添加时覆盖凭据并重置状态。
 
@@ -596,4 +596,4 @@
 | `-32000` | `apiVersion` 不匹配 |
 
 - 能力声明：`service.ready` 事件与 `app.hello` 结果里的 `capabilities` 来自 sidecar 内同一份常量。
-- 日志写 `%LOCALAPPDATA%\guduo\logs\island_service.log`，stdout 只输出协议数据。
+- 日志写 `%LOCALAPPDATA%\gudong\logs\island_service.log`，stdout 只输出协议数据。

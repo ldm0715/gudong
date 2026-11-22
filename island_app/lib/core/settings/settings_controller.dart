@@ -6,7 +6,7 @@ import '../ipc/sidecar_supervisor.dart';
 import '../log.dart';
 import 'app_settings.dart';
 
-/// 用户设置。sidecar 落盘到 `%APPDATA%\guduo\config.json`，Flutter 只持有副本。
+/// 用户设置。sidecar 落盘到 `%APPDATA%\gudong\config.json`，Flutter 只持有副本。
 class SettingsController extends ChangeNotifier {
   SettingsController(this.supervisor) {
     supervisor.addListener(_onSupervisorChanged);

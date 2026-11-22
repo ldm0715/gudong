@@ -60,9 +60,9 @@ fn run(state: &State, tx: &Sender<Value>) -> windows::core::Result<()> {
     if access != UserNotificationListenerAccessStatus::Allowed {
         let message = match access {
             UserNotificationListenerAccessStatus::Denied => {
-                "Windows 未授予通知读取权限，请在系统设置中允许后重新启动 Guduo"
+                "Windows 未授予通知读取权限，请在系统设置中允许后重新启动 gudong"
             }
-            _ => "通知读取权限尚未授予，请重新打开 Guduo 并允许读取通知",
+            _ => "通知读取权限尚未授予，请重新打开 gudong 并允许读取通知",
         };
         let _ = tx.send(rpc::emit_status(state, "notifications", false, message));
         return Ok(());

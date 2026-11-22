@@ -52,13 +52,13 @@ Future<void> main(List<String> args) async {
 
   // 单实例：已有实例就把它叫到前台后退出；热重启时互斥量属于本进程，继续启动。
   // 这一步必须在 AppLog.init 之前，否则两个进程会同时写 app.log 导致内容交错。
-  if (!SingleInstance.acquire('Local\\guduo-island-app')) {
+  if (!SingleInstance.acquire('Local\\gudong-island-app')) {
     final focused = SingleInstance.focusExisting();
     if (focused) {
       AppLog.writeDetached('[app] another instance is running');
       if (kDebugMode) {
         // 否则 flutter run 只会报 service protocol 连接失败，看不出原因。
-        stderr.writeln('[guduo] 已有实例在运行，请先从托盘退出或结束 island_app.exe 再启动');
+        stderr.writeln('[gudong] 已有实例在运行，请先从托盘退出或结束 island_app.exe 再启动');
       }
       exit(0);
     }
@@ -144,7 +144,7 @@ Future<void> main(List<String> args) async {
   updateInteractiveRect();
 
   runApp(
-    GuduoApp(
+    GudongApp(
       scope: AppScope(
         supervisor: supervisor,
         island: island,

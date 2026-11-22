@@ -59,7 +59,7 @@ $svcCpu1 = if ($svc) { $svc.TotalProcessorTime } else { [TimeSpan]::Zero }
 $appCpu = Get-CpuPercent ($appCpu1 - $appCpu0) $sample.Elapsed.TotalSeconds
 $svcCpu = Get-CpuPercent ($svcCpu1 - $svcCpu0) $sample.Elapsed.TotalSeconds
 
-$log = Join-Path $env:LOCALAPPDATA "guduo\logs\app.log"
+$log = Join-Path $env:LOCALAPPDATA "gudong\logs\app.log"
 function Get-LastLogTime([string]$pattern) {
   if (-not (Test-Path $log)) { return $null }
   $line = Get-Content $log -Tail 300 | Where-Object { $_ -match $pattern } | Select-Object -Last 1

@@ -1,7 +1,7 @@
-//! 邮件账号清单：`%APPDATA%\guduo\mail.json`。
+//! 邮件账号清单：`%APPDATA%\gudong\mail.json`。
 //!
 //! 只存邮箱、类型和连接参数，任何密码、授权码和 refresh token 都不落这里。
-//! 凭据统一放在 Windows 凭据管理器，目标名 `guduo/mail/<id>`。
+//! 凭据统一放在 Windows 凭据管理器，目标名 `gudong/mail/<id>`。
 
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
@@ -210,7 +210,7 @@ pub fn new_id(provider: Provider, email: &str, taken: &[String]) -> String {
 }
 
 pub fn credential_target(id: &str) -> String {
-    format!("guduo/mail/{id}")
+    format!("gudong/mail/{id}")
 }
 
 pub struct Store {
@@ -316,8 +316,7 @@ impl Store {
 }
 
 fn default_path() -> Option<PathBuf> {
-    let base = std::env::var_os("APPDATA")?;
-    Some(PathBuf::from(base).join("guduo").join("mail.json"))
+    crate::paths::app_data_dir().map(|dir| dir.join("mail.json"))
 }
 
 fn write_atomic(path: &Path, raw: &[u8]) -> Result<(), String> {

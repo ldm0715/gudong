@@ -8,6 +8,7 @@ import 'package:hotkey_manager/hotkey_manager.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
+import 'core/app_info.dart';
 import 'core/click_through/click_through_controller.dart';
 import 'core/ipc/sidecar_supervisor.dart';
 import 'core/log.dart';
@@ -104,16 +105,16 @@ class AppScope {
   }
 }
 
-class GuduoApp extends StatefulWidget {
-  const GuduoApp({super.key, required this.scope});
+class GudongApp extends StatefulWidget {
+  const GudongApp({super.key, required this.scope});
 
   final AppScope scope;
 
   @override
-  State<GuduoApp> createState() => _GuduoAppState();
+  State<GudongApp> createState() => _GudongAppState();
 }
 
-class _GuduoAppState extends State<GuduoApp> with WindowListener, TrayListener {
+class _GudongAppState extends State<GudongApp> with WindowListener, TrayListener {
   HotKey? _hotKey;
   bool _quitting = false;
 
@@ -129,7 +130,7 @@ class _GuduoAppState extends State<GuduoApp> with WindowListener, TrayListener {
   Future<void> _setupTray() async {
     try {
       await trayManager.setIcon('assets/tray_icon.ico');
-      await trayManager.setToolTip('Guduo Island');
+      await trayManager.setToolTip(appName);
       final menu = Menu(
         items: [
           MenuItem(
@@ -164,7 +165,7 @@ class _GuduoAppState extends State<GuduoApp> with WindowListener, TrayListener {
   Future<void> _setupHotKey() async {
     try {
       final hotKey = HotKey(
-        identifier: 'guduo.toggle',
+        identifier: 'gudong.toggle',
         key: PhysicalKeyboardKey.space,
         modifiers: [HotKeyModifier.control, HotKeyModifier.alt],
         scope: HotKeyScope.system,
@@ -259,7 +260,7 @@ class _GuduoAppState extends State<GuduoApp> with WindowListener, TrayListener {
         );
         return MaterialApp(
           debugShowCheckedModeBanner: false,
-          title: 'Guduo Island',
+          title: appName,
           theme: ThemeData(
             brightness: colors.brightness,
             scaffoldBackgroundColor: Colors.transparent,

@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
-/// 简单文件日志：控制台 + `%LOCALAPPDATA%\guduo\logs\`。
+/// 简单文件日志：控制台 + `%LOCALAPPDATA%\gudong\logs\`。
 ///
 /// `app.log` 记录运行日志，`crash.log` 只记未捕获异常，避免被高频日志淹没。
 /// 单文件超过 1MB 时轮换为 `*.old.log`。
@@ -15,7 +15,7 @@ class AppLog {
 
   static String? get logDir {
     final base = Platform.environment['LOCALAPPDATA'];
-    return base == null ? null : '$base\\guduo\\logs';
+    return base == null ? null : '$base\\gudong\\logs';
   }
 
   static void init({

@@ -565,7 +565,7 @@ fn get_json(agent: &ureq::Agent, url: &str, service: &str) -> Result<Value, Stri
     let response = agent
         .get(url)
         .set("Accept", "application/json")
-        .set("User-Agent", concat!("Guduo/", env!("CARGO_PKG_VERSION")))
+        .set("User-Agent", concat!("gudong/", env!("CARGO_PKG_VERSION")))
         .call()
         .map_err(|error| match error {
             ureq::Error::Status(code, _) => format!("{service} HTTP {code}"),

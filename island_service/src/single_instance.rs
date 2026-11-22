@@ -7,7 +7,7 @@ pub fn try_acquire() -> bool {
     use windows::Win32::System::Threading::CreateMutexW;
 
     unsafe {
-        let Ok(handle) = CreateMutexW(None, BOOL(1), w!("Local\\guduo-island-service")) else {
+        let Ok(handle) = CreateMutexW(None, BOOL(1), w!("Local\\gudong-island-service")) else {
             return false;
         };
         if GetLastError() == ERROR_ALREADY_EXISTS {

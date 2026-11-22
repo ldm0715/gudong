@@ -40,7 +40,7 @@ fn run(receiver: Receiver<Toast>) {
         let Ok(hwnd) = CreateWindowExW(
             WS_EX_TOOLWINDOW,
             w!("STATIC"),
-            w!("GuduoToastWindow"),
+            w!("GudongToastWindow"),
             WS_POPUP,
             0,
             0,
@@ -59,7 +59,7 @@ fn run(receiver: Receiver<Toast>) {
         data.hWnd = hwnd;
         data.uID = 1;
         data.hIcon = LoadIconW(None, IDI_INFORMATION).unwrap_or_default();
-        set_text(&mut data.szTip, "Guduo Island");
+        set_text(&mut data.szTip, "gudong");
 
         // 通知期间临时显示托盘图标，10 秒后删除，避免常驻第二个图标。
         let mut registered = false;

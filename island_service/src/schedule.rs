@@ -1,4 +1,4 @@
-//! 日程与闹钟：`%APPDATA%\guduo\schedule.json`。
+//! 日程与闹钟：`%APPDATA%\gudong\schedule.json`。
 //!
 //! 读写和到点检查都在独立线程里执行，主循环只把请求转发到队列。
 //! 到点后推送 `schedule.fired`，并播放一次系统提示音。
@@ -388,8 +388,7 @@ fn write_atomic(path: &Path, items: &[ScheduleItem]) -> Result<(), String> {
 }
 
 fn default_path() -> Option<PathBuf> {
-    let base = std::env::var_os("APPDATA")?;
-    Some(PathBuf::from(base).join("guduo").join("schedule.json"))
+    crate::paths::app_data_dir().map(|dir| dir.join("schedule.json"))
 }
 
 fn now_ms() -> i64 {
@@ -494,7 +493,7 @@ mod tests {
     #[test]
     fn store_round_trips_through_disk() {
         let mut path = std::env::temp_dir();
-        path.push(format!("guduo-schedule-test-{}.json", std::process::id()));
+        path.push(format!("gudong-schedule-test-{}.json", std::process::id()));
         let store = Store {
             path: Some(path.clone()),
             items: vec![item("a", 1000), item("b", 2000)],

@@ -1,4 +1,4 @@
-//! Guduo island sidecar：stdio JSON-RPC + 微信任务栏监听。
+//! Gudong island sidecar：stdio JSON-RPC + 微信任务栏监听。
 //!
 //! 协议：每行一个 JSON。请求带 id，事件不带 id。
 //! 日志只写本地文件，stdout 保持纯协议输出。
@@ -13,6 +13,7 @@ mod lyrics;
 mod mail;
 mod media;
 mod metrics;
+mod paths;
 mod quota;
 mod rpc;
 mod schedule;
@@ -52,11 +53,20 @@ fn main() {
         log("another island_service instance is running, exiting");
         return;
     }
+    let notes = {
+        let mut notes = paths::migrate_legacy();
+        notes.extend(credentials::migrate_legacy());
+        notes
+    };
+
     log(&format!(
         "service {} starting (pid {})",
         env!("CARGO_PKG_VERSION"),
         std::process::id()
     ));
+    for note in &notes {
+        log(note);
+    }
 
     let state = Arc::new(rpc::State::with_config(config::Config::load()));
     let (tx, rx) = mpsc::channel::<Value>();
@@ -181,6 +191,5 @@ pub fn log(line: &str) {
 }
 
 fn log_dir() -> Option<std::path::PathBuf> {
-    let base = std::env::var_os("LOCALAPPDATA")?;
-    Some(std::path::PathBuf::from(base).join("guduo").join("logs"))
+    crate::paths::local_data_dir().map(|dir| dir.join("logs"))
 }

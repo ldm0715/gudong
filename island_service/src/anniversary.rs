@@ -1,4 +1,4 @@
-//! 倒计时与纪念日：`%APPDATA%\guduo\anniversaries.json`。
+//! 倒计时与纪念日：`%APPDATA%\gudong\anniversaries.json`。
 //!
 //! 只存标题和日期，天数由客户端按本地日期计算。读写与 RPC 响应都在独立线程执行。
 
@@ -271,8 +271,7 @@ fn write_atomic(path: &Path, items: &[AnniversaryItem]) -> Result<(), String> {
 }
 
 fn default_path() -> Option<PathBuf> {
-    let base = std::env::var_os("APPDATA")?;
-    Some(PathBuf::from(base).join("guduo").join("anniversaries.json"))
+    crate::paths::app_data_dir().map(|dir| dir.join("anniversaries.json"))
 }
 
 fn now_ms() -> i64 {
@@ -338,7 +337,7 @@ mod tests {
     fn store_round_trips_through_disk() {
         let mut path = std::env::temp_dir();
         path.push(format!(
-            "guduo-anniversary-test-{}.json",
+            "gudong-anniversary-test-{}.json",
             std::process::id()
         ));
         let store = Store {

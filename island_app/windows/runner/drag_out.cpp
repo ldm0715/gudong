@@ -114,7 +114,7 @@ std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>>
 CreateDragOutChannel(flutter::BinaryMessenger* messenger) {
   auto channel =
       std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
-          messenger, "guduo/drag", &flutter::StandardMethodCodec::GetInstance());
+          messenger, "gudong/drag", &flutter::StandardMethodCodec::GetInstance());
 
   channel->SetMethodCallHandler(
       [](const flutter::MethodCall<flutter::EncodableValue>& call,

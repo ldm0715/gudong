@@ -190,7 +190,7 @@ mod tests {
             );
         }
         let path = std::env::temp_dir().join(format!(
-            "guduo-icon-probe-{}.txt",
+            "gudong-icon-probe-{}.txt",
             std::process::id()
         ));
         std::fs::write(&path, b"x").unwrap();

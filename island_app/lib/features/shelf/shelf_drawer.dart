@@ -16,7 +16,7 @@ import 'shelf_models.dart';
 
 /// 拖出交给 Flutter 的 Windows runner，在平台线程调用 SHDoDragDrop，
 /// 由 shell 使用文件原始图标生成拖拽影子。
-const MethodChannel _dragChannel = MethodChannel('guduo/drag');
+const MethodChannel _dragChannel = MethodChannel('gudong/drag');
 
 /// 从岛体停靠边缘滑出的中转站抽屉。
 class ShelfDrawer extends StatelessWidget {

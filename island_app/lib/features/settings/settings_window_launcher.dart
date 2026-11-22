@@ -21,7 +21,7 @@ class SettingsWindowLauncher {
 
   final SettingsController settings;
   static const _channel = WindowMethodChannel(
-    'guduo.settings',
+    'gudong.settings',
     mode: ChannelMode.unidirectional,
   );
 

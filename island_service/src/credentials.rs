@@ -2,16 +2,16 @@
 //!
 //! 凭据按目标名区分，值以 UTF-16LE 存入 CredentialBlob。
 
-pub const LLM: &str = "guduo/translate/llm";
-pub const DEEPL: &str = "guduo/translate/deepl";
-pub const CAIYUN: &str = "guduo/translate/caiyun";
+pub const LLM: &str = "gudong/translate/llm";
+pub const DEEPL: &str = "gudong/translate/deepl";
+pub const CAIYUN: &str = "gudong/translate/caiyun";
 
-pub const GLM_KEY: &str = "guduo/quota/glm";
-pub const DEEPSEEK_KEY: &str = "guduo/quota/deepseek";
-pub const OPENCODE_KEY: &str = "guduo/quota/opencode";
-pub const OPENCODE_COOKIE: &str = "guduo/quota/opencode-cookie";
+pub const GLM_KEY: &str = "gudong/quota/glm";
+pub const DEEPSEEK_KEY: &str = "gudong/quota/deepseek";
+pub const OPENCODE_KEY: &str = "gudong/quota/opencode";
+pub const OPENCODE_COOKIE: &str = "gudong/quota/opencode-cookie";
 
-const USER_NAME: &str = "guduo";
+const USER_NAME: &str = "gudong";
 
 #[cfg(windows)]
 pub fn read(target: &str) -> Option<String> {
@@ -83,6 +83,67 @@ pub fn delete(target: &str) -> Result<(), String> {
     let target_w: Vec<u16> = target.encode_utf16().chain(std::iter::once(0)).collect();
     unsafe { CredDeleteW(PCWSTR(target_w.as_ptr()), CRED_TYPE_GENERIC, 0) }
         .map_err(|error| error.message())
+}
+
+/// 把旧目标名的凭据复制到新目标名。只复制，不删除旧凭据。
+#[cfg(windows)]
+pub fn migrate_legacy() -> Vec<String> {
+    let mut notes = Vec::new();
+    for target in [
+        LLM,
+        DEEPL,
+        CAIYUN,
+        GLM_KEY,
+        DEEPSEEK_KEY,
+        OPENCODE_KEY,
+        OPENCODE_COOKIE,
+    ] {
+        let old = target.replacen("gudong/", "guduo/", 1);
+        if migrate_target(&old, target) {
+            notes.push(format!("migrated credential {target}"));
+        }
+    }
+    for id in mail_account_ids() {
+        let target = format!("gudong/mail/{id}");
+        let old = format!("guduo/mail/{id}");
+        if migrate_target(&old, &target) {
+            notes.push(format!("migrated credential {target}"));
+        }
+    }
+    notes
+}
+
+#[cfg(windows)]
+fn migrate_target(old: &str, new: &str) -> bool {
+    if read(new).is_some() {
+        return false;
+    }
+    match read(old) {
+        Some(secret) => write(new, &secret).is_ok(),
+        None => false,
+    }
+}
+
+#[cfg(windows)]
+fn mail_account_ids() -> Vec<String> {
+    let Some(path) = crate::paths::app_data_dir().map(|dir| dir.join("mail.json")) else {
+        return Vec::new();
+    };
+    let Ok(raw) = std::fs::read(path) else {
+        return Vec::new();
+    };
+    let Ok(items) = serde_json::from_slice::<Vec<serde_json::Value>>(&raw) else {
+        return Vec::new();
+    };
+    items
+        .iter()
+        .filter_map(|item| item.get("id").and_then(|id| id.as_str()).map(str::to_string))
+        .collect()
+}
+
+#[cfg(not(windows))]
+pub fn migrate_legacy() -> Vec<String> {
+    Vec::new()
 }
 
 #[cfg(not(windows))]

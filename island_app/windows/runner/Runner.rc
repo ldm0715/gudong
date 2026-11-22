@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.guduo" "\0"
-            VALUE "FileDescription", "island_app" "\0"
+            VALUE "CompanyName", "com.gudong" "\0"
+            VALUE "FileDescription", "gudong" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "island_app" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.guduo. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 com.gudong. All rights reserved." "\0"
             VALUE "OriginalFilename", "island_app.exe" "\0"
-            VALUE "ProductName", "island_app" "\0"
+            VALUE "ProductName", "gudong" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
