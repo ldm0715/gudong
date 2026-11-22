@@ -24,6 +24,7 @@ import 'features/agents/agent_controller.dart';
 import 'features/dashboard/metrics_controller.dart';
 import 'features/diagnostics/diagnostics_controller.dart';
 import 'features/ime/ime_controller.dart';
+import 'features/island/collapsed_content.dart';
 import 'features/island/island_controller.dart';
 import 'features/island/island_layout.dart';
 import 'features/mail/mail_controller.dart';
@@ -132,8 +133,16 @@ Future<void> main(List<String> args) async {
             ? IslandLayout.bannerSizeFor(side)
             : IslandLayout.collapsedSizeFor(
                 side,
-                imeIndicator: appSettings.showImeIndicator,
-                metricCount: appSettings.islandMetrics.length,
+                collapsedContentOf(
+                  settings: settings,
+                  messages: messages,
+                  mail: mail,
+                  weather: weather,
+                  media: media,
+                  ime: ime,
+                  schedule: schedule,
+                  agents: agents,
+                ),
               ),
         inset: mini ? IslandLayout.miniEdgeInset : IslandLayout.edgeInset,
       ),
@@ -141,7 +150,12 @@ Future<void> main(List<String> args) async {
   }
 
   island.addListener(updateInteractiveRect);
+  messages.addListener(updateInteractiveRect);
+  mail.addListener(updateInteractiveRect);
+  weather.addListener(updateInteractiveRect);
+  media.addListener(updateInteractiveRect);
   ime.addListener(updateInteractiveRect);
+  schedule.addListener(updateInteractiveRect);
   agents.addListener(updateInteractiveRect);
   settings.addListener(updateInteractiveRect);
   windowPosition.addListener(updateInteractiveRect);

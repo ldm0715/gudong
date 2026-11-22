@@ -22,7 +22,6 @@ import '../weather/weather_controller.dart';
 import '../weather/weather_models.dart';
 import '../weather/weather_widgets.dart';
 import 'client_glyph.dart';
-import 'island_layout.dart';
 
 /// 收起态：时间 + 天气 + 微信 / QQ 未读标识，播放中显示音波。
 ///
@@ -44,6 +43,7 @@ class CollapsedBar extends StatefulWidget {
     required this.showImeIndicator,
     required this.showScheduleIndicator,
     required this.islandMetrics,
+    required this.size,
     this.vertical = false,
   });
 
@@ -63,6 +63,9 @@ class CollapsedBar extends StatefulWidget {
 
   /// 收起态显示的指标 id，来自设置。
   final List<String> islandMetrics;
+
+  /// 由外壳按实际内容算出的收起态尺寸。
+  final Size size;
   final bool vertical;
 
   @override
@@ -123,11 +126,7 @@ class _CollapsedBarState extends State<CollapsedBar> {
         : const <String>[];
     final agentIcons = runningAgents.take(2).toList(growable: false);
     final extraAgents = runningAgents.length - agentIcons.length;
-    final size = IslandLayout.collapsedBarSize(
-      vertical: widget.vertical,
-      imeIndicator: widget.showImeIndicator,
-      metricCount: widget.islandMetrics.length,
-    );
+    final size = widget.size;
     if (widget.vertical) {
       return _buildVertical(
         colors,
@@ -211,7 +210,10 @@ class _CollapsedBarState extends State<CollapsedBar> {
               ),
             ),
           ),
-          if (showWave) const _WaveBars(),
+          if (showWave) ...[
+            const SizedBox(width: IslandMetrics.space6),
+            const _WaveBars(),
+          ],
           const SizedBox(width: IslandMetrics.space10),
         ],
       ),
@@ -325,7 +327,10 @@ class _CollapsedBarState extends State<CollapsedBar> {
             ),
           ),
           // 与横向版本贴右边一致：音波固定在窄栏最下方。
-          if (showWave) const _WaveBars(),
+          if (showWave) ...[
+            const SizedBox(height: IslandMetrics.space4),
+            const _WaveBars(),
+          ],
           const SizedBox(height: IslandMetrics.space10),
         ],
       ),

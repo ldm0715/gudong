@@ -1,8 +1,51 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
+import '../../core/theme/island_metrics.dart';
 import '../../core/window/app_window.dart';
 import '../../core/window/dock_edge.dart';
+
+/// 收起态实际渲染的元素。尺寸计算与绘制共用同一份判断，避免两边各写一套。
+class CollapsedContent {
+  const CollapsedContent({
+    this.schedule = false,
+    this.weather = false,
+    this.metricCount = 0,
+    this.agentCount = 0,
+    this.extraAgents = 0,
+    this.ime = false,
+    this.wechat = false,
+    this.qq = false,
+    this.mail = false,
+    this.playing = false,
+  });
+
+  /// 当天还有未触发的日程，时间右侧显示闹钟。
+  final bool schedule;
+
+  /// 有天气快照，显示图标与温度。
+  final bool weather;
+
+  /// 收起态指标数量。
+  final int metricCount;
+
+  /// 实际显示的 agent 图标数，超出部分合并为 `+N`。
+  final int agentCount;
+  final int extraAgents;
+
+  /// 输入法常驻标识。
+  final bool ime;
+
+  /// 微信 / QQ 未读标识。
+  final bool wechat;
+  final bool qq;
+
+  /// 有未读邮件且能匹配到账号，显示服务商图标。
+  final bool mail;
+
+  /// 正在播放，右侧显示音波。
+  final bool playing;
+}
 
 /// 岛体各状态的尺寸与命中区域。绘制与点击穿透都以这里为准，避免两处手抄。
 ///
@@ -16,16 +59,12 @@ abstract final class IslandLayout {
   static const double miniEdgeInset = 2;
 
   // 横向（顶部停靠）。
-  static const Size collapsedSize = Size(178, 36);
   static const Size bannerSize = Size(360, 80);
   static const Size expandedSize = Size(380, 260);
 
-  // 常驻输入法标识会占用一段宽度，单独放大收起态，避免挤压其他内容。
-  static const Size collapsedImeSize = Size(210, 36);
-
-  // 竖向（左右停靠）：收起为窄条；展开面板与顶部完全同尺寸、同布局。
-  static const Size collapsedVerticalSize = Size(40, 178);
-  static const Size collapsedVerticalImeSize = Size(40, 200);
+  /// 收起态厚度：横向为高度，竖向为宽度。
+  static const double collapsedThickness = 36;
+  static const double collapsedVerticalThickness = 40;
 
   // 前台窗口最大化时只显示一条横杠。视觉上很细，命中区补到 28px。
   static const Size miniBarVisualSize = Size(48, 6);
@@ -39,10 +78,39 @@ abstract final class IslandLayout {
   static Size miniBarHitSizeFor(DockEdge side) =>
       side.isVertical ? miniBarHitVerticalSize : miniBarHitSize;
 
-  /// 收起态每个指标占用的额外宽 / 高，随设置中的指标数量增长。
-  /// 竖排指标为图标在上、数值在下两行，高度按两行加间距计算。
-  static const double metricChipWidth = 40;
-  static const double metricChipHeight = 34;
+  // 收起态内容宽度预算，包含左右各 10 的内边距与时间。
+  static const double _collapsedPadding = 20;
+  static const double _clockWidth = 42;
+  static const double _scheduleWidth = 20;
+  static const double _weatherWidth = 48;
+  static const double _metricWidth = 46;
+  static const double _agentWidth = 21;
+  static const double _extraAgentWidth = 14;
+  static const double _imeWidth = 28;
+  static const double _wechatWidth = 26;
+  static const double _qqWidth = 22;
+  static const double _mailWidth = 24;
+  static const double _waveWidth = 26;
+
+  // 收起态内容高度预算，包含上下各 10 的内边距与两行时间。
+  static const double _clockHeight = 26;
+  static const double _scheduleHeight = 24;
+  static const double _weatherHeight = 38;
+  static const double _metricHeight = 36;
+  static const double _agentHeight = 21;
+  static const double _extraAgentHeight = 14;
+  static const double _imeHeight = 24;
+  static const double _wechatHeight = 24;
+  static const double _qqHeight = 22;
+  static const double _mailHeight = 22;
+  static const double _waveHeight = 20;
+
+  /// 只剩时钟时的最小宽 / 高，避免贴边过紧。
+  static const double minCollapsedWidth = 96;
+  static const double minCollapsedHeight = 96;
+
+  /// 估算值略大于实际内容，保证内容不会被 FittedBox 缩小。
+  static const double _sizingSafety = 4;
 
   /// 收起态最大尺寸，不能超出窗口画布扣除边缘留白后的范围。
   static Size get maxCollapsedSize => Size(
@@ -50,40 +118,60 @@ abstract final class IslandLayout {
     appWindowSize.height - edgeInset * 2,
   );
 
-  static Size collapsedSizeFor(
-    DockEdge side, {
-    bool imeIndicator = false,
-    int metricCount = 0,
-  }) {
-    final base = side.isVertical
-        ? (imeIndicator ? collapsedVerticalImeSize : collapsedVerticalSize)
-        : (imeIndicator ? collapsedImeSize : collapsedSize);
-    if (metricCount <= 0) return base;
+  /// 按实际显示的元素算收起态尺寸：横向只变宽，竖向只变高。
+  static Size collapsedSizeFor(DockEdge side, CollapsedContent content) {
     final max = maxCollapsedSize;
     if (side.isVertical) {
       final height = math.min(
         max.height,
-        base.height + metricCount * metricChipHeight,
+        math.max(minCollapsedHeight, _verticalHeight(content)),
       );
-      return Size(base.width, height);
+      return Size(collapsedVerticalThickness, height);
     }
     final width = math.min(
       max.width,
-      base.width + metricCount * metricChipWidth,
+      math.max(minCollapsedWidth, _horizontalWidth(content)),
     );
-    return Size(width, base.height);
+    return Size(width, collapsedThickness);
   }
 
-  /// 收起栏自身使用的尺寸，按横向 / 竖向布局取。
-  static Size collapsedBarSize({
-    required bool vertical,
-    required bool imeIndicator,
-    int metricCount = 0,
-  }) => collapsedSizeFor(
-    vertical ? DockEdge.left : DockEdge.top,
-    imeIndicator: imeIndicator,
-    metricCount: metricCount,
-  );
+  static double _horizontalWidth(CollapsedContent content) {
+    var width = _collapsedPadding + _clockWidth;
+    if (content.schedule) width += _scheduleWidth;
+    if (content.weather) width += _weatherWidth;
+    if (content.metricCount > 0) {
+      width += IslandMetrics.space6 + content.metricCount * _metricWidth;
+    }
+    if (content.agentCount > 0) {
+      width += IslandMetrics.space6 + content.agentCount * _agentWidth;
+      if (content.extraAgents > 0) width += _extraAgentWidth;
+    }
+    if (content.ime) width += _imeWidth;
+    if (content.wechat) width += _wechatWidth;
+    if (content.qq) width += _qqWidth;
+    if (content.mail) width += _mailWidth;
+    if (content.playing) width += _waveWidth;
+    return width + _sizingSafety;
+  }
+
+  static double _verticalHeight(CollapsedContent content) {
+    var height = _collapsedPadding + _clockHeight;
+    if (content.schedule) height += _scheduleHeight;
+    if (content.weather) height += _weatherHeight;
+    if (content.metricCount > 0) {
+      height += IslandMetrics.space4 + content.metricCount * _metricHeight;
+    }
+    if (content.agentCount > 0) {
+      height += IslandMetrics.space4 + content.agentCount * _agentHeight;
+      if (content.extraAgents > 0) height += _extraAgentHeight;
+    }
+    if (content.ime) height += _imeHeight;
+    if (content.wechat) height += _wechatHeight;
+    if (content.qq) height += _qqHeight;
+    if (content.mail) height += _mailHeight;
+    if (content.playing) height += _waveHeight;
+    return height + _sizingSafety;
+  }
 
   static Size expandedSizeFor(DockEdge side) => expandedSize;
 

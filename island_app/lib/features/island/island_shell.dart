@@ -43,6 +43,7 @@ import '../volume/volume_controller.dart';
 import '../weather/weather_controller.dart';
 import '../weather/weather_tab.dart';
 import 'collapsed_bar.dart';
+import 'collapsed_content.dart';
 import 'island_controller.dart';
 import 'island_layout.dart';
 import 'notification_banner.dart';
@@ -223,17 +224,23 @@ class _IslandShellState extends State<IslandShell> {
                     ? _tab
                     : (tabs.isEmpty ? null : tabs.first);
                 final mini = island.mini(settings.autoCollapseOnMaximized);
+                final collapsedContent = collapsedContentOf(
+                  settings: widget.settings,
+                  messages: widget.messages,
+                  mail: widget.mail,
+                  weather: widget.weather,
+                  media: widget.media,
+                  ime: widget.ime,
+                  schedule: widget.schedule,
+                  agents: widget.agents,
+                );
                 final size = mini
                     ? IslandLayout.miniBarHitSizeFor(side)
                     : expanded
                     ? IslandLayout.expandedSizeFor(side)
                     : activeBanner
                     ? IslandLayout.bannerSizeFor(side)
-                    : IslandLayout.collapsedSizeFor(
-                        side,
-                        imeIndicator: settings.showImeIndicator,
-                        metricCount: settings.islandMetrics.length,
-                      );
+                    : IslandLayout.collapsedSizeFor(side, collapsedContent);
                 final radius = mini
                     ? IslandMetrics.pill(size.height)
                     : expanded
@@ -314,13 +321,14 @@ class _IslandShellState extends State<IslandShell> {
                         // 默认过渡是 FadeTransition，会生成 OpacityLayer；
                         // Windows 上 OpacityLayer + retained rendering 会触发
                         // picture 断言。改用位移过渡，避免 OpacityLayer。
-                        transitionBuilder: (child, animation) => SlideTransition(
-                          position: Tween<Offset>(
-                            begin: const Offset(0, 0.04),
-                            end: Offset.zero,
-                          ).animate(animation),
-                          child: child,
-                        ),
+                        transitionBuilder: (child, animation) =>
+                            SlideTransition(
+                              position: Tween<Offset>(
+                                begin: const Offset(0, 0.04),
+                                end: Offset.zero,
+                              ).animate(animation),
+                              child: child,
+                            ),
                         layoutBuilder: (currentChild, previousChildren) =>
                             Stack(
                               alignment: switch (side) {
@@ -411,6 +419,7 @@ class _IslandShellState extends State<IslandShell> {
                                   showScheduleIndicator:
                                       settings.showScheduleIndicator,
                                   islandMetrics: settings.islandMetrics,
+                                  size: size,
                                   vertical: side.isVertical,
                                 ),
                         ),
