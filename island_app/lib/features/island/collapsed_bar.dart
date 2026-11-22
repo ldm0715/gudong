@@ -174,7 +174,8 @@ class _CollapsedBarState extends State<CollapsedBar> {
                   if (agentIcons.isNotEmpty) ...[
                     const SizedBox(width: IslandMetrics.space6),
                     for (var index = 0; index < agentIcons.length; index++) ...[
-                      if (index > 0) const SizedBox(width: IslandMetrics.space3),
+                      if (index > 0)
+                        const SizedBox(width: IslandMetrics.space3),
                       AgentGlyph(id: agentIcons[index], size: 18),
                     ],
                     if (extraAgents > 0) ...[
@@ -233,6 +234,8 @@ class _CollapsedBarState extends State<CollapsedBar> {
     // 窄栏放不下 "HH:MM"，拆成小时在上、分钟在下。
     final parts = time.split(':');
     final clock = parts.length == 2 ? '${parts[0]}\n${parts[1]}' : time;
+    // 竖排时所有图标统一用同一尺寸，避免天气、指标、客户端图标大小不一。
+    const iconSize = IslandMetrics.iconLG;
     final runningAgents = widget.showAgents
         ? widget.agents.runningAgentIds
         : const <String>[];
@@ -257,13 +260,13 @@ class _CollapsedBarState extends State<CollapsedBar> {
                   ),
                   if (hasScheduleToday) ...[
                     const SizedBox(height: IslandMetrics.space6),
-                    const _ScheduleGlyph(),
+                    const _ScheduleGlyph(size: iconSize),
                   ],
                   if (snapshot != null) ...[
                     const SizedBox(height: IslandMetrics.space6),
                     Icon(
                       weatherIcon(snapshot.kind, snapshot.isDay),
-                      size: IslandMetrics.iconSM,
+                      size: iconSize,
                       color: weatherColor(colors, snapshot.kind),
                     ),
                     const SizedBox(height: IslandMetrics.space2),
@@ -278,16 +281,15 @@ class _CollapsedBarState extends State<CollapsedBar> {
                       controller: widget.metrics,
                       metricIds: widget.islandMetrics,
                       vertical: true,
+                      iconSize: iconSize,
                     ),
                   ],
                   if (agentIcons.isNotEmpty) ...[
                     const SizedBox(height: IslandMetrics.space4),
                     for (var index = 0; index < agentIcons.length; index++) ...[
-                      if (index > 0) const SizedBox(height: IslandMetrics.space3),
-                      AgentGlyph(
-                        id: agentIcons[index],
-                        size: IslandMetrics.iconSM,
-                      ),
+                      if (index > 0)
+                        const SizedBox(height: IslandMetrics.space3),
+                      AgentGlyph(id: agentIcons[index], size: iconSize),
                     ],
                     if (extraAgents > 0) ...[
                       const SizedBox(height: IslandMetrics.space2),
@@ -303,18 +305,18 @@ class _CollapsedBarState extends State<CollapsedBar> {
                   ],
                   if (widget.messages.hasWechat) ...[
                     const SizedBox(height: IslandMetrics.space6),
-                    const ClientGlyph(source: 'wechat', size: 18),
+                    const ClientGlyph(source: 'wechat', size: iconSize),
                   ],
                   if (widget.messages.hasQq) ...[
                     const SizedBox(height: IslandMetrics.space4),
-                    const ClientGlyph(source: 'qq', size: 18),
+                    const ClientGlyph(source: 'qq', size: iconSize),
                   ],
                   if (mailProvider != null) ...[
                     const SizedBox(height: IslandMetrics.space4),
                     MailProviderBadge(
                       provider: mailProvider,
                       email: mailEmail,
-                      size: IslandMetrics.iconLG,
+                      size: iconSize,
                       color: mailColor,
                     ),
                   ],
@@ -333,7 +335,9 @@ class _CollapsedBarState extends State<CollapsedBar> {
 
 /// 当天有日程时在收起态显示的闹钟标识。
 class _ScheduleGlyph extends StatelessWidget {
-  const _ScheduleGlyph();
+  const _ScheduleGlyph({this.size = IslandMetrics.iconSM});
+
+  final double size;
 
   @override
   Widget build(BuildContext context) {
@@ -343,11 +347,7 @@ class _ScheduleGlyph extends StatelessWidget {
       waitDuration: IslandMotion.tooltipDelay,
       child: Semantics(
         label: '今日有日程',
-        child: Icon(
-          Icons.alarm_rounded,
-          size: IslandMetrics.iconSM,
-          color: colors.accent,
-        ),
+        child: Icon(Icons.alarm_rounded, size: size, color: colors.accent),
       ),
     );
   }

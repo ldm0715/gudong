@@ -25,8 +25,9 @@ abstract final class IslandLayout {
   static const Size collapsedVerticalImeSize = Size(40, 200);
 
   /// 收起态每个指标占用的额外宽 / 高，随设置中的指标数量增长。
+  /// 竖排指标为图标在上、数值在下两行，高度按两行加间距计算。
   static const double metricChipWidth = 40;
-  static const double metricChipHeight = 22;
+  static const double metricChipHeight = 34;
 
   /// 收起态最大尺寸，不能超出窗口画布扣除边缘留白后的范围。
   static Size get maxCollapsedSize => Size(
