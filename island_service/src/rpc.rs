@@ -45,6 +45,7 @@ pub const CAPABILITIES: &[&str] = &[
     "quota.refresh",
     "quota.setSecret",
     "agents.get",
+    "foreground.maximized",
     "schedule.list",
     "schedule.add",
     "schedule.update",

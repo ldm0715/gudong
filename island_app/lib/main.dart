@@ -120,10 +120,13 @@ Future<void> main(List<String> args) async {
         (appSettings.showAgentBanner && island.showAgentBanner) ||
         island.showVolumeBanner ||
         (appSettings.showImeBanner && ime.visible);
+    final mini = island.mini(appSettings.autoCollapseOnMaximized);
     clickThrough.setInteractiveRect(
       IslandLayout.rectFor(
         side,
-        island.expanded
+        mini
+            ? IslandLayout.miniBarHitSizeFor(side)
+            : island.expanded
             ? IslandLayout.expandedSizeFor(side)
             : showBanner
             ? IslandLayout.bannerSizeFor(side)
@@ -132,6 +135,7 @@ Future<void> main(List<String> args) async {
                 imeIndicator: appSettings.showImeIndicator,
                 metricCount: appSettings.islandMetrics.length,
               ),
+        inset: mini ? IslandLayout.miniEdgeInset : IslandLayout.edgeInset,
       ),
     );
   }

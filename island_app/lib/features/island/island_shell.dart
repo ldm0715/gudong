@@ -161,109 +161,140 @@ class _IslandShellState extends State<IslandShell> {
             DockEdge.left => Alignment.centerLeft,
             DockEdge.right => Alignment.centerRight,
           },
-          child: Padding(
-            padding: switch (side) {
-              DockEdge.top => const EdgeInsets.only(
-                top: IslandLayout.edgeInset,
-              ),
-              DockEdge.left => const EdgeInsets.only(
-                left: IslandLayout.edgeInset,
-              ),
-              DockEdge.right => const EdgeInsets.only(
-                right: IslandLayout.edgeInset,
-              ),
-            },
-            child: RepaintBoundary(
-              child: AnimatedBuilder(
-                animation: Listenable.merge([
-                  island,
-                  widget.messages,
-                  widget.mail,
-                  widget.weather,
-                  widget.media,
-                  widget.ime,
-                  widget.diagnostics,
-                  widget.translate,
-                  widget.quota,
-                  widget.schedule,
-                  widget.anniversary,
-                  widget.volume,
-                  widget.agents,
-                  widget.settings,
-                ]),
-                builder: (context, _) {
-                  final colors = context.islandColors;
-                  final expanded = island.expanded;
-                  final showBanner = island.showBanner;
-                  final showMailBanner = island.showMailBanner && !showBanner;
-                  final showScheduleBanner =
-                      island.showScheduleBanner &&
-                      !showBanner &&
-                      !showMailBanner;
-                  final settings = widget.settings.settings;
-                  final showAgentBanner =
-                      settings.showAgentBanner &&
-                      island.showAgentBanner &&
-                      !showBanner &&
-                      !showMailBanner &&
-                      !showScheduleBanner;
-                  final showVolumeBanner =
-                      island.showVolumeBanner &&
-                      !showBanner &&
-                      !showMailBanner &&
-                      !showScheduleBanner &&
-                      !showAgentBanner;
-                  // 消息横幅优先，其次是邮件、日程、agent 结束和音量，最后是输入法切换。
-                  final showIme =
-                      settings.showImeBanner &&
-                      widget.ime.visible &&
-                      !showBanner &&
-                      !showMailBanner &&
-                      !showScheduleBanner &&
-                      !showAgentBanner &&
-                      !showVolumeBanner;
-                  final activeBanner =
-                      showBanner ||
-                      showMailBanner ||
-                      showScheduleBanner ||
-                      showAgentBanner ||
-                      showVolumeBanner ||
-                      showIme;
-                  final tabs = settings.visibleTabs;
-                  final tab = tabs.contains(_tab)
-                      ? _tab
-                      : (tabs.isEmpty ? null : tabs.first);
-                  final size = expanded
-                      ? IslandLayout.expandedSizeFor(side)
-                      : activeBanner
-                      ? IslandLayout.bannerSizeFor(side)
-                      : IslandLayout.collapsedSizeFor(
-                          side,
-                          imeIndicator: settings.showImeIndicator,
-                          metricCount: settings.islandMetrics.length,
-                        );
-                  final radius = expanded
-                      ? IslandMetrics.radiusIslandExpanded
-                      : (activeBanner
-                            ? IslandMetrics.radiusIslandBanner
-                            : IslandMetrics.radiusIslandCollapsed);
-                  return AnimatedContainer(
+          child: RepaintBoundary(
+            child: AnimatedBuilder(
+              animation: Listenable.merge([
+                island,
+                widget.messages,
+                widget.mail,
+                widget.weather,
+                widget.media,
+                widget.ime,
+                widget.diagnostics,
+                widget.translate,
+                widget.quota,
+                widget.schedule,
+                widget.anniversary,
+                widget.volume,
+                widget.agents,
+                widget.settings,
+              ]),
+              builder: (context, _) {
+                final colors = context.islandColors;
+                final expanded = island.expanded;
+                final showBanner = island.showBanner;
+                final showMailBanner = island.showMailBanner && !showBanner;
+                final showScheduleBanner =
+                    island.showScheduleBanner && !showBanner && !showMailBanner;
+                final settings = widget.settings.settings;
+                final showAgentBanner =
+                    settings.showAgentBanner &&
+                    island.showAgentBanner &&
+                    !showBanner &&
+                    !showMailBanner &&
+                    !showScheduleBanner;
+                final showVolumeBanner =
+                    island.showVolumeBanner &&
+                    !showBanner &&
+                    !showMailBanner &&
+                    !showScheduleBanner &&
+                    !showAgentBanner;
+                // 消息横幅优先，其次是邮件、日程、agent 结束和音量，最后是输入法切换。
+                final showIme =
+                    settings.showImeBanner &&
+                    widget.ime.visible &&
+                    !showBanner &&
+                    !showMailBanner &&
+                    !showScheduleBanner &&
+                    !showAgentBanner &&
+                    !showVolumeBanner;
+                final activeBanner =
+                    showBanner ||
+                    showMailBanner ||
+                    showScheduleBanner ||
+                    showAgentBanner ||
+                    showVolumeBanner ||
+                    showIme;
+                final tabs = settings.visibleTabs;
+                final tab = tabs.contains(_tab)
+                    ? _tab
+                    : (tabs.isEmpty ? null : tabs.first);
+                final mini = island.mini(settings.autoCollapseOnMaximized);
+                final size = mini
+                    ? IslandLayout.miniBarHitSizeFor(side)
+                    : expanded
+                    ? IslandLayout.expandedSizeFor(side)
+                    : activeBanner
+                    ? IslandLayout.bannerSizeFor(side)
+                    : IslandLayout.collapsedSizeFor(
+                        side,
+                        imeIndicator: settings.showImeIndicator,
+                        metricCount: settings.islandMetrics.length,
+                      );
+                final radius = mini
+                    ? IslandMetrics.pill(size.height)
+                    : expanded
+                    ? IslandMetrics.radiusIslandExpanded
+                    : (activeBanner
+                          ? IslandMetrics.radiusIslandBanner
+                          : IslandMetrics.radiusIslandCollapsed);
+                final contentKey = mini
+                    ? 'mini'
+                    : expanded
+                    ? 'expanded'
+                    : showBanner
+                    ? 'banner-message'
+                    : showMailBanner
+                    ? 'banner-mail'
+                    : showScheduleBanner
+                    ? 'banner-schedule'
+                    : showAgentBanner
+                    ? 'banner-agent'
+                    : showVolumeBanner
+                    ? 'banner-volume'
+                    : showIme
+                    ? 'banner-ime'
+                    : 'collapsed';
+                return AnimatedPadding(
+                  duration: IslandMotion.base,
+                  curve: IslandMotion.standard,
+                  padding: switch (side) {
+                    DockEdge.top => EdgeInsets.only(
+                      top: mini
+                          ? IslandLayout.miniEdgeInset
+                          : IslandLayout.edgeInset,
+                    ),
+                    DockEdge.left => EdgeInsets.only(
+                      left: mini
+                          ? IslandLayout.miniEdgeInset
+                          : IslandLayout.edgeInset,
+                    ),
+                    DockEdge.right => EdgeInsets.only(
+                      right: mini
+                          ? IslandLayout.miniEdgeInset
+                          : IslandLayout.edgeInset,
+                    ),
+                  },
+                  child: AnimatedContainer(
                     duration: IslandMotion.base,
                     curve: IslandMotion.standard,
                     width: size.width,
                     height: size.height,
                     clipBehavior: Clip.hardEdge,
                     decoration: BoxDecoration(
-                      color: colors.background,
+                      color: mini
+                          ? colors.background.withValues(alpha: 0)
+                          : colors.background,
                       borderRadius: BorderRadius.circular(radius),
                       border: Border.all(
-                        color:
-                            (island.pulse ||
-                                    (settings.showImeBanner &&
-                                        widget.ime.visible)) &&
-                                !expanded
-                            ? colors.accent.withValues(alpha: 0.75)
-                            : colors.stroke,
+                        color: mini
+                            ? colors.stroke.withValues(alpha: 0)
+                            : ((island.pulse ||
+                                          (settings.showImeBanner &&
+                                              widget.ime.visible)) &&
+                                      !expanded
+                                  ? colors.accent.withValues(alpha: 0.75)
+                                  : colors.stroke),
                       ),
                     ),
                     child: OverflowBox(
@@ -272,78 +303,103 @@ class _IslandShellState extends State<IslandShell> {
                       maxWidth: size.width,
                       minHeight: 0,
                       maxHeight: size.height,
-                      child: expanded
-                          ? _ExpandedBody(
-                              size: IslandLayout.expandedSizeFor(side),
-                              island: island,
-                              messages: widget.messages,
-                              mail: widget.mail,
-                              weather: widget.weather,
-                              media: widget.media,
-                              diagnostics: widget.diagnostics,
-                              translate: widget.translate,
-                              quota: widget.quota,
-                              metrics: widget.metrics,
-                              schedule: widget.schedule,
-                              anniversary: widget.anniversary,
-                              shelf: widget.shelf,
-                              side: side,
-                              shelfOpen: _shelfOpen,
-                              onToggleShelf: () {
-                                if (_shelfOpen) widget.shelf.clearSelection();
-                                setState(() => _shelfOpen = !_shelfOpen);
+                      child: AnimatedSwitcher(
+                        duration: IslandMotion.base,
+                        switchInCurve: IslandMotion.standard,
+                        switchOutCurve: IslandMotion.standard,
+                        layoutBuilder: (currentChild, previousChildren) =>
+                            Stack(
+                              alignment: switch (side) {
+                                DockEdge.top => Alignment.topCenter,
+                                DockEdge.left => Alignment.centerLeft,
+                                DockEdge.right => Alignment.centerRight,
                               },
-                              onCloseShelf: () {
-                                widget.shelf.clearSelection();
-                                setState(() => _shelfOpen = false);
-                              },
-                              settings: widget.settings,
-                              onOpenSettings: widget.onOpenSettings,
-                              handleVisible: island.handleVisible,
-                              onDragStart: () =>
-                                  unawaited(widget.windowPosition.startDrag()),
-                              tabs: tabs,
-                              tab: tab,
-                              onTab: (tab) => setState(() => _tab = tab),
-                            )
-                          : showBanner
-                          ? NotificationBanner(controller: widget.messages)
-                          : showMailBanner
-                          ? MailBanner(
-                              controller: widget.mail,
-                              item: island.mailBannerItem!,
-                            )
-                          : showScheduleBanner
-                          ? ScheduleBanner(item: island.scheduleBannerItem!)
-                          : showAgentBanner
-                          ? AgentBanner(item: island.agentBannerItem!)
-                          : showVolumeBanner
-                          ? VolumeBanner(controller: widget.volume)
-                          : showIme
-                          ? ImeBanner(chinese: widget.ime.chinese)
-                          : CollapsedBar(
-                              messages: widget.messages,
-                              mail: widget.mail,
-                              weather: widget.weather,
-                              media: widget.media,
-                              schedule: widget.schedule,
-                              ime: widget.ime,
-                              metrics: widget.metrics,
-                              agents: widget.agents,
-                              showAgents: settings.showAgentIndicator,
-                              showWeather: settings.showWeather,
-                              showPlayingIndicator:
-                                  settings.showPlayingIndicator,
-                              showImeIndicator: settings.showImeIndicator,
-                              showScheduleIndicator:
-                                  settings.showScheduleIndicator,
-                              islandMetrics: settings.islandMetrics,
-                              vertical: side.isVertical,
+                              children: [...previousChildren, ?currentChild],
                             ),
+                        child: KeyedSubtree(
+                          key: ValueKey(contentKey),
+                          child: mini
+                              ? _MiniBar(
+                                  side: side,
+                                  onTap: () => island.setExpanded(true),
+                                )
+                              : expanded
+                              ? _ExpandedBody(
+                                  size: IslandLayout.expandedSizeFor(side),
+                                  island: island,
+                                  messages: widget.messages,
+                                  mail: widget.mail,
+                                  weather: widget.weather,
+                                  media: widget.media,
+                                  diagnostics: widget.diagnostics,
+                                  translate: widget.translate,
+                                  quota: widget.quota,
+                                  metrics: widget.metrics,
+                                  schedule: widget.schedule,
+                                  anniversary: widget.anniversary,
+                                  shelf: widget.shelf,
+                                  side: side,
+                                  shelfOpen: _shelfOpen,
+                                  onToggleShelf: () {
+                                    if (_shelfOpen) {
+                                      widget.shelf.clearSelection();
+                                    }
+                                    setState(() => _shelfOpen = !_shelfOpen);
+                                  },
+                                  onCloseShelf: () {
+                                    widget.shelf.clearSelection();
+                                    setState(() => _shelfOpen = false);
+                                  },
+                                  settings: widget.settings,
+                                  onOpenSettings: widget.onOpenSettings,
+                                  handleVisible: island.handleVisible,
+                                  onDragStart: () => unawaited(
+                                    widget.windowPosition.startDrag(),
+                                  ),
+                                  tabs: tabs,
+                                  tab: tab,
+                                  onTab: (tab) => setState(() => _tab = tab),
+                                )
+                              : showBanner
+                              ? NotificationBanner(controller: widget.messages)
+                              : showMailBanner
+                              ? MailBanner(
+                                  controller: widget.mail,
+                                  item: island.mailBannerItem!,
+                                )
+                              : showScheduleBanner
+                              ? ScheduleBanner(item: island.scheduleBannerItem!)
+                              : showAgentBanner
+                              ? AgentBanner(item: island.agentBannerItem!)
+                              : showVolumeBanner
+                              ? VolumeBanner(controller: widget.volume)
+                              : showIme
+                              ? ImeBanner(chinese: widget.ime.chinese)
+                              : CollapsedBar(
+                                  messages: widget.messages,
+                                  mail: widget.mail,
+                                  weather: widget.weather,
+                                  media: widget.media,
+                                  schedule: widget.schedule,
+                                  ime: widget.ime,
+                                  metrics: widget.metrics,
+                                  agents: widget.agents,
+                                  showAgents: settings.showAgentIndicator,
+                                  showWeather: settings.showWeather,
+                                  showPlayingIndicator:
+                                      settings.showPlayingIndicator,
+                                  showImeIndicator: settings.showImeIndicator,
+                                  showScheduleIndicator:
+                                      settings.showScheduleIndicator,
+                                  islandMetrics: settings.islandMetrics,
+                                  vertical: side.isVertical,
+                                ),
+                        ),
+                      ),
                     ),
-                  );
-                },
-              ),
+                  ),
+                );
+              },
             ),
           ),
         ),
@@ -604,6 +660,44 @@ class _ExpandedBody extends StatelessWidget {
         weather: weather,
       ),
     };
+  }
+}
+
+/// 前台窗口最大化时的极简横杠，点击后显示收起态。
+class _MiniBar extends StatelessWidget {
+  const _MiniBar({required this.side, required this.onTap});
+
+  final DockEdge side;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.islandColors;
+    final visual = IslandLayout.miniBarVisualSizeFor(side);
+    return Semantics(
+      button: true,
+      label: '显示岛体',
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          child: Center(
+            child: Container(
+              width: visual.width,
+              height: visual.height,
+              decoration: BoxDecoration(
+                color: colors.text.withValues(alpha: 0.55),
+                borderRadius: BorderRadius.circular(3),
+                border: Border.all(
+                  color: colors.background.withValues(alpha: 0.9),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

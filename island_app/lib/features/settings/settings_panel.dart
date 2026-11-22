@@ -186,6 +186,19 @@ class GeneralSettingsPage extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 18),
+        const SettingsSectionLabel('窗口'),
+        SettingsCard(
+          children: [
+            SettingsSwitchRow(
+              title: '窗口最大化时自动收起',
+              subtitle: '前台窗口最大化时只保留一条横杠，点击横杠显示岛体',
+              value: settings.autoCollapseOnMaximized,
+              onChanged: (value) =>
+                  onSave(settings.copyWith(autoCollapseOnMaximized: value)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
         const SettingsSectionLabel('输入法'),
         SettingsCard(
           children: [

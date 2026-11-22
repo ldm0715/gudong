@@ -251,6 +251,7 @@ class SettingsWindowLauncher {
           enabledAgents: incoming.enabledAgents,
           showAgentIndicator: incoming.showAgentIndicator,
           showAgentBanner: incoming.showAgentBanner,
+          autoCollapseOnMaximized: incoming.autoCollapseOnMaximized,
           tabOrder: incoming.tabOrder,
           hiddenTabs: incoming.hiddenTabs,
           dashboardMetrics: incoming.dashboardMetrics,

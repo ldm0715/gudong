@@ -97,6 +97,7 @@
 | `enabledAgents` | string[] | 需要检测的本地 agent：`claude` / `codex` / `dsh` / `pi` / `omp`；缺省为全部，空数组表示全部关闭 |
 | `showAgentIndicator` | bool | 收起态显示运行中的 agent 图标，默认 `true` |
 | `showAgentBanner` | bool | agent 回合结束时弹出横幅，默认 `true` |
+| `autoCollapseOnMaximized` | bool | 前台窗口最大化时只保留一条横杠，点击横杠显示收起态，默认 `true` |
 | `shelfMaxItems` | number | 中转站条目上限，默认 `100`，限制在 `10`–`500`；达到上限后拒绝新条目，不淘汰旧条目 |
 | `shelfViewMode` | string | 中转站默认视图：`list`（列表，默认）/ `grid`（图标网格） |
 
@@ -249,6 +250,7 @@
 | `quota.updated` | 额度刷新完成，带 `providers`（全部已知服务）与 `updatedAtMs`；未配置的服务也会出现，`status` 为 `notConfigured` |
 | `agent.updated` | 本地 agent 会话扫描结果变化，带 `sessions`（运行中的会话）与 `agents`（全部 agent 的状态） |
 | `agent.finished` | 某个会话的回合结束，带 `id` / `sessionId` / `title` / `endedAtMs` / `replyPreview` 等；只在本次运行期间观察到该会话运行过时才推送 |
+| `foreground.maximized` | 前台窗口最大化状态变化，带 `maximized`；前台是 gudong 自身窗口时不更新，客户端保持上一次状态 |
 | `schedule.updated` | 日程新增、修改、删除或触发后推送最新全量列表，带 `items` |
 | `schedule.fired` | 日程到点，带 `item`；sidecar 同时播放系统提示音并发送 Windows 气泡通知 |
 | `anniversary.updated` | 倒计时 / 纪念日新增、修改或删除后推送最新全量列表，带 `items` |

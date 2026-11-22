@@ -12,6 +12,9 @@ abstract final class IslandLayout {
   /// 顶部停靠时岛体与屏幕上边缘的间距。
   static const double edgeInset = 8;
 
+  /// 横杠态贴边显示，避免压在最大化窗口的标题栏上。
+  static const double miniEdgeInset = 2;
+
   // 横向（顶部停靠）。
   static const Size collapsedSize = Size(178, 36);
   static const Size bannerSize = Size(360, 80);
@@ -23,6 +26,18 @@ abstract final class IslandLayout {
   // 竖向（左右停靠）：收起为窄条；展开面板与顶部完全同尺寸、同布局。
   static const Size collapsedVerticalSize = Size(40, 178);
   static const Size collapsedVerticalImeSize = Size(40, 200);
+
+  // 前台窗口最大化时只显示一条横杠。视觉上很细，命中区补到 28px。
+  static const Size miniBarVisualSize = Size(48, 6);
+  static const Size miniBarVisualVerticalSize = Size(6, 48);
+  static const Size miniBarHitSize = Size(56, 16);
+  static const Size miniBarHitVerticalSize = Size(16, 56);
+
+  static Size miniBarVisualSizeFor(DockEdge side) =>
+      side.isVertical ? miniBarVisualVerticalSize : miniBarVisualSize;
+
+  static Size miniBarHitSizeFor(DockEdge side) =>
+      side.isVertical ? miniBarHitVerticalSize : miniBarHitSize;
 
   /// 收起态每个指标占用的额外宽 / 高，随设置中的指标数量增长。
   /// 竖排指标为图标在上、数值在下两行，高度按两行加间距计算。
@@ -76,24 +91,14 @@ abstract final class IslandLayout {
   static Size bannerSizeFor(DockEdge side) => bannerSize;
 
   /// 岛体在窗口画布内的矩形。三种停靠都保留同样的边缘间距。
-  static Rect rectFor(DockEdge side, Size size) {
+  static Rect rectFor(DockEdge side, Size size, {double inset = edgeInset}) {
     final centeredX = (appWindowSize.width - size.width) / 2;
     final centeredY = (appWindowSize.height - size.height) / 2;
     return switch (side) {
-      DockEdge.top => Rect.fromLTWH(
-        centeredX,
-        edgeInset,
-        size.width,
-        size.height,
-      ),
-      DockEdge.left => Rect.fromLTWH(
-        edgeInset,
-        centeredY,
-        size.width,
-        size.height,
-      ),
+      DockEdge.top => Rect.fromLTWH(centeredX, inset, size.width, size.height),
+      DockEdge.left => Rect.fromLTWH(inset, centeredY, size.width, size.height),
       DockEdge.right => Rect.fromLTWH(
-        appWindowSize.width - edgeInset - size.width,
+        appWindowSize.width - inset - size.width,
         centeredY,
         size.width,
         size.height,

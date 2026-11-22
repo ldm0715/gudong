@@ -13,6 +13,7 @@ use windows::{
         UI::WindowsAndMessaging::{
             EnumWindows, GetClassNameW, GetForegroundWindow, GetWindow, GetWindowLongW,
             GetWindowRect, GetWindowThreadProcessId, IsIconic, IsWindow, IsWindowVisible,
+            IsZoomed,
             PostMessageW, SetForegroundWindow, ShowWindowAsync, GWL_EXSTYLE, GWL_STYLE, GW_OWNER,
             SW_RESTORE, WM_LBUTTONDBLCLK, WM_LBUTTONDOWN, WM_LBUTTONUP, WS_CAPTION,
             WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_MINIMIZEBOX, WS_SYSMENU, WS_THICKFRAME,
@@ -37,6 +38,31 @@ pub fn foreground_client() -> Option<(&'static str, u32)> {
             "qq.exe" => Some(("qq", pid)),
             _ => None,
         }
+    }
+}
+
+/// 当前前台窗口是否最大化。前台是 gudong 自己的窗口时返回 None，保持上一次状态。
+pub fn foreground_maximized() -> Option<bool> {
+    unsafe {
+        let window = GetForegroundWindow();
+        if window.0.is_null() {
+            return None;
+        }
+        let pid = window_pid(window);
+        if pid == 0 {
+            return None;
+        }
+        if let Some(image) = process_image(pid) {
+            let name = image
+                .rsplit('\\')
+                .next()
+                .unwrap_or(&image)
+                .to_ascii_lowercase();
+            if name == "island_app.exe" || name == "island_service.exe" {
+                return None;
+            }
+        }
+        Some(IsZoomed(window).as_bool())
     }
 }
 

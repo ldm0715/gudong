@@ -17,6 +17,7 @@ class AppSettings {
     this.enabledAgents = defaultEnabledAgents,
     this.showAgentIndicator = true,
     this.showAgentBanner = true,
+    this.autoCollapseOnMaximized = true,
     this.tabOrder = defaultTabOrder,
     this.hiddenTabs = const [],
     this.dashboardMetrics = defaultDashboardMetrics,
@@ -117,6 +118,7 @@ class AppSettings {
       enabledAgents: _normalizeAgents(json['enabledAgents']),
       showAgentIndicator: json['showAgentIndicator'] != false,
       showAgentBanner: json['showAgentBanner'] != false,
+      autoCollapseOnMaximized: json['autoCollapseOnMaximized'] != false,
       tabOrder: _normalizeOrder(json['tabOrder']),
       hiddenTabs: _normalizeHidden(json['hiddenTabs']),
       dashboardMetrics: _normalizeMetrics(
@@ -196,6 +198,9 @@ class AppSettings {
 
   /// 回合结束时弹出横幅。
   final bool showAgentBanner;
+
+  /// 前台窗口最大化时只保留一条横杠，点击后显示收起态。
+  final bool autoCollapseOnMaximized;
   final List<String> tabOrder;
   final List<String> hiddenTabs;
 
@@ -312,6 +317,7 @@ class AppSettings {
     'enabledAgents': enabledAgents,
     'showAgentIndicator': showAgentIndicator,
     'showAgentBanner': showAgentBanner,
+    'autoCollapseOnMaximized': autoCollapseOnMaximized,
     'tabOrder': tabOrder,
     'hiddenTabs': hiddenTabs,
     'dashboardMetrics': dashboardMetrics,
@@ -360,6 +366,7 @@ class AppSettings {
     List<String>? enabledAgents,
     bool? showAgentIndicator,
     bool? showAgentBanner,
+    bool? autoCollapseOnMaximized,
     List<String>? tabOrder,
     List<String>? hiddenTabs,
     List<String>? dashboardMetrics,
@@ -408,6 +415,8 @@ class AppSettings {
           : _normalizeAgents(enabledAgents),
       showAgentIndicator: showAgentIndicator ?? this.showAgentIndicator,
       showAgentBanner: showAgentBanner ?? this.showAgentBanner,
+      autoCollapseOnMaximized:
+          autoCollapseOnMaximized ?? this.autoCollapseOnMaximized,
       tabOrder: tabOrder ?? this.tabOrder,
       hiddenTabs: hiddenTabs ?? this.hiddenTabs,
       dashboardMetrics: dashboardMetrics ?? this.dashboardMetrics,

@@ -24,6 +24,7 @@ class IslandController extends ChangeNotifier {
     required this.agents,
   }) {
     supervisor.addListener(_onChanged);
+    _eventSubscription = supervisor.events.listen(_onEvent);
     messages.addListener(_onMessagesChanged);
     mail.addListener(_onMailChanged);
     schedule.addListener(_onScheduleChanged);
@@ -52,6 +53,8 @@ class IslandController extends ChangeNotifier {
   bool _agentBanner = false;
   bool _handleVisible = false;
   bool _pointerInside = false;
+  bool _foregroundMaximized = false;
+  StreamSubscription<Map<String, dynamic>>? _eventSubscription;
   int _lastRevision = 0;
   int _lastMailRevision = 0;
   int _lastScheduleRevision = 0;
@@ -70,6 +73,10 @@ class IslandController extends ChangeNotifier {
   bool get expanded => _expanded;
   bool get pulse => _pulse;
   bool get handleVisible => _handleVisible;
+  bool get pointerInside => _pointerInside;
+
+  /// 前台窗口最大化且指针不在岛体上时，只显示一条横杠。
+  bool mini(bool enabled) => enabled && _foregroundMaximized && !_pointerInside;
   bool get showBanner => _banner && messages.hasUnread;
   bool get showMailBanner => _mailBanner && mail.bannerItem != null;
   MailSummary? get mailBannerItem => mail.bannerItem;
@@ -94,11 +101,29 @@ class IslandController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void _onEvent(Map<String, dynamic> event) {
+    if (event['type'] != 'foreground.maximized') return;
+    final maximized = event['maximized'];
+    if (maximized is! bool || maximized == _foregroundMaximized) return;
+    _foregroundMaximized = maximized;
+    if (!maximized && _pointerInside) setExpanded(true);
+    notifyListeners();
+  }
+
   /// 光标进入 / 离开岛体。进入时展开，停留后显示顶部拖拽把手。
   void setPointerInside(bool inside) {
     _pointerInside = inside;
+    if (!inside) {
+      _handleTimer?.cancel();
+      if (_handleVisible) {
+        _handleVisible = false;
+        notifyListeners();
+      }
+      setExpanded(false);
+      return;
+    }
     // 音量横幅需要拖动，悬停期间不展开；等横幅结束后再按指针状态展开。
-    if (inside && showVolumeBanner) {
+    if (showVolumeBanner) {
       _handleTimer?.cancel();
       if (_handleVisible) {
         _handleVisible = false;
@@ -106,15 +131,7 @@ class IslandController extends ChangeNotifier {
       }
       return;
     }
-    setExpanded(inside);
-    _handleTimer?.cancel();
-    if (!inside) {
-      if (_handleVisible) {
-        _handleVisible = false;
-        notifyListeners();
-      }
-      return;
-    }
+    setExpanded(true);
     _handleTimer = Timer(IslandMotion.handleDelay, () {
       if (_disposed || _handleVisible) return;
       _handleVisible = true;
@@ -234,6 +251,7 @@ class IslandController extends ChangeNotifier {
     _volumeBannerTimer?.cancel();
     _agentBannerTimer?.cancel();
     _handleTimer?.cancel();
+    _eventSubscription?.cancel();
     supervisor.removeListener(_onChanged);
     messages.removeListener(_onMessagesChanged);
     mail.removeListener(_onMailChanged);
