@@ -34,6 +34,7 @@ void main() {
       'enabledAgents': ['claude', 'codex', 'dsh', 'pi', 'omp'],
       'showAgentIndicator': true,
       'showAgentBanner': true,
+      'autoCollapseOnMaximized': true,
       'tabOrder': [
         'messages',
         'mail',
