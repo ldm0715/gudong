@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:desktop_drop/desktop_drop.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/app_info.dart';
@@ -96,6 +97,8 @@ class IslandShell extends StatefulWidget {
 class _IslandShellState extends State<IslandShell> {
   IslandTab _tab = IslandTab.messages;
   bool _shelfOpen = false;
+  // tab 条的横向滚动位置，收起后再展开时恢复。
+  double _tabScrollOffset = 0;
 
   @override
   void initState() {
@@ -298,15 +301,26 @@ class _IslandShellState extends State<IslandShell> {
                       ),
                     ),
                     child: OverflowBox(
+                      // 用 tight 约束锁定内容的目标尺寸，避免内容被父约束压小。
                       alignment: Alignment.topCenter,
-                      minWidth: 0,
+                      minWidth: size.width,
                       maxWidth: size.width,
-                      minHeight: 0,
+                      minHeight: size.height,
                       maxHeight: size.height,
                       child: AnimatedSwitcher(
                         duration: IslandMotion.base,
                         switchInCurve: IslandMotion.standard,
                         switchOutCurve: IslandMotion.standard,
+                        // 默认过渡是 FadeTransition，会生成 OpacityLayer；
+                        // Windows 上 OpacityLayer + retained rendering 会触发
+                        // picture 断言。改用位移过渡，避免 OpacityLayer。
+                        transitionBuilder: (child, animation) => SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0, 0.04),
+                            end: Offset.zero,
+                          ).animate(animation),
+                          child: child,
+                        ),
                         layoutBuilder: (currentChild, previousChildren) =>
                             Stack(
                               alignment: switch (side) {
@@ -314,7 +328,9 @@ class _IslandShellState extends State<IslandShell> {
                                 DockEdge.left => Alignment.centerLeft,
                                 DockEdge.right => Alignment.centerRight,
                               },
-                              children: [...previousChildren, ?currentChild],
+                              // 只渲染当前态，不渲染淡出中的旧态，避免旧态
+                              // 的大尺寸内容被塞进缩小后的容器里溢出。
+                              children: [?currentChild],
                             ),
                         child: KeyedSubtree(
                           key: ValueKey(contentKey),
@@ -359,6 +375,9 @@ class _IslandShellState extends State<IslandShell> {
                                   tabs: tabs,
                                   tab: tab,
                                   onTab: (tab) => setState(() => _tab = tab),
+                                  tabScrollOffset: _tabScrollOffset,
+                                  onTabScroll: (offset) =>
+                                      _tabScrollOffset = offset,
                                 )
                               : showBanner
                               ? NotificationBanner(controller: widget.messages)
@@ -434,6 +453,8 @@ class _ExpandedBody extends StatelessWidget {
     required this.tabs,
     required this.tab,
     required this.onTab,
+    required this.tabScrollOffset,
+    required this.onTabScroll,
   });
 
   final Size size;
@@ -460,6 +481,8 @@ class _ExpandedBody extends StatelessWidget {
   final List<IslandTab> tabs;
   final IslandTab? tab;
   final ValueChanged<IslandTab> onTab;
+  final double tabScrollOffset;
+  final ValueChanged<double> onTabScroll;
 
   Offset get _shelfHiddenOffset => switch (side) {
     DockEdge.top => const Offset(0, -1),
@@ -545,18 +568,12 @@ class _ExpandedBody extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(
                     horizontal: IslandMetrics.space12,
                   ),
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        for (final item in tabs)
-                          _TabButton(
-                            label: item.label,
-                            selected: activeTab == item,
-                            onTap: () => onTab(item),
-                          ),
-                      ],
-                    ),
+                  child: _TabStrip(
+                    tabs: tabs,
+                    active: activeTab,
+                    onTab: onTab,
+                    initialOffset: tabScrollOffset,
+                    onScroll: onTabScroll,
                   ),
                 ),
                 const SizedBox(height: IslandMetrics.space4),
@@ -753,8 +770,121 @@ class _NoVisibleTabs extends StatelessWidget {
   }
 }
 
+/// 单行横向滚动的 tab 条：鼠标滚轮平移，切 tab 后把选中项滚入视野。
+class _TabStrip extends StatefulWidget {
+  const _TabStrip({
+    required this.tabs,
+    required this.active,
+    required this.onTab,
+    required this.initialOffset,
+    required this.onScroll,
+  });
+
+  final List<IslandTab> tabs;
+  final IslandTab? active;
+  final ValueChanged<IslandTab> onTab;
+  final double initialOffset;
+  final ValueChanged<double> onScroll;
+
+  @override
+  State<_TabStrip> createState() => _TabStripState();
+}
+
+class _TabStripState extends State<_TabStrip> {
+  final ScrollController _controller = ScrollController();
+  final Map<IslandTab, GlobalKey> _itemKeys = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(_reportOffset);
+    final offset = widget.initialOffset;
+    if (offset > 0) {
+      // 等 viewport 完成布局、拿到 maxScrollExtent 后再恢复位置。
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!_controller.hasClients) return;
+        final position = _controller.position;
+        final target = offset
+            .clamp(position.minScrollExtent, position.maxScrollExtent)
+            .toDouble();
+        if (target > 0 && target != position.pixels) {
+          _controller.jumpTo(target);
+        }
+      });
+    }
+  }
+
+  /// 把当前滚动位置回传给上层保存，收起后再展开时恢复。
+  void _reportOffset() {
+    if (_controller.hasClients) widget.onScroll(_controller.offset);
+  }
+
+  @override
+  void didUpdateWidget(covariant _TabStrip oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.active != widget.active) {
+      // 等新选中项完成布局后再把位置滚到视野内。
+      WidgetsBinding.instance.addPostFrameCallback((_) => _revealActive());
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_reportOffset);
+    _controller.dispose();
+    super.dispose();
+  }
+
+  /// 把选中项滚入可视区，瞬时定位不做滚动动画。
+  void _revealActive() {
+    final context = _itemKeys[widget.active]?.currentContext;
+    if (context == null) return;
+    Scrollable.ensureVisible(context, alignment: 0.5);
+  }
+
+  /// 鼠标滚轮只产生纵向增量，横向 ScrollView 不消费，这里映射为横向平移。
+  void _onPointerSignal(PointerSignalEvent event) {
+    if (event is! PointerScrollEvent || !_controller.hasClients) return;
+    final delta = event.scrollDelta.dy;
+    if (delta == 0) return;
+    final position = _controller.position;
+    final target = (position.pixels + delta)
+        .clamp(position.minScrollExtent, position.maxScrollExtent)
+        .toDouble();
+    if (target == position.pixels) return;
+    _controller.jumpTo(target);
+  }
+
+  GlobalKey _keyFor(IslandTab tab) =>
+      _itemKeys.putIfAbsent(tab, () => GlobalKey());
+
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      onPointerSignal: _onPointerSignal,
+      child: SingleChildScrollView(
+        controller: _controller,
+        scrollDirection: Axis.horizontal,
+        physics: const ClampingScrollPhysics(),
+        child: Row(
+          children: [
+            for (final item in widget.tabs)
+              _TabButton(
+                key: _keyFor(item),
+                label: item.label,
+                selected: widget.active == item,
+                onTap: () => widget.onTab(item),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _TabButton extends StatelessWidget {
   const _TabButton({
+    super.key,
     required this.label,
     required this.selected,
     required this.onTap,
