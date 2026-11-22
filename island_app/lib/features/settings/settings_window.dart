@@ -11,6 +11,7 @@ import '../../core/theme/island_colors.dart';
 import '../shelf/shelf_settings_page.dart';
 import '../translate/translate_bridge.dart';
 import '../weather/weather_bridge.dart';
+import 'dashboard_settings_page.dart';
 import 'mail_settings_page.dart';
 import 'quota_settings_page.dart';
 import 'settings_panel.dart';
@@ -21,6 +22,7 @@ import 'translate_settings_page.dart';
 enum SettingsSection {
   general,
   pages,
+  dashboard,
   mail,
   translate,
   music,
@@ -35,6 +37,7 @@ extension SettingsSectionMeta on SettingsSection {
   String get label => switch (this) {
     SettingsSection.general => '常规',
     SettingsSection.pages => '页面管理',
+    SettingsSection.dashboard => '仪表盘',
     SettingsSection.mail => '邮箱',
     SettingsSection.translate => '翻译',
     SettingsSection.music => '音乐与歌词',
@@ -48,6 +51,7 @@ extension SettingsSectionMeta on SettingsSection {
   IconData get icon => switch (this) {
     SettingsSection.general => Icons.settings_rounded,
     SettingsSection.pages => Icons.dashboard_rounded,
+    SettingsSection.dashboard => Icons.monitor_heart_outlined,
     SettingsSection.mail => Icons.mail_outline_rounded,
     SettingsSection.translate => Icons.translate_rounded,
     SettingsSection.music => Icons.music_note_rounded,
@@ -61,6 +65,7 @@ extension SettingsSectionMeta on SettingsSection {
   Color get tint => switch (this) {
     SettingsSection.general => const Color(0xFF8E9AAF),
     SettingsSection.pages => const Color(0xFF5B8DEF),
+    SettingsSection.dashboard => const Color(0xFFE05C7A),
     SettingsSection.mail => const Color(0xFF4F9CF9),
     SettingsSection.translate => const Color(0xFF7C6CF2),
     SettingsSection.music => const Color(0xFFF06292),
@@ -357,6 +362,10 @@ class _SettingsBodyState extends State<_SettingsBody> {
         onSave: onSave,
       ),
       SettingsSection.pages => PagesSettingsPage(
+        settings: settings,
+        onSave: onSave,
+      ),
+      SettingsSection.dashboard => DashboardSettingsPage(
         settings: settings,
         onSave: onSave,
       ),

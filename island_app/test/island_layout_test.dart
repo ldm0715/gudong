@@ -27,4 +27,25 @@ void main() {
     expect(frame.width, lessThanOrEqualTo(appWindowSize.width));
     expect(frame.height, lessThanOrEqualTo(appWindowSize.height));
   });
+
+  test('collapsed island grows with metrics but stays inside the canvas', () {
+    final base = IslandLayout.collapsedSizeFor(DockEdge.top);
+    final one = IslandLayout.collapsedSizeFor(DockEdge.top, metricCount: 1);
+    final crowded = IslandLayout.collapsedSizeFor(
+      DockEdge.top,
+      metricCount: 20,
+    );
+    expect(one.width, greaterThan(base.width));
+    expect(one.height, base.height);
+    expect(crowded.width, IslandLayout.maxCollapsedSize.width);
+    expect(crowded.width, lessThanOrEqualTo(appWindowSize.width));
+  });
+
+  test('vertical collapsed island grows in height only', () {
+    final base = IslandLayout.collapsedSizeFor(DockEdge.left);
+    final three = IslandLayout.collapsedSizeFor(DockEdge.left, metricCount: 3);
+    expect(three.width, base.width);
+    expect(three.height, greaterThan(base.height));
+    expect(three.height, lessThanOrEqualTo(appWindowSize.height));
+  });
 }

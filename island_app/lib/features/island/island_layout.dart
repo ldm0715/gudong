@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui';
 
 import '../../core/window/app_window.dart';
@@ -23,20 +24,49 @@ abstract final class IslandLayout {
   static const Size collapsedVerticalSize = Size(40, 178);
   static const Size collapsedVerticalImeSize = Size(40, 200);
 
-  static Size collapsedSizeFor(DockEdge side, {bool imeIndicator = false}) {
+  /// 收起态每个指标占用的额外宽 / 高，随设置中的指标数量增长。
+  static const double metricChipWidth = 40;
+  static const double metricChipHeight = 22;
+
+  /// 收起态最大尺寸，不能超出窗口画布扣除边缘留白后的范围。
+  static Size get maxCollapsedSize => Size(
+    appWindowSize.width - edgeInset * 2,
+    appWindowSize.height - edgeInset * 2,
+  );
+
+  static Size collapsedSizeFor(
+    DockEdge side, {
+    bool imeIndicator = false,
+    int metricCount = 0,
+  }) {
+    final base = side.isVertical
+        ? (imeIndicator ? collapsedVerticalImeSize : collapsedVerticalSize)
+        : (imeIndicator ? collapsedImeSize : collapsedSize);
+    if (metricCount <= 0) return base;
+    final max = maxCollapsedSize;
     if (side.isVertical) {
-      return imeIndicator ? collapsedVerticalImeSize : collapsedVerticalSize;
+      final height = math.min(
+        max.height,
+        base.height + metricCount * metricChipHeight,
+      );
+      return Size(base.width, height);
     }
-    return imeIndicator ? collapsedImeSize : collapsedSize;
+    final width = math.min(
+      max.width,
+      base.width + metricCount * metricChipWidth,
+    );
+    return Size(width, base.height);
   }
 
   /// 收起栏自身使用的尺寸，按横向 / 竖向布局取。
   static Size collapsedBarSize({
     required bool vertical,
     required bool imeIndicator,
+    int metricCount = 0,
   }) => collapsedSizeFor(
     vertical ? DockEdge.left : DockEdge.top,
     imeIndicator: imeIndicator,
+    metricCount: metricCount,
   );
 
   static Size expandedSizeFor(DockEdge side) => expandedSize;

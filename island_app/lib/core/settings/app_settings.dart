@@ -16,6 +16,8 @@ class AppSettings {
     this.showScheduleIndicator = true,
     this.tabOrder = defaultTabOrder,
     this.hiddenTabs = const [],
+    this.dashboardMetrics = defaultDashboardMetrics,
+    this.islandMetrics = const [],
     this.dockSide = 'top',
     this.dockOffset,
     this.translateProvider = 'auto',
@@ -50,11 +52,25 @@ class AppSettings {
     'weather',
     'media',
     'quota',
+    'dashboard',
     'schedule',
     'diagnostics',
   ];
 
   static const List<String> defaultQuotaOrder = ['glm', 'deepseek', 'opencode'];
+
+  /// 收起态最多显示的指标数量，超出部分在解析时丢弃。
+  static const int maxIslandMetrics = 2;
+
+  static const List<String> defaultDashboardMetrics = [
+    'upload',
+    'download',
+    'network',
+    'cpu',
+    'memory',
+    'cpuFrequency',
+    'totalTraffic',
+  ];
 
   static const int defaultMailPollSeconds = 180;
 
@@ -88,6 +104,15 @@ class AppSettings {
       showScheduleIndicator: json['showScheduleIndicator'] != false,
       tabOrder: _normalizeOrder(json['tabOrder']),
       hiddenTabs: _normalizeHidden(json['hiddenTabs']),
+      dashboardMetrics: _normalizeMetrics(
+        json['dashboardMetrics'],
+        allByDefault: true,
+      ),
+      islandMetrics: _normalizeMetrics(
+        json['islandMetrics'],
+        allByDefault: false,
+        maxCount: maxIslandMetrics,
+      ),
       dockSide: _normalizeDockSide(json['dockSide']),
       dockOffset: (json['dockOffset'] as num?)?.toDouble(),
       translateProvider: _normalizeTranslateProvider(json['translateProvider']),
@@ -149,6 +174,12 @@ class AppSettings {
   final bool showScheduleIndicator;
   final List<String> tabOrder;
   final List<String> hiddenTabs;
+
+  /// 仪表盘展开面板显示的指标 id。
+  final List<String> dashboardMetrics;
+
+  /// 收起态显示的指标 id。
+  final List<String> islandMetrics;
 
   /// 停靠边缘：`top` / `left` / `right`。
   final String dockSide;
@@ -256,6 +287,8 @@ class AppSettings {
     'showScheduleIndicator': showScheduleIndicator,
     'tabOrder': tabOrder,
     'hiddenTabs': hiddenTabs,
+    'dashboardMetrics': dashboardMetrics,
+    'islandMetrics': islandMetrics,
     'dockSide': dockSide,
     if (dockOffset != null) 'dockOffset': dockOffset,
     'translateProvider': translateProvider,
@@ -299,6 +332,8 @@ class AppSettings {
     bool? showScheduleIndicator,
     List<String>? tabOrder,
     List<String>? hiddenTabs,
+    List<String>? dashboardMetrics,
+    List<String>? islandMetrics,
     String? dockSide,
     double? dockOffset,
     String? translateProvider,
@@ -340,6 +375,14 @@ class AppSettings {
           showScheduleIndicator ?? this.showScheduleIndicator,
       tabOrder: tabOrder ?? this.tabOrder,
       hiddenTabs: hiddenTabs ?? this.hiddenTabs,
+      dashboardMetrics: dashboardMetrics ?? this.dashboardMetrics,
+      islandMetrics: islandMetrics == null
+          ? this.islandMetrics
+          : _normalizeMetrics(
+              islandMetrics,
+              allByDefault: false,
+              maxCount: maxIslandMetrics,
+            ),
       dockSide: dockSide ?? this.dockSide,
       dockOffset: dockOffset ?? this.dockOffset,
       translateProvider: translateProvider ?? this.translateProvider,
@@ -376,6 +419,24 @@ class AppSettings {
       shelfMaxItems: shelfMaxItems ?? this.shelfMaxItems,
       shelfViewMode: shelfViewMode ?? this.shelfViewMode,
     );
+  }
+
+  /// 指标顺序固定，未出现在列表中的 id 视为关闭。
+  static List<String> _normalizeMetrics(
+    Object? raw, {
+    required bool allByDefault,
+    int? maxCount,
+  }) {
+    if (raw is! List) {
+      return allByDefault ? List<String>.of(defaultDashboardMetrics) : const [];
+    }
+    final ids = raw.map((value) => value.toString()).toSet();
+    final metrics = [
+      for (final id in defaultDashboardMetrics)
+        if (ids.contains(id)) id,
+    ];
+    if (maxCount == null || metrics.length <= maxCount) return metrics;
+    return metrics.take(maxCount).toList(growable: false);
   }
 
   static List<String> _normalizeOrder(Object? raw) {

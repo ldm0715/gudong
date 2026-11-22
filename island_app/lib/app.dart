@@ -15,6 +15,7 @@ import 'core/settings/settings_controller.dart';
 import 'core/theme/island_colors.dart';
 import 'core/theme/island_cupertino.dart';
 import 'core/window/window_position.dart';
+import 'features/dashboard/metrics_controller.dart';
 import 'features/diagnostics/diagnostics_controller.dart';
 import 'features/ime/ime_controller.dart';
 import 'features/island/island_controller.dart';
@@ -44,6 +45,7 @@ class AppScope {
     required this.diagnostics,
     required this.translate,
     required this.quota,
+    required this.metrics,
     required this.schedule,
     required this.anniversary,
     required this.volume,
@@ -64,6 +66,7 @@ class AppScope {
   final DiagnosticsController diagnostics;
   final TranslateController translate;
   final QuotaController quota;
+  final MetricsController metrics;
   final ScheduleController schedule;
   final AnniversaryController anniversary;
   final VolumeController volume;
@@ -85,6 +88,7 @@ class AppScope {
     diagnostics.dispose();
     translate.dispose();
     quota.dispose();
+    metrics.dispose();
     schedule.dispose();
     anniversary.dispose();
     volume.dispose();
@@ -275,6 +279,7 @@ class _GuduoAppState extends State<GuduoApp> with WindowListener, TrayListener {
                 diagnostics: widget.scope.diagnostics,
                 translate: widget.scope.translate,
                 quota: widget.scope.quota,
+                metrics: widget.scope.metrics,
                 schedule: widget.scope.schedule,
                 anniversary: widget.scope.anniversary,
                 volume: widget.scope.volume,

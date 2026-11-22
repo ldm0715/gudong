@@ -22,6 +22,7 @@
 | `volume.set` | `{volume}` | `{ok}`；设置主音量并解除静音，结果通过 `volume.changed` 推送 |
 | `volume.mute` | `{muted}` | `{ok}`；设置静音状态 |
 | `volume.preview` | `{}` | `{ok}`；按当前音量播放一次短提示音，用于拖动结束后的响度反馈 |
+| `metrics.get` | `{}` | `{snapshot}`；最近一帧 `MetricsSnapshot`，首次采样完成前为 `null` |
 | `ime.get` | `{}` | `{mode}`；`mode` 为 `zh` / `en`，首次采样前为 `null` |
 | `translate.run` | `{text, to?, provider?}` | `{text, provider, to, from?}`；`provider` 为 `llm` / `deepl` / `caiyun` / `microsoftFree` / `mymemory`，省略按设置，auto 时按可用凭据选择 |
 | `translate.models` | `{baseUrl?, apiKey?}` | `{models:[string]}`；拉取 OpenAI 兼容服务的模型列表，`apiKey` 省略时读已保存的 LLM Key |
@@ -72,8 +73,10 @@
 | `showImeIndicator` | bool | 收起态常驻显示输入法状态，默认 `true` |
 | `showImeBanner` | bool | 输入法切换时弹出横幅，默认 `true` |
 | `showScheduleIndicator` | bool | 当天有日程时在收起态显示闹钟图标，默认 `true` |
-| `tabOrder` | string[] | 岛体 tab 顺序：`messages` / `mail` / `translate` / `weather` / `media` / `quota` / `schedule` / `diagnostics` |
+| `tabOrder` | string[] | 岛体 tab 顺序：`messages` / `mail` / `translate` / `weather` / `media` / `quota` / `dashboard` / `schedule` / `diagnostics` |
 | `hiddenTabs` | string[] | 隐藏的 tab；允许全部隐藏，此时岛体只显示标题栏与设置入口 |
+| `dashboardMetrics` | string[] | 仪表盘显示的指标：`upload` / `download` / `network` / `cpu` / `memory` / `cpuFrequency` / `totalTraffic`；缺省为全部 |
+| `islandMetrics` | string[] | 收起态显示的指标，取值同上；缺省为空，最多 2 个，多余项忽略 |
 | `translateProvider` | string | 翻译引擎：`auto`（默认）/ `llm` / `deepl` / `caiyun` / `microsoftFree` / `mymemory` |
 | `translateBaseUrl` | string | OpenAI 兼容服务的 base URL，默认 `https://api.openai.com/v1` |
 | `translateModel` | string | 大模型名称，空表示未配置 |
@@ -175,6 +178,7 @@
 | `ime.changed` | 中英文输入法切换，带 `mode`（`zh` / `en`）与 `banner`；`banner=false` 表示只是切换窗口 / 焦点后的模式同步，只更新状态、不弹横幅 |
 | `weather.updated` | 实况刷新成功或失败，带 `snapshot`（可能为 `null`）与 `status` |
 | `volume.changed` | 系统主音量或静音状态变化，带 `volume`（0–1）与 `muted` |
+| `metrics.updated` | 系统指标采样完成，带 `snapshot`；固定 1Hz 推送 |
 | `media.changed` | 媒体信息变化，带 `media`；播放中最多 1Hz 推送进度，客户端本地插值 |
 | `media.lyrics` | 当前曲目歌词，带 `lyrics` 与 `pending`；切歌时立即发 `lyrics:null, pending:true`，抓取结束再发结果 |
 | `mail.received` | 收取到一封新邮件，带 `accountId` 与 `item`（`MailSummary`）；首次连接的最近邮件不推事件，客户端在 `mail.account` 变为 `ready` 后调用 `mail.list` |
@@ -290,6 +294,31 @@
 - 抓取在 sidecar 线程内完成，切歌后旧请求的结果会被丢弃。
 - `pending=true` 表示正在抓取；抓取失败或没有匹配时会发一次 `pending=false` 的空结果。
 - 客户端按播放位置在本地选行，不需要额外请求。
+
+`MetricsSnapshot`：
+
+```json
+{
+  "uploadBps": 128000.0,
+  "downloadBps": 1500000.0,
+  "cpuPercent": 23.4,
+  "memoryPercent": 61.0,
+  "memoryUsedBytes": 10192158720,
+  "memoryTotalBytes": 17179869184,
+  "cpuMhz": 3200,
+  "cpuMaxMhz": 4800,
+  "totalUploadBytes": 812345678,
+  "totalDownloadBytes": 9123456789,
+  "updatedAtMs": 1794997775244
+}
+```
+
+- `uploadBps` / `downloadBps` 为 1 秒窗口内的平均字节速率；`cpuPercent` / `memoryPercent` 为 0–100。
+- `cpuMhz` / `cpuMaxMhz` 为各逻辑核心当前与最大主频的平均值；取不到时为 `0`。
+- `totalUploadBytes` / `totalDownloadBytes` 是 sidecar 启动以来的累计收发字节，不跨会话累加。
+- 采样在 sidecar 内以 1Hz 运行，`metrics.updated` 固定推送；客户端可本地插值刷新界面。
+- 网络只统计处于 Up 状态的硬件网卡，虚拟网桥与回环接口不计入，避免重复计数。
+- 采样线程启动后第一帧在约 1 秒后产生；在此之前 `metrics.get` 返回 `snapshot: null`。
 
 `WeatherSnapshot`：
 

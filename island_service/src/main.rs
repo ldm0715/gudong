@@ -11,6 +11,7 @@ mod credentials;
 mod lyrics;
 mod mail;
 mod media;
+mod metrics;
 mod quota;
 mod rpc;
 mod schedule;
@@ -79,6 +80,7 @@ fn main() {
     let weather_tx = weather::start(state.clone(), tx.clone());
     state.set_weather_sender(weather_tx);
     media::start(state.clone(), tx.clone());
+    metrics::start(state.clone(), tx.clone());
     let quota_tx = quota::start(state.clone(), tx.clone());
     state.set_quota_sender(quota_tx);
     let translate_tx = translate::start(state.clone(), tx.clone());

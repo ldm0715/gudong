@@ -100,7 +100,9 @@ class SettingsSwitchRow extends StatelessWidget {
   final String title;
   final String? subtitle;
   final bool value;
-  final ValueChanged<bool> onChanged;
+
+  /// 为 null 时开关不可操作，用于已达数量上限的选项。
+  final ValueChanged<bool>? onChanged;
 
   @override
   Widget build(BuildContext context) {

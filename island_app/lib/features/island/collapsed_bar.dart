@@ -7,6 +7,8 @@ import '../../core/theme/island_colors.dart';
 import '../../core/theme/island_metrics.dart';
 import '../../core/theme/island_motion.dart';
 import '../../core/theme/island_typography.dart';
+import '../dashboard/metrics_controller.dart';
+import '../dashboard/metrics_island_chips.dart';
 import '../ime/ime_controller.dart';
 import '../ime/ime_indicator.dart';
 import '../mail/mail_controller.dart';
@@ -32,10 +34,12 @@ class CollapsedBar extends StatefulWidget {
     required this.media,
     required this.schedule,
     required this.ime,
+    required this.metrics,
     required this.showWeather,
     required this.showPlayingIndicator,
     required this.showImeIndicator,
     required this.showScheduleIndicator,
+    required this.islandMetrics,
     this.vertical = false,
   });
 
@@ -45,10 +49,14 @@ class CollapsedBar extends StatefulWidget {
   final MediaController media;
   final ScheduleController schedule;
   final ImeController ime;
+  final MetricsController metrics;
   final bool showWeather;
   final bool showPlayingIndicator;
   final bool showImeIndicator;
   final bool showScheduleIndicator;
+
+  /// 收起态显示的指标 id，来自设置。
+  final List<String> islandMetrics;
   final bool vertical;
 
   @override
@@ -107,6 +115,7 @@ class _CollapsedBarState extends State<CollapsedBar> {
     final size = IslandLayout.collapsedBarSize(
       vertical: widget.vertical,
       imeIndicator: widget.showImeIndicator,
+      metricCount: widget.islandMetrics.length,
     );
     if (widget.vertical) {
       return _buildVertical(
@@ -143,6 +152,13 @@ class _CollapsedBarState extends State<CollapsedBar> {
                   if (snapshot != null) ...[
                     const SizedBox(width: IslandMetrics.space7),
                     WeatherChip(snapshot: snapshot),
+                  ],
+                  if (widget.islandMetrics.isNotEmpty) ...[
+                    const SizedBox(width: IslandMetrics.space6),
+                    MetricsIslandChips(
+                      controller: widget.metrics,
+                      metricIds: widget.islandMetrics,
+                    ),
                   ],
                   if (showIme) ...[
                     const SizedBox(width: IslandMetrics.space6),
@@ -224,6 +240,14 @@ class _CollapsedBarState extends State<CollapsedBar> {
                     Text(
                       '${snapshot.roundedTemp}°',
                       style: IslandTypography.microStrong.tint(colors.text),
+                    ),
+                  ],
+                  if (widget.islandMetrics.isNotEmpty) ...[
+                    const SizedBox(height: IslandMetrics.space4),
+                    MetricsIslandChips(
+                      controller: widget.metrics,
+                      metricIds: widget.islandMetrics,
+                      vertical: true,
                     ),
                   ],
                   if (showIme) ...[

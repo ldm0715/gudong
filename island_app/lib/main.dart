@@ -20,6 +20,7 @@ import 'core/window/window_position.dart';
 import 'features/settings/settings_window.dart';
 import 'features/settings/settings_window_args.dart';
 import 'features/settings/settings_window_launcher.dart';
+import 'features/dashboard/metrics_controller.dart';
 import 'features/diagnostics/diagnostics_controller.dart';
 import 'features/ime/ime_controller.dart';
 import 'features/island/island_controller.dart';
@@ -77,6 +78,7 @@ Future<void> main(List<String> args) async {
   final diagnostics = DiagnosticsController(supervisor);
   final translate = TranslateController(supervisor);
   final quota = QuotaController(supervisor);
+  final metrics = MetricsController(supervisor);
   final schedule = ScheduleController(supervisor);
   final anniversary = AnniversaryController(supervisor);
   final volume = VolumeController(supervisor);
@@ -124,6 +126,7 @@ Future<void> main(List<String> args) async {
             : IslandLayout.collapsedSizeFor(
                 side,
                 imeIndicator: appSettings.showImeIndicator,
+                metricCount: appSettings.islandMetrics.length,
               ),
       ),
     );
@@ -148,6 +151,7 @@ Future<void> main(List<String> args) async {
         diagnostics: diagnostics,
         translate: translate,
         quota: quota,
+        metrics: metrics,
         schedule: schedule,
         anniversary: anniversary,
         volume: volume,

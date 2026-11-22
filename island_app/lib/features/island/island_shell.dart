@@ -11,6 +11,8 @@ import '../../core/theme/island_motion.dart';
 import '../../core/theme/island_typography.dart';
 import '../../core/window/dock_edge.dart';
 import '../../core/window/window_position.dart';
+import '../dashboard/dashboard_tab.dart';
+import '../dashboard/metrics_controller.dart';
 import '../diagnostics/diagnostics_controller.dart';
 import '../diagnostics/diagnostics_tab.dart';
 import '../ime/ime_banner.dart';
@@ -55,6 +57,7 @@ class IslandShell extends StatefulWidget {
     required this.diagnostics,
     required this.translate,
     required this.quota,
+    required this.metrics,
     required this.schedule,
     required this.anniversary,
     required this.volume,
@@ -73,6 +76,7 @@ class IslandShell extends StatefulWidget {
   final DiagnosticsController diagnostics;
   final TranslateController translate;
   final QuotaController quota;
+  final MetricsController metrics;
   final ScheduleController schedule;
   final AnniversaryController anniversary;
   final VolumeController volume;
@@ -222,6 +226,7 @@ class _IslandShellState extends State<IslandShell> {
                       : IslandLayout.collapsedSizeFor(
                           side,
                           imeIndicator: settings.showImeIndicator,
+                          metricCount: settings.islandMetrics.length,
                         );
                   final radius = expanded
                       ? IslandMetrics.radiusIslandExpanded
@@ -264,6 +269,7 @@ class _IslandShellState extends State<IslandShell> {
                               diagnostics: widget.diagnostics,
                               translate: widget.translate,
                               quota: widget.quota,
+                              metrics: widget.metrics,
                               schedule: widget.schedule,
                               anniversary: widget.anniversary,
                               shelf: widget.shelf,
@@ -306,12 +312,14 @@ class _IslandShellState extends State<IslandShell> {
                               media: widget.media,
                               schedule: widget.schedule,
                               ime: widget.ime,
+                              metrics: widget.metrics,
                               showWeather: settings.showWeather,
                               showPlayingIndicator:
                                   settings.showPlayingIndicator,
                               showImeIndicator: settings.showImeIndicator,
                               showScheduleIndicator:
                                   settings.showScheduleIndicator,
+                              islandMetrics: settings.islandMetrics,
                               vertical: side.isVertical,
                             ),
                     ),
@@ -337,6 +345,7 @@ class _ExpandedBody extends StatelessWidget {
     required this.diagnostics,
     required this.translate,
     required this.quota,
+    required this.metrics,
     required this.schedule,
     required this.anniversary,
     required this.shelf,
@@ -362,6 +371,7 @@ class _ExpandedBody extends StatelessWidget {
   final DiagnosticsController diagnostics;
   final TranslateController translate;
   final QuotaController quota;
+  final MetricsController metrics;
   final ScheduleController schedule;
   final AnniversaryController anniversary;
   final ShelfController shelf;
@@ -560,6 +570,10 @@ class _ExpandedBody extends StatelessWidget {
       IslandTab.media => MediaTab(controller: media),
       IslandTab.quota => QuotaTab(
         controller: quota,
+        settings: settings.settings,
+      ),
+      IslandTab.dashboard => DashboardTab(
+        controller: metrics,
         settings: settings.settings,
       ),
       IslandTab.schedule => ScheduleTab(

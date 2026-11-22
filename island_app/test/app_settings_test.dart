@@ -38,10 +38,21 @@ void main() {
         'weather',
         'media',
         'quota',
+        'dashboard',
         'schedule',
         'diagnostics',
       ],
       'hiddenTabs': <String>[],
+      'dashboardMetrics': [
+        'upload',
+        'download',
+        'network',
+        'cpu',
+        'memory',
+        'cpuFrequency',
+        'totalTraffic',
+      ],
+      'islandMetrics': <String>[],
       'dockSide': 'left',
       'dockOffset': 420.5,
       'translateProvider': 'auto',
@@ -116,6 +127,7 @@ void main() {
       'translate',
       'weather',
       'quota',
+      'dashboard',
       'schedule',
       'diagnostics',
     ]);
@@ -126,6 +138,7 @@ void main() {
       'mail',
       'translate',
       'quota',
+      'dashboard',
       'schedule',
       'diagnostics',
     ]);
@@ -140,12 +153,42 @@ void main() {
         'weather',
         'media',
         'quota',
+        'dashboard',
         'schedule',
         'diagnostics',
       ],
     });
     expect(settings.visibleTabs, isEmpty);
-    expect(settings.hiddenTabs.length, 8);
+    expect(settings.hiddenTabs.length, 9);
+  });
+
+  test('normalizes dashboard metrics and keeps missing ones disabled', () {
+    final settings = AppSettings.fromJson(const {
+      'dashboardMetrics': ['cpu', 'unknown', 'upload', 'cpu'],
+      'islandMetrics': ['memory', 'download', 'nope'],
+    });
+    expect(settings.dashboardMetrics, ['upload', 'cpu']);
+    expect(settings.islandMetrics, ['download', 'memory']);
+  });
+
+  test('limits island metrics to two', () {
+    final settings = AppSettings.fromJson(const {
+      'islandMetrics': ['memory', 'cpu', 'download', 'upload'],
+    });
+    expect(settings.islandMetrics, ['upload', 'download']);
+
+    final next = settings.copyWith(
+      islandMetrics: const ['cpu', 'memory', 'totalTraffic'],
+    );
+    expect(next.islandMetrics, ['cpu', 'memory']);
+  });
+
+  test('enables every dashboard metric by default', () {
+    expect(
+      AppSettings.fromJson(const {}).dashboardMetrics,
+      AppSettings.defaultDashboardMetrics,
+    );
+    expect(AppSettings.fromJson(const {}).islandMetrics, isEmpty);
   });
 
   test('clamps the mail poll interval to the protocol range', () {

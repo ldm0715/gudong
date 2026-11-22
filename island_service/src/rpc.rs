@@ -31,6 +31,7 @@ pub const CAPABILITIES: &[&str] = &[
     "weather.refresh",
     "volume.current",
     "volume.control",
+    "metrics.get",
     "ime.status",
     "translate.text",
     "translate.models",
@@ -97,6 +98,8 @@ pub struct State {
     /// 音量设置命令队列。
     #[cfg(windows)]
     pub volume_tx: Mutex<Option<std::sync::mpsc::Sender<crate::volume::Command>>>,
+    /// 最近一次系统指标快照，采样线程每秒更新。
+    pub metrics: Mutex<Option<crate::metrics::MetricsSnapshot>>,
     /// 最近一次读到的输入法模式：`zh` / `en`，采样前为 `None`。
     pub ime: Mutex<Option<&'static str>>,
     pub config: crate::config::Config,
@@ -142,6 +145,7 @@ impl State {
             volume: Mutex::new(None),
             #[cfg(windows)]
             volume_tx: Mutex::new(None),
+            metrics: Mutex::new(None),
             ime: Mutex::new(None),
             config,
             translate_tx: Mutex::new(None),
@@ -330,6 +334,14 @@ pub fn handle(
                 "lyrics": lyrics,
                 "pending": pending,
             })))
+        }
+        "metrics.get" => {
+            let snapshot = state
+                .metrics
+                .lock()
+                .ok()
+                .and_then(|slot| slot.clone());
+            Ok(Action::Respond(json!({ "snapshot": snapshot })))
         }
         "ime.get" => {
             let cached = state.ime.lock().map(|value| *value).unwrap_or(None);

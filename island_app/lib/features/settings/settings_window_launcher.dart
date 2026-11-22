@@ -224,6 +224,8 @@ class SettingsWindowLauncher {
           showScheduleIndicator: incoming.showScheduleIndicator,
           tabOrder: incoming.tabOrder,
           hiddenTabs: incoming.hiddenTabs,
+          dashboardMetrics: incoming.dashboardMetrics,
+          islandMetrics: incoming.islandMetrics,
           translateProvider: incoming.translateProvider,
           translateBaseUrl: incoming.translateBaseUrl,
           translateModel: incoming.translateModel,
