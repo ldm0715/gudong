@@ -131,34 +131,54 @@ class _GudongAppState extends State<GudongApp> with WindowListener, TrayListener
     try {
       await trayManager.setIcon('assets/tray_icon.ico');
       await trayManager.setToolTip(appName);
-      final menu = Menu(
-        items: [
-          MenuItem(
-            key: 'toggle',
-            label: '展开 / 收起',
-            onClick: (_) => _toggleFromTray(),
-          ),
-          MenuItem(
-            key: 'show',
-            label: '显示岛体',
-            onClick: (_) => unawaited(_showWindow()),
-          ),
-          MenuItem(
-            key: 'settings',
-            label: '设置',
-            onClick: (_) => unawaited(widget.scope.settingsWindow.open()),
-          ),
-          MenuItem.separator(),
-          MenuItem(
-            key: 'exit',
-            label: '退出',
-            onClick: (_) => unawaited(_quit()),
-          ),
-        ],
-      );
-      await trayManager.setContextMenu(menu);
+      await _refreshTrayMenu();
     } catch (error) {
       AppLog.write('[tray] setup failed: $error');
+    }
+  }
+
+  /// 重建托盘菜单，让“显示岛体”的勾选状态跟随窗口可见性。
+  Future<void> _refreshTrayMenu() async {
+    final visible = await windowManager.isVisible();
+    final menu = Menu(
+      items: [
+        MenuItem(
+          key: 'toggle',
+          label: '展开 / 收起',
+          onClick: (_) => _toggleFromTray(),
+        ),
+        MenuItem.checkbox(
+          key: 'visible',
+          label: '显示岛体',
+          checked: visible,
+          onClick: (_) => unawaited(_toggleWindowVisible()),
+        ),
+        MenuItem(
+          key: 'settings',
+          label: '设置',
+          onClick: (_) => unawaited(widget.scope.settingsWindow.open()),
+        ),
+        MenuItem.separator(),
+        MenuItem(
+          key: 'exit',
+          label: '退出',
+          onClick: (_) => unawaited(_quit()),
+        ),
+      ],
+    );
+    try {
+      await trayManager.setContextMenu(menu);
+    } catch (error) {
+      AppLog.write('[tray] refresh menu failed: $error');
+    }
+  }
+
+  Future<void> _toggleWindowVisible() async {
+    if (await windowManager.isVisible()) {
+      await windowManager.hide();
+      await _refreshTrayMenu();
+    } else {
+      await _showWindow();
     }
   }
 
@@ -193,6 +213,7 @@ class _GudongAppState extends State<GudongApp> with WindowListener, TrayListener
       AppLog.write('[app] focus failed: $error');
     }
     if (expand) widget.scope.island.setExpanded(true);
+    await _refreshTrayMenu();
   }
 
   Future<void> _toggleFromTray() async {
@@ -229,7 +250,12 @@ class _GudongAppState extends State<GudongApp> with WindowListener, TrayListener
   @override
   void onWindowClose() {
     if (_quitting) return;
-    unawaited(windowManager.hide());
+    unawaited(_hideWindow());
+  }
+
+  Future<void> _hideWindow() async {
+    await windowManager.hide();
+    await _refreshTrayMenu();
   }
 
   @override
