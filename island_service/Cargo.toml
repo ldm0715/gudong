@@ -3,7 +3,7 @@ name = "island_service"
 version = "0.1.0"
 edition = "2021"
 description = "gudong system sidecar"
-license = "MIT"
+license = "AGPL-3.0-only"
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
