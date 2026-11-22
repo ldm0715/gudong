@@ -16,3 +16,7 @@
 # Local
 *.log
 /README_example.md
+
+# Release tooling: sample changelog and local packaging output
+/changes.md
+/dist/

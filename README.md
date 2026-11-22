@@ -6,10 +6,10 @@
 
 **Windows 桌面灵动岛：Flutter 负责岛体、动画与设置窗口，Rust sidecar 负责系统集成。**
 
-[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078D4.svg)](#-系统要求)
-[![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B.svg)](https://flutter.dev)
-[![Rust](https://img.shields.io/badge/Rust-stable-000000.svg)](https://www.rust-lang.org)
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg?logo=opensourceinitiative&logoColor=white)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078D4.svg?logo=windows11&logoColor=white)](#-快速开始)
+[![Flutter](https://img.shields.io/badge/Flutter-3.38.7-02569B.svg?logo=flutter&logoColor=white)](https://flutter.dev)
+[![Rust](https://img.shields.io/badge/Rust-1.98.0-000000.svg?logo=rust&logoColor=white)](https://www.rust-lang.org)
 
 </div>
 
@@ -99,11 +99,14 @@ gudong 用 Flutter 画岛体和动画，用 Rust sidecar 做系统集成，两�
 
 ## 📦 下载安装
 
-首个版本尚未发布，当前从源码构建。发布后会在这里和 [Releases](https://github.com/ldm0715/gudong/releases) 提供安装包。
+在 [Releases](https://github.com/ldm0715/gudong/releases) 下载最新版本：
+
+- `gudong-<版本>-setup.exe` —— NSIS 安装包，按用户安装到 `%LOCALAPPDATA%\Programs\Gudong`
+- `gudong-<版本>-windows-x64.zip` —— 免安装压缩包，解压后运行 `island_app.exe`
 
 ## 🚀 快速开始
 
-**环境要求**：Windows 10 2004+ / Windows 11，x64；Flutter stable（Dart 3.10+）；Rust stable；Visual Studio 2022 的 MSVC C++ 生成工具。
+**环境要求**：Windows 10 2004+ / Windows 11，x64；Flutter 3.38.7+（Dart 3.10.7+）；Rust 1.98.0+；Visual Studio 2022 的 MSVC C++ 生成工具（含 Windows SDK）。
 
 ```powershell
 git clone https://github.com/ldm0715/gudong.git
@@ -150,7 +153,7 @@ flutter run -d windows
 - QQ 需要开启“新消息通知”才能显示预览
 - Windows 10 没有 Mica，窗口材质与毛玻璃效果未实现
 - 当前只有 x64 构建；ARM64 需要另外配置
-- 仍在 Phase 2，接口和界面会继续调整；暂无自动更新与安装包
+- 仍在 Phase 2，接口和界面会继续调整；暂无自动更新
 
 ## 🛠 从源码构建
 
@@ -175,14 +178,17 @@ cargo test
 powershell -ExecutionPolicy Bypass -File scripts\measure-baseline.ps1
 ```
 
+发布走 tag：更新 `changeslog.md` 后推送 `v*` tag，工作流会构建 zip 与安装包并发布。详见 [`docs/release.md`](docs/release.md)。
+
 ## 📁 项目结构
 
 ```text
 island_app/          Flutter 客户端
 island_service/      Rust sidecar
+installer/           NSIS 安装包脚本
 protocol/            JSON-RPC 协议文档
-docs/                阶段报告与执行计划
-scripts/             构建、性能基线脚本
+docs/                阶段报告、执行计划与发布流程
+scripts/             构建、性能基线与发布说明脚本
 ```
 
 ## 非官方声明
