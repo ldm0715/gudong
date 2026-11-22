@@ -210,9 +210,10 @@ impl StateData {
 
     fn clear(&mut self, pid: u32) {
         self.burst.retain(|(account, _)| *account != pid);
-        if let Ok(mut items) = self.state.unread.lock() {
-            items.remove(&flash_id(pid));
-        }
+        // 除了删内存，还要发事件，否则客户端列表会一直保留这条提醒。
+        let id = flash_id(pid);
+        let (event, _) = rpc::emit_cleared(&self.state, Some(&id), None, None);
+        let _ = self.tx.send(event);
     }
 }
 
@@ -243,29 +244,29 @@ unsafe extern "system" fn subclass(
                 let target = HWND(lp.0 as *mut _);
                 if matches(target, &state.paths) {
                     let pid = window_pid(target);
-                    let foreground = foreground_main_pid(&state.paths);
-                    if foreground == Some(pid) {
-                        state.clear(pid);
-                    } else if wp.0 == HSHELL_FLASH && pid != 0 {
-                        let now = Instant::now();
-                        if let Some(count) = state.attention(pid, target.0 as isize, now) {
-                            // 已经读到带联系人和预览的系统通知时，不再重复显示任务栏条目。
-                            if rpc::has_toast(&state.state, "wechat") {
-                                return DefSubclassProc(hwnd, message, wp, lp);
+                    if pid != 0 {
+                        let foreground = foreground_pid(&state.paths);
+                        // 激活微信（主窗口或独立会话窗口）说明用户已查看消息；
+                        // 微信在前台时新的闪动也直接忽略。
+                        if wp.0 != HSHELL_FLASH || foreground == Some(pid) {
+                            state.clear(pid);
+                        } else if !rpc::has_toast(&state.state, "wechat") {
+                            let now = Instant::now();
+                            if let Some(count) = state.attention(pid, target.0 as isize, now) {
+                                let item = rpc::UnreadInfo {
+                                    id: flash_id(pid),
+                                    source: "wechat".into(),
+                                    account: pid,
+                                    window: target.0 as isize as i64,
+                                    count,
+                                    time: rpc::now_text(),
+                                    kind: "taskbar".into(),
+                                    contact: None,
+                                    preview: None,
+                                };
+                                let event = rpc::emit_unread(&state.state, item);
+                                let _ = state.tx.send(event);
                             }
-                            let item = rpc::UnreadInfo {
-                                id: flash_id(pid),
-                                source: "wechat".into(),
-                                account: pid,
-                                window: target.0 as isize as i64,
-                                count,
-                                time: rpc::now_text(),
-                                kind: "taskbar".into(),
-                                contact: None,
-                                preview: None,
-                            };
-                            let event = rpc::emit_unread(&state.state, item);
-                            let _ = state.tx.send(event);
                         }
                     }
                 }
@@ -447,29 +448,57 @@ fn window_pid(hwnd: HWND) -> u32 {
     pid
 }
 
-fn class_name(hwnd: HWND) -> String {
-    let mut buffer = [0u16; 256];
-    let length = unsafe { GetClassNameW(hwnd, &mut buffer) };
-    String::from_utf16_lossy(&buffer[..length.max(0) as usize])
-}
-
-fn visible_main_frame(hwnd: HWND) -> bool {
-    unsafe {
-        if !IsWindowVisible(hwnd).as_bool() || GetWindow(hwnd, GW_OWNER).is_ok() {
-            return false;
-        }
-        let class = class_name(hwnd);
-        (class == "WeChatMainWndForPC" || (class.starts_with("Qt") && class.ends_with("QWindowIcon")))
-            && !IsIconic(hwnd).as_bool()
-    }
-}
-
-fn foreground_main_pid(paths: &[String]) -> Option<u32> {
+/// 前台窗口是否属于微信。独立会话窗口也算，不要求是主窗口。
+fn foreground_pid(paths: &[String]) -> Option<u32> {
     unsafe {
         let hwnd = GetForegroundWindow();
-        if hwnd.0.is_null() || !visible_main_frame(hwnd) || !matches(hwnd, paths) {
+        if hwnd.0.is_null() || !matches(hwnd, paths) {
             return None;
         }
         Some(window_pid(hwnd))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn clear_removes_flash_item_and_emits_event() {
+        let state = Arc::new(State::default());
+        let (tx, rx) = std::sync::mpsc::channel();
+        let id = flash_id(7);
+        state
+            .unread
+            .lock()
+            .unwrap()
+            .insert(
+                id.clone(),
+                rpc::UnreadInfo {
+                    id: id.clone(),
+                    source: "wechat".into(),
+                    account: 7,
+                    window: 0,
+                    count: 1,
+                    time: rpc::now_text(),
+                    kind: "taskbar".into(),
+                    contact: None,
+                    preview: None,
+                },
+            );
+        let mut data = StateData {
+            message: 0,
+            taskbar_created: 0,
+            registered: true,
+            paths: Vec::new(),
+            burst: Vec::new(),
+            state: state.clone(),
+            tx,
+        };
+        data.clear(7);
+        assert!(!state.unread.lock().unwrap().contains_key(&id));
+        let event = rx.try_recv().expect("cleared event");
+        assert_eq!(event["params"]["type"], "message.cleared");
+        assert_eq!(event["params"]["id"], id);
     }
 }
