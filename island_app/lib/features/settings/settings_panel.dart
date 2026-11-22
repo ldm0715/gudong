@@ -770,6 +770,14 @@ class AboutSettingsPage extends StatelessWidget {
     }
   }
 
+  void _openRepository() {
+    try {
+      unawaited(Process.start('explorer.exe', [appRepositoryUrl]));
+    } catch (error) {
+      AppLog.write('[settings] open repository failed: $error');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -780,6 +788,20 @@ class AboutSettingsPage extends StatelessWidget {
         const SettingsSectionLabel('版本'),
         const SettingsCard(
           children: [SettingsInfoRow(title: '客户端', value: appVersion)],
+        ),
+        const SizedBox(height: 18),
+        const SettingsSectionLabel('项目'),
+        SettingsCard(
+          children: [
+            SettingsRow(
+              title: '项目仓库',
+              subtitle: '源码、问题反馈与版本更新',
+              trailing: TextButton(
+                onPressed: _openRepository,
+                child: const Text('打开'),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 18),
         const SettingsSectionLabel('诊断'),
@@ -804,7 +826,10 @@ class AboutSettingsPage extends StatelessWidget {
         const SettingsSectionLabel('配置文件'),
         const SettingsCard(
           children: [
-            SettingsInfoRow(title: '路径', value: r'%APPDATA%\gudong\config.json'),
+            SettingsInfoRow(
+              title: '路径',
+              value: r'%APPDATA%\gudong\config.json',
+            ),
           ],
         ),
       ],
