@@ -13,23 +13,71 @@
 
 </div>
 
-<!-- 截图待补充：把图片放到 docs/images/ 后取消注释
+## 界面
+
+### 收起态
+
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="docs/images/Collapse_white.png" alt="浅色收起态" width="360" />
+      <br />
+      <sub><b>浅色</b> —— 时间、天气、CPU / 内存与输入法状态</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="docs/images/Collapse_dark.png" alt="深色收起态" width="360" />
+      <br />
+      <sub><b>深色</b> —— 深色主题下的同一套信息</sub>
+    </td>
+  </tr>
+</table>
+
+### 展开态
+
+<table>
+  <tr>
+    <td align="center" width="33%">
+      <img src="docs/images/weather.png" alt="天气" width="280" />
+      <br />
+      <sub><b>天气</b> —— 实况、体感、湿度与五天预报</sub>
+    </td>
+    <td align="center" width="33%">
+      <img src="docs/images/music.png" alt="媒体" width="280" />
+      <br />
+      <sub><b>媒体</b> —— 封面、歌词与播放控制</sub>
+    </td>
+    <td align="center" width="33%">
+      <img src="docs/images/translate.png" alt="翻译" width="280" />
+      <br />
+      <sub><b>翻译</b> —— 多服务切换与双语对照</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="33%">
+      <img src="docs/images/email.png" alt="邮件" width="280" />
+      <br />
+      <sub><b>邮件</b> —— 多账号收件箱与未读同步</sub>
+    </td>
+    <td align="center" width="33%">
+      <img src="docs/images/ai_quota.png" alt="额度" width="280" />
+      <br />
+      <sub><b>额度</b> —— AI 服务用量与重置时间</sub>
+    </td>
+    <td align="center" width="33%">
+      <img src="docs/images/dashboard.png" alt="仪表盘" width="280" />
+      <br />
+      <sub><b>仪表盘</b> —— 网络、CPU、内存与总流量</sub>
+    </td>
+  </tr>
+</table>
+
+### 设置
+
 <p align="center">
-  <img src="docs/images/collapsed.png" alt="收起态" width="760" />
-  <br/>
-  <sub><b>收起态</b> —— 时间、天气、系统指标与未读提醒</sub>
-</p>
-<p align="center">
-  <img src="docs/images/expanded.png" alt="展开态" width="760" />
-  <br/>
-  <sub><b>展开态</b> —— 消息、邮件、天气、媒体与系统状态</sub>
-</p>
-<p align="center">
-  <img src="docs/images/settings.png" alt="设置窗口" width="760" />
+  <img src="docs/images/settings.png" alt="设置窗口" width="85%" />
   <br/>
   <sub><b>设置</b> —— 页面管理、邮件、翻译、天气与外观</sub>
 </p>
--->
 
 ## 为什么做这个
 
