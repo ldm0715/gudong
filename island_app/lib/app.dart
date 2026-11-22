@@ -28,6 +28,7 @@ import 'features/schedule/schedule_controller.dart';
 import 'features/settings/settings_window_launcher.dart';
 import 'features/shelf/shelf_controller.dart';
 import 'features/translate/translate_controller.dart';
+import 'features/volume/volume_controller.dart';
 import 'features/weather/weather_controller.dart';
 
 /// 应用级依赖集合，由 main 组装，退出时统一释放。
@@ -45,6 +46,7 @@ class AppScope {
     required this.quota,
     required this.schedule,
     required this.anniversary,
+    required this.volume,
     required this.shelf,
     required this.settings,
     required this.settingsWindow,
@@ -64,6 +66,7 @@ class AppScope {
   final QuotaController quota;
   final ScheduleController schedule;
   final AnniversaryController anniversary;
+  final VolumeController volume;
   final ShelfController shelf;
   final SettingsController settings;
   final SettingsWindowLauncher settingsWindow;
@@ -84,6 +87,7 @@ class AppScope {
     quota.dispose();
     schedule.dispose();
     anniversary.dispose();
+    volume.dispose();
     shelf.dispose();
     settings.dispose();
     await supervisor.close();
@@ -273,6 +277,7 @@ class _GuduoAppState extends State<GuduoApp> with WindowListener, TrayListener {
                 quota: widget.scope.quota,
                 schedule: widget.scope.schedule,
                 anniversary: widget.scope.anniversary,
+                volume: widget.scope.volume,
                 shelf: widget.scope.shelf,
                 settings: widget.scope.settings,
                 windowPosition: widget.scope.windowPosition,

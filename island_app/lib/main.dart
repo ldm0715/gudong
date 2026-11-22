@@ -32,6 +32,7 @@ import 'features/schedule/anniversary_controller.dart';
 import 'features/schedule/schedule_controller.dart';
 import 'features/shelf/shelf_controller.dart';
 import 'features/translate/translate_controller.dart';
+import 'features/volume/volume_controller.dart';
 import 'features/weather/weather_controller.dart';
 
 Future<void> main(List<String> args) async {
@@ -78,6 +79,7 @@ Future<void> main(List<String> args) async {
   final quota = QuotaController(supervisor);
   final schedule = ScheduleController(supervisor);
   final anniversary = AnniversaryController(supervisor);
+  final volume = VolumeController(supervisor);
   final shelf = ShelfController(supervisor);
   final settings = SettingsController(supervisor);
   final settingsLauncher = SettingsWindowLauncher(settings);
@@ -86,6 +88,7 @@ Future<void> main(List<String> args) async {
     messages: messages,
     mail: mail,
     schedule: schedule,
+    volume: volume,
   );
   final clickThrough = ClickThroughController(windowSize: appWindowSize);
 
@@ -108,6 +111,8 @@ Future<void> main(List<String> args) async {
     final showBanner =
         island.showBanner ||
         island.showMailBanner ||
+        island.showScheduleBanner ||
+        island.showVolumeBanner ||
         (appSettings.showImeBanner && ime.visible);
     clickThrough.setInteractiveRect(
       IslandLayout.rectFor(
@@ -145,6 +150,7 @@ Future<void> main(List<String> args) async {
         quota: quota,
         schedule: schedule,
         anniversary: anniversary,
+        volume: volume,
         shelf: shelf,
         settings: settings,
         settingsWindow: settingsLauncher,

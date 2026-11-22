@@ -30,6 +30,8 @@ mod ime;
 #[cfg(windows)]
 mod notifications;
 #[cfg(windows)]
+mod volume;
+#[cfg(windows)]
 mod wechat;
 #[cfg(windows)]
 mod wechat_tray;
@@ -96,6 +98,8 @@ fn main() {
     {
         foreground::start(state.clone(), tx.clone());
         ime::start(state.clone(), tx.clone());
+        let volume_tx = volume::start(state.clone(), tx.clone());
+        state.set_volume_sender(volume_tx);
         if let Err(error) = notifications::start(state.clone(), tx.clone()) {
             let _ = tx.send(rpc::emit_status(&state, "notifications", false, &error));
             log(&format!("notification listener failed: {error}"));

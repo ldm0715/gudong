@@ -29,6 +29,8 @@ pub const CAPABILITIES: &[&str] = &[
     "weather.current",
     "weather.search",
     "weather.refresh",
+    "volume.current",
+    "volume.control",
     "ime.status",
     "translate.text",
     "translate.models",
@@ -89,6 +91,12 @@ pub struct State {
     pub weather_status: Mutex<String>,
     /// 天气刷新与搜索命令队列。
     pub weather_tx: Mutex<Option<std::sync::mpsc::Sender<crate::weather::Command>>>,
+    /// 最近一次读到的系统音量。
+    #[cfg(windows)]
+    pub volume: Mutex<Option<crate::volume::VolumeSnapshot>>,
+    /// 音量设置命令队列。
+    #[cfg(windows)]
+    pub volume_tx: Mutex<Option<std::sync::mpsc::Sender<crate::volume::Command>>>,
     /// 最近一次读到的输入法模式：`zh` / `en`，采样前为 `None`。
     pub ime: Mutex<Option<&'static str>>,
     pub config: crate::config::Config,
@@ -130,6 +138,10 @@ impl State {
             weather: Mutex::new(None),
             weather_status: Mutex::new("正在获取天气".into()),
             weather_tx: Mutex::new(None),
+            #[cfg(windows)]
+            volume: Mutex::new(None),
+            #[cfg(windows)]
+            volume_tx: Mutex::new(None),
             ime: Mutex::new(None),
             config,
             translate_tx: Mutex::new(None),
@@ -156,6 +168,13 @@ impl State {
 
     pub fn set_weather_sender(&self, sender: std::sync::mpsc::Sender<crate::weather::Command>) {
         if let Ok(mut slot) = self.weather_tx.lock() {
+            *slot = Some(sender);
+        }
+    }
+
+    #[cfg(windows)]
+    pub fn set_volume_sender(&self, sender: std::sync::mpsc::Sender<crate::volume::Command>) {
+        if let Ok(mut slot) = self.volume_tx.lock() {
             *slot = Some(sender);
         }
     }
@@ -366,6 +385,37 @@ pub fn handle(
         }
         "weather.refresh" => {
             wake_weather(state);
+            Ok(Action::Respond(json!({ "ok": true })))
+        }
+        #[cfg(windows)]
+        "volume.get" => {
+            let snapshot = state.volume.lock().ok().and_then(|slot| *slot);
+            Ok(Action::Respond(json!({
+                "volume": snapshot.map(|value| value.volume).unwrap_or(0.0),
+                "muted": snapshot.map(|value| value.muted).unwrap_or(false),
+            })))
+        }
+        #[cfg(windows)]
+        "volume.set" => {
+            let level = params
+                .get("volume")
+                .and_then(Value::as_f64)
+                .ok_or_else(|| RpcError::new(ERR_INVALID_PARAMS, "volume.set requires volume"))?;
+            send_volume_command(state, crate::volume::Command::SetVolume(level as f32))?;
+            Ok(Action::Respond(json!({ "ok": true })))
+        }
+        #[cfg(windows)]
+        "volume.mute" => {
+            let muted = params
+                .get("muted")
+                .and_then(Value::as_bool)
+                .ok_or_else(|| RpcError::new(ERR_INVALID_PARAMS, "volume.mute requires muted"))?;
+            send_volume_command(state, crate::volume::Command::SetMuted(muted))?;
+            Ok(Action::Respond(json!({ "ok": true })))
+        }
+        #[cfg(windows)]
+        "volume.preview" => {
+            send_volume_command(state, crate::volume::Command::Preview)?;
             Ok(Action::Respond(json!({ "ok": true })))
         }
         "translate.run" | "translate.models" | "translate.setSecret" => {
@@ -670,6 +720,24 @@ fn settings_snapshot(state: &State) -> Map<String, Value> {
         json!(crate::credentials::read(crate::credentials::OPENCODE_COOKIE).is_some()),
     );
     settings
+}
+
+#[cfg(windows)]
+fn send_volume_command(
+    state: &State,
+    command: crate::volume::Command,
+) -> Result<(), RpcError> {
+    let sender = state
+        .volume_tx
+        .lock()
+        .ok()
+        .and_then(|slot| slot.clone());
+    let Some(sender) = sender else {
+        return Err(RpcError::new(ERR_INTERNAL, "volume worker is not running"));
+    };
+    sender
+        .send(command)
+        .map_err(|_| RpcError::new(ERR_INTERNAL, "volume worker stopped"))
 }
 
 fn wake_weather(state: &State) {

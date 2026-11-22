@@ -9,6 +9,7 @@ import '../mail/mail_models.dart';
 import '../messages/messages_controller.dart';
 import '../schedule/schedule_controller.dart';
 import '../schedule/schedule_models.dart';
+import '../volume/volume_controller.dart';
 
 /// 岛体外壳状态：展开、闪烁、横幅。业务数据由各 feature controller 持有。
 class IslandController extends ChangeNotifier {
@@ -17,34 +18,42 @@ class IslandController extends ChangeNotifier {
     required this.messages,
     required this.mail,
     required this.schedule,
+    required this.volume,
   }) {
     supervisor.addListener(_onChanged);
     messages.addListener(_onMessagesChanged);
     mail.addListener(_onMailChanged);
     schedule.addListener(_onScheduleChanged);
+    volume.addListener(_onVolumeChanged);
     _lastRevision = messages.revision;
     _lastMailRevision = mail.revision;
     _lastScheduleRevision = schedule.revision;
+    _lastVolumeRevision = volume.revision;
   }
 
   final SidecarSupervisor supervisor;
   final MessagesController messages;
   final MailController mail;
   final ScheduleController schedule;
+  final VolumeController volume;
 
   bool _expanded = false;
   bool _pulse = false;
   bool _banner = false;
   bool _mailBanner = false;
   bool _scheduleBanner = false;
+  bool _volumeBanner = false;
   bool _handleVisible = false;
+  bool _pointerInside = false;
   int _lastRevision = 0;
   int _lastMailRevision = 0;
   int _lastScheduleRevision = 0;
+  int _lastVolumeRevision = 0;
   Timer? _pulseTimer;
   Timer? _bannerTimer;
   Timer? _mailBannerTimer;
   Timer? _scheduleBannerTimer;
+  Timer? _volumeBannerTimer;
   Timer? _handleTimer;
   bool _disposed = false;
 
@@ -56,6 +65,7 @@ class IslandController extends ChangeNotifier {
   MailSummary? get mailBannerItem => mail.bannerItem;
   bool get showScheduleBanner => _scheduleBanner && schedule.bannerItem != null;
   ScheduleItem? get scheduleBannerItem => schedule.bannerItem;
+  bool get showVolumeBanner => _volumeBanner;
   bool get ready => supervisor.ready;
   String get connectionDetail => supervisor.detail;
 
@@ -74,6 +84,16 @@ class IslandController extends ChangeNotifier {
 
   /// 光标进入 / 离开岛体。进入时展开，停留后显示顶部拖拽把手。
   void setPointerInside(bool inside) {
+    _pointerInside = inside;
+    // 音量横幅需要拖动，悬停期间不展开；等横幅结束后再按指针状态展开。
+    if (inside && showVolumeBanner) {
+      _handleTimer?.cancel();
+      if (_handleVisible) {
+        _handleVisible = false;
+        notifyListeners();
+      }
+      return;
+    }
     setExpanded(inside);
     _handleTimer?.cancel();
     if (!inside) {
@@ -137,6 +157,21 @@ class IslandController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void _onVolumeChanged() {
+    if (volume.revision != _lastVolumeRevision) {
+      _lastVolumeRevision = volume.revision;
+      _volumeBanner = true;
+      _volumeBannerTimer?.cancel();
+      _volumeBannerTimer = Timer(IslandMotion.bannerHold, () {
+        if (_disposed) return;
+        _volumeBanner = false;
+        if (_pointerInside) setExpanded(true);
+        notifyListeners();
+      });
+    }
+    notifyListeners();
+  }
+
   void _showBannerForAWhile() {
     _banner = true;
     _bannerTimer?.cancel();
@@ -164,11 +199,13 @@ class IslandController extends ChangeNotifier {
     _bannerTimer?.cancel();
     _mailBannerTimer?.cancel();
     _scheduleBannerTimer?.cancel();
+    _volumeBannerTimer?.cancel();
     _handleTimer?.cancel();
     supervisor.removeListener(_onChanged);
     messages.removeListener(_onMessagesChanged);
     mail.removeListener(_onMailChanged);
     schedule.removeListener(_onScheduleChanged);
+    volume.removeListener(_onVolumeChanged);
     super.dispose();
   }
 }

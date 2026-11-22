@@ -32,6 +32,8 @@ import '../shelf/shelf_controller.dart';
 import '../shelf/shelf_drawer.dart';
 import '../translate/translate_controller.dart';
 import '../translate/translate_tab.dart';
+import '../volume/volume_banner.dart';
+import '../volume/volume_controller.dart';
 import '../weather/weather_controller.dart';
 import '../weather/weather_tab.dart';
 import 'client_glyph.dart';
@@ -55,6 +57,7 @@ class IslandShell extends StatefulWidget {
     required this.quota,
     required this.schedule,
     required this.anniversary,
+    required this.volume,
     required this.shelf,
     required this.settings,
     required this.windowPosition,
@@ -72,6 +75,7 @@ class IslandShell extends StatefulWidget {
   final QuotaController quota;
   final ScheduleController schedule;
   final AnniversaryController anniversary;
+  final VolumeController volume;
   final ShelfController shelf;
   final SettingsController settings;
   final WindowPositionKeeper windowPosition;
@@ -175,6 +179,7 @@ class _IslandShellState extends State<IslandShell> {
                   widget.quota,
                   widget.schedule,
                   widget.anniversary,
+                  widget.volume,
                   widget.settings,
                 ]),
                 builder: (context, _) {
@@ -186,18 +191,25 @@ class _IslandShellState extends State<IslandShell> {
                       island.showScheduleBanner &&
                       !showBanner &&
                       !showMailBanner;
+                  final showVolumeBanner =
+                      island.showVolumeBanner &&
+                      !showBanner &&
+                      !showMailBanner &&
+                      !showScheduleBanner;
                   final settings = widget.settings.settings;
-                  // 消息横幅优先，其次是新邮件和日程提醒，最后是输入法切换。
+                  // 消息横幅优先，其次是新邮件、日程和音量，最后是输入法切换。
                   final showIme =
                       settings.showImeBanner &&
                       widget.ime.visible &&
                       !showBanner &&
                       !showMailBanner &&
-                      !showScheduleBanner;
+                      !showScheduleBanner &&
+                      !showVolumeBanner;
                   final activeBanner =
                       showBanner ||
                       showMailBanner ||
                       showScheduleBanner ||
+                      showVolumeBanner ||
                       showIme;
                   final tabs = settings.visibleTabs;
                   final tab = tabs.contains(_tab)
@@ -283,6 +295,8 @@ class _IslandShellState extends State<IslandShell> {
                             )
                           : showScheduleBanner
                           ? ScheduleBanner(item: island.scheduleBannerItem!)
+                          : showVolumeBanner
+                          ? VolumeBanner(controller: widget.volume)
                           : showIme
                           ? ImeBanner(chinese: widget.ime.chinese)
                           : CollapsedBar(

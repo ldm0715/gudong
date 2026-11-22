@@ -18,6 +18,10 @@
 | `weather.get` | `{}` | `{snapshot, status}`；`snapshot` 可能为 `null` |
 | `weather.search` | `{query}` | `{places:[PlaceOption]}`；`query` 限 1–80 字符，网络请求在天气线程内执行 |
 | `weather.refresh` | `{}` | `{ok}`；立即触发一次实况刷新，结果通过 `weather.updated` 推送 |
+| `volume.get` | `{}` | `{volume, muted}`；`volume` 为 0–1 的主音量，未采样前为 `0` / `false` |
+| `volume.set` | `{volume}` | `{ok}`；设置主音量并解除静音，结果通过 `volume.changed` 推送 |
+| `volume.mute` | `{muted}` | `{ok}`；设置静音状态 |
+| `volume.preview` | `{}` | `{ok}`；按当前音量播放一次短提示音，用于拖动结束后的响度反馈 |
 | `ime.get` | `{}` | `{mode}`；`mode` 为 `zh` / `en`，首次采样前为 `null` |
 | `translate.run` | `{text, to?, provider?}` | `{text, provider, to, from?}`；`provider` 为 `llm` / `deepl` / `caiyun` / `microsoftFree` / `mymemory`，省略按设置，auto 时按可用凭据选择 |
 | `translate.models` | `{baseUrl?, apiKey?}` | `{models:[string]}`；拉取 OpenAI 兼容服务的模型列表，`apiKey` 省略时读已保存的 LLM Key |
@@ -170,6 +174,7 @@
 | `message.cleared` | 提醒已失效，带 `id`，或 `source` + 可选 `account`；清空该来源时只带 `source` |
 | `ime.changed` | 中英文输入法切换，带 `mode`（`zh` / `en`）与 `banner`；`banner=false` 表示只是切换窗口 / 焦点后的模式同步，只更新状态、不弹横幅 |
 | `weather.updated` | 实况刷新成功或失败，带 `snapshot`（可能为 `null`）与 `status` |
+| `volume.changed` | 系统主音量或静音状态变化，带 `volume`（0–1）与 `muted` |
 | `media.changed` | 媒体信息变化，带 `media`；播放中最多 1Hz 推送进度，客户端本地插值 |
 | `media.lyrics` | 当前曲目歌词，带 `lyrics` 与 `pending`；切歌时立即发 `lyrics:null, pending:true`，抓取结束再发结果 |
 | `mail.received` | 收取到一封新邮件，带 `accountId` 与 `item`（`MailSummary`）；首次连接的最近邮件不推事件，客户端在 `mail.account` 变为 `ready` 后调用 `mail.list` |
