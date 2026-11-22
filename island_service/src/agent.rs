@@ -586,7 +586,11 @@ impl Watcher {
     }
 
     fn claude_title(&mut self, session_id: &str, cwd: Option<&str>) -> Option<String> {
-        let path = claude_transcript(session_id, cwd)?;
+        let path = claude_transcript(
+            session_id,
+            cwd,
+            now_ms().saturating_sub(FILE_WINDOW_MS),
+        )?;
         let meta = fs::metadata(&path).ok()?;
         let size = meta.len();
         let modified = meta
@@ -616,7 +620,11 @@ impl Watcher {
     }
 
     fn claude_finish(&mut self, session_id: &str, cwd: Option<&str>, fallback: u64) -> Finish {
-        let Some(path) = claude_transcript(session_id, cwd) else {
+        let Some(path) = claude_transcript(
+            session_id,
+            cwd,
+            now_ms().saturating_sub(FILE_WINDOW_MS),
+        ) else {
             return Finish {
                 title: None,
                 reply: None,
@@ -1264,15 +1272,24 @@ fn transcript_title(text: &str) -> Option<String> {
     title
 }
 
-fn claude_transcript(session_id: &str, cwd: Option<&str>) -> Option<PathBuf> {
+fn claude_transcript(
+    session_id: &str,
+    cwd: Option<&str>,
+    min_modified: u64,
+) -> Option<PathBuf> {
     let home = home_dir()?;
     let base = env_root("CLAUDE_CONFIG_DIR", home.join(".claude"))
         .join("projects");
     if let Some(cwd) = cwd {
-        let slug = cwd.replace(':', "-").replace('\\', "-").replace('/', "-");
-        let candidate = base.join(slug).join(format!("{session_id}.jsonl"));
+        let dir = base.join(claude_project_slug(cwd));
+        let candidate = dir.join(format!("{session_id}.jsonl"));
         if candidate.is_file() {
             return Some(candidate);
+        }
+        // 某些 CLI 发起方式下状态文件里的 sessionId 和实际 transcript 文件名不一致，
+        // 此时退回同目录最近写入的一份，避免标题和回复全部丢失。
+        if let Some(path) = newest_transcript(&dir, min_modified) {
+            return Some(path);
         }
     }
     let entries = fs::read_dir(&base).ok()?;
@@ -1283,6 +1300,39 @@ fn claude_transcript(session_id: &str, cwd: Option<&str>) -> Option<PathBuf> {
         }
     }
     None
+}
+
+/// Claude Code 的项目目录名：所有非字母数字字符（含 `_`、反斜杠、中文）都替换成 `-`。
+fn claude_project_slug(cwd: &str) -> String {
+    cwd.chars()
+        .map(|ch| if ch.is_ascii_alphanumeric() { ch } else { '-' })
+        .collect()
+}
+
+fn newest_transcript(dir: &Path, min_modified: u64) -> Option<PathBuf> {
+    let entries = fs::read_dir(dir).ok()?;
+    let mut best: Option<(u64, PathBuf)> = None;
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|value| value.to_str()) != Some("jsonl") {
+            continue;
+        }
+        let Ok(meta) = fs::metadata(&path) else {
+            continue;
+        };
+        let modified = meta
+            .modified()
+            .ok()
+            .map(system_time_ms)
+            .unwrap_or(0);
+        if modified < min_modified {
+            continue;
+        }
+        if best.as_ref().map_or(true, |(latest, _)| modified > *latest) {
+            best = Some((modified, path));
+        }
+    }
+    best.map(|(_, path)| path)
 }
 
 fn read_text(path: &Path) -> Option<String> {
@@ -1525,6 +1575,34 @@ mod tests {
     }
 
     #[test]
+    fn claude_project_slug_replaces_non_alphanumeric() {
+        assert_eq!(
+            claude_project_slug("C:\\work\\My_Project\\guduo"),
+            "C--work-My-Project-guduo"
+        );
+        assert_eq!(
+            claude_project_slug("C:\\Users\\测试用户\\Desktop\\workbench"),
+            "C--Users------Desktop-workbench"
+        );
+    }
+
+    #[test]
+    fn newest_transcript_respects_recent_window() {
+        let dir = std::env::temp_dir().join(format!(
+            "gudong-agent-transcript-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("session.jsonl"), "{}").unwrap();
+
+        assert!(newest_transcript(&dir, 0).is_some());
+        assert!(newest_transcript(&dir, now_ms() + 60_000).is_none());
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
     fn preview_truncates_long_text() {
         let text = "a".repeat(250);
         let value = preview(&text).unwrap();
@@ -1560,7 +1638,7 @@ mod tests {
     fn parse_pi_finds_title_and_final_reply() {
         let path = temp_path("gudong-pi-test");
         let text = [
-            r#"{"type":"session","version":3,"id":"01a1e732-a5c0-774a-983e-9d57e1e57175","timestamp":"2026-11-17T01:50:18.561Z","cwd":"F:\\My_Project\\guduo"}"#,
+            r#"{"type":"session","version":3,"id":"01a1e732-a5c0-774a-983e-9d57e1e57175","timestamp":"2026-11-17T01:50:18.561Z","cwd":"C:\\work\\demo"}"#,
             r#"{"type":"title","title":"修复邮件视图返回与复制问题","source":"auto"}"#,
             r#"{"type":"message","timestamp":"2026-11-17T01:51:00.000Z","message":{"role":"user","content":[{"type":"text","text":"修一下返回手势"}]}}"#,
             r#"{"type":"message","timestamp":"2026-11-17T01:52:00.000Z","message":{"role":"assistant","content":[{"type":"text","text":"已补上返回手势，并修复复制为空的问题。"}]}}"#,
@@ -1583,7 +1661,7 @@ mod tests {
     fn parse_codex_marks_completed_turn() {
         let path = temp_path("gudong-codex-test.jsonl");
         let text = [
-            r#"{"timestamp":"2026-11-22T05:00:00.000Z","type":"session_meta","payload":{"session_id":"s1","cwd":"F:\\My_Project\\guduo"}}"#,
+            r#"{"timestamp":"2026-11-22T05:00:00.000Z","type":"session_meta","payload":{"session_id":"s1","cwd":"C:\\work\\demo"}}"#,
             r#"{"timestamp":"2026-11-22T05:00:01.000Z","type":"event_msg","payload":{"type":"task_started","started_at":1795323601}}"#,
             r#"{"timestamp":"2026-11-22T05:00:02.000Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"加一个 agent 检测"}]}}"#,
             r#"{"timestamp":"2026-11-22T05:00:03.000Z","type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"已加上 agent 检测模块。"}]}}"#,
