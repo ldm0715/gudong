@@ -69,14 +69,22 @@ jobs:
           Copy-Item (Join-Path $env:GITHUB_WORKSPACE "island_service/target/release/island_service.exe") $release -Force
 
           # Flutter links the MSVC runtime dynamically, so ship it app-local to
-          # keep the portable zip working on clean machines.
-          $crt = Get-ChildItem "${env:ProgramFiles}\Microsoft Visual Studio\2022\*\VC\Redist\MSVC\*\x64\Microsoft.VC143.CRT" -Directory -ErrorAction SilentlyContinue |
-            Sort-Object FullName -Descending |
-            Select-Object -First 1
-          if (-not $crt) { throw "Could not find the MSVC x64 redistributable directory." }
-          foreach ($dll in @("msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll")) {
-            $source = Join-Path $crt.FullName $dll
-            if (Test-Path $source) { Copy-Item $source $release -Force }
+          # keep the portable zip working on clean machines. Find the files
+          # through vswhere so the layout can differ between VS versions.
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          if (-not (Test-Path $vswhere)) { throw "vswhere not found." }
+          $vsPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if ($vsPath) { $vsPath = $vsPath.Trim() }
+          if (-not $vsPath) { throw "Visual Studio with the MSVC toolchain not found." }
+
+          $names = @("msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll")
+          $redist = Get-ChildItem (Join-Path $vsPath "VC\Redist") -Recurse -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -in $names -and $_.FullName -match '\\x64\\' }
+          foreach ($name in $names) {
+            $file = $redist | Where-Object Name -eq $name | Sort-Object FullName -Descending | Select-Object -First 1
+            if (-not $file) { throw "Could not find $name in the Visual Studio redistributables." }
+            Copy-Item $file.FullName $release -Force
+            Write-Host "Bundled $name from $($file.FullName)"
           }
 
       - name: Package zip
