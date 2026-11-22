@@ -42,6 +42,7 @@
 | `quota.get` | `{}` | `{providers:[QuotaProvider], updatedAtMs}`；返回最近一次快照，未刷新过时为空数组 |
 | `quota.refresh` | `{provider?}` | `{ok}`；`provider` 为 `glm` / `deepseek` / `opencode`，省略表示全部；结果通过 `quota.updated` 推送 |
 | `quota.setSecret` | `{provider, field, value}` | `{ok, configured}`；`field` 为 `apiKey`（三家）或 `cookie`（仅 `opencode`）；`value` 为空表示删除 |
+| `agents.get` | `{}` | `{sessions:[AgentSession], agents:[AgentStatus]}`；返回最近一次本地会话扫描结果 |
 | `schedule.list` | `{}` | `{items:[ScheduleItem]}`；按 `atMs` 升序，含已触发条目 |
 | `schedule.add` | `{title, atMs}` | `{item:ScheduleItem}`；`title` 1–80 字符，`atMs` 必须晚于当前时间 |
 | `schedule.update` | `{id, title?, atMs?}` | `{item:ScheduleItem}`；至少传一个字段，改成未来时间会重置 `fired` |
@@ -93,6 +94,9 @@
 | `hiddenQuotaProviders` | string[] | 隐藏的额度服务；展开面板与收起态都不显示 |
 | `quotaGlmRegion` | string | GLM 区域：`global`（Z.ai，默认）/ `bigmodel-cn`（智谱开放平台） |
 | `quotaRefreshSeconds` | number | 额度刷新间隔秒数，默认 `300`，限制在 `60`–`3600` |
+| `enabledAgents` | string[] | 需要检测的本地 agent：`claude` / `codex` / `dsh` / `pi` / `omp`；缺省为全部，空数组表示全部关闭 |
+| `showAgentIndicator` | bool | 收起态显示运行中的 agent 图标，默认 `true` |
+| `showAgentBanner` | bool | agent 回合结束时弹出横幅，默认 `true` |
 | `shelfMaxItems` | number | 中转站条目上限，默认 `100`，限制在 `10`–`500`；达到上限后拒绝新条目，不淘汰旧条目 |
 | `shelfViewMode` | string | 中转站默认视图：`list`（列表，默认）/ `grid`（图标网格） |
 
@@ -138,6 +142,63 @@
 - GLM 使用 `quotaGlmRegion` 选择 Z.ai 或智谱开放平台，5 小时与周窗口来自 Coding Plan 配额接口；DeepSeek 只有余额；OpenCode 的 API Key 读取 Go 额度，Cookie 额外补充 Zen 余额。
 - 凭据缺失时返回 `notConfigured` 且 `windows` 为空；凭据失效返回 `unauthorized`，客户端应提示重新填写。
 - 刷新间隔由 `quotaRefreshSeconds` 控制，`quota.refresh` 可立即触发一次；单个服务请求失败时只把该服务标记为错误状态并清空其窗口，其他服务不受影响。
+
+`AgentSession`：
+
+```json
+{
+  "id": "claude",
+  "label": "Claude Code",
+  "sessionId": "18712d4b-fa3a-47ae-9f25-2b26e30f5140",
+  "title": "修复邮件视图返回与复制问题",
+  "cwd": "F:\\My_Project\\guduo",
+  "state": "running",
+  "startedAtMs": 1795226659675,
+  "lastActiveAtMs": 1795327374442
+}
+```
+
+- `id` 为 `claude` / `codex` / `dsh` / `pi` / `omp`；`state` 为 `running` 或 `waiting`（等待授权 / 输入）。
+- `title` 优先取 agent 自己写入的标题；没有时退化为首条用户消息或项目目录名。
+- 同一 agent 可以有多条会话；收起态按 agent 去重显示图标。
+
+`AgentStatus`：
+
+```json
+{
+  "id": "claude",
+  "label": "Claude Code",
+  "enabled": true,
+  "available": true,
+  "state": "running",
+  "sessionCount": 1,
+  "message": ""
+}
+```
+
+- `state` 为 `idle` / `running` / `waiting` / `missing`；`missing` 表示本机没有找到该 agent 的会话目录。
+- `enabled` 来自 `enabledAgents`；关闭后 `state` 固定为 `idle`。
+
+`AgentFinished`：
+
+```json
+{
+  "id": "claude",
+  "label": "Claude Code",
+  "sessionId": "18712d4b-fa3a-47ae-9f25-2b26e30f5140",
+  "title": "修复邮件视图返回与复制问题",
+  "cwd": "F:\\My_Project\\guduo",
+  "state": "done",
+  "startedAtMs": 1795327350000,
+  "endedAtMs": 1795327374442,
+  "durationMs": 24442,
+  "replyPreview": "已补上返回手势，并修复复制为空的问题，共改 4 个文件。"
+}
+```
+
+- `state` 为 `done`（正常结束）或 `aborted`（中断 / 失败）。
+- `durationMs`、`replyPreview` 可能缺省；`replyPreview` 最多约 200 字符，客户端只做单行省略显示。
+- 检测只读取本地会话文件，不修改 agent 配置，也不联网；日志不记录标题与回复正文。
 
 `Unread`：
 
@@ -186,6 +247,8 @@
 | `mail.oauth.completed` | 微软授权成功，带 `flowId` 与新建的 `account` |
 | `mail.oauth.failed` | 微软授权失败或超时，带 `flowId` 与 `message` |
 | `quota.updated` | 额度刷新完成，带 `providers`（全部已知服务）与 `updatedAtMs`；未配置的服务也会出现，`status` 为 `notConfigured` |
+| `agent.updated` | 本地 agent 会话扫描结果变化，带 `sessions`（运行中的会话）与 `agents`（全部 agent 的状态） |
+| `agent.finished` | 某个会话的回合结束，带 `id` / `sessionId` / `title` / `endedAtMs` / `replyPreview` 等；只在本次运行期间观察到该会话运行过时才推送 |
 | `schedule.updated` | 日程新增、修改、删除或触发后推送最新全量列表，带 `items` |
 | `schedule.fired` | 日程到点，带 `item`；sidecar 同时播放系统提示音并发送 Windows 气泡通知 |
 | `anniversary.updated` | 倒计时 / 纪念日新增、修改或删除后推送最新全量列表，带 `items` |

@@ -19,6 +19,7 @@ imap-proto = "0.10"
 url = "2"
 regex = "1"
 image = { version = "0.25", default-features = false, features = ["png"] }
+zstd = "0.13"
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.58", features = [

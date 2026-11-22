@@ -44,6 +44,7 @@ pub const CAPABILITIES: &[&str] = &[
     "quota.get",
     "quota.refresh",
     "quota.setSecret",
+    "agents.get",
     "schedule.list",
     "schedule.add",
     "schedule.update",
@@ -111,6 +112,8 @@ pub struct State {
     pub quota: Mutex<Vec<crate::quota::QuotaProvider>>,
     /// 额度刷新命令队列。
     pub quota_tx: Mutex<Option<std::sync::mpsc::Sender<crate::quota::Command>>>,
+    /// 最近一次本地 agent 扫描结果：`{sessions, agents}`。
+    pub agents: Mutex<Option<Value>>,
     /// 日程读写与到点检查队列。
     pub schedule_tx: Mutex<Option<std::sync::mpsc::Sender<crate::schedule::Command>>>,
     /// 倒计时与纪念日读写队列。
@@ -152,6 +155,7 @@ impl State {
             mail_tx: Mutex::new(None),
             quota: Mutex::new(Vec::new()),
             quota_tx: Mutex::new(None),
+            agents: Mutex::new(None),
             schedule_tx: Mutex::new(None),
             anniversary_tx: Mutex::new(None),
             shelf_tx: Mutex::new(None),
@@ -186,6 +190,12 @@ impl State {
     pub fn set_quota_sender(&self, sender: std::sync::mpsc::Sender<crate::quota::Command>) {
         if let Ok(mut slot) = self.quota_tx.lock() {
             *slot = Some(sender);
+        }
+    }
+
+    pub fn set_agent_snapshot(&self, snapshot: Value) {
+        if let Ok(mut slot) = self.agents.lock() {
+            *slot = Some(snapshot);
         }
     }
 
@@ -532,6 +542,15 @@ pub fn handle(
                 "ok": true,
                 "configured": crate::credentials::read(target).is_some(),
             })))
+        }
+        "agents.get" => {
+            let snapshot = state
+                .agents
+                .lock()
+                .ok()
+                .and_then(|slot| slot.clone())
+                .unwrap_or_else(|| json!({ "sessions": [], "agents": [] }));
+            Ok(Action::Respond(snapshot))
         }
         "schedule.list"
         | "schedule.add"

@@ -5,6 +5,7 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod agent;
 mod anniversary;
 mod config;
 mod credentials;
@@ -95,6 +96,7 @@ fn main() {
     let icon_tx = shelf_icons::start(tx.clone());
     let shelf_tx = shelf::start(state.clone(), tx.clone(), icon_tx);
     state.set_shelf_sender(shelf_tx);
+    agent::start(state.clone(), tx.clone());
 
     #[cfg(windows)]
     {

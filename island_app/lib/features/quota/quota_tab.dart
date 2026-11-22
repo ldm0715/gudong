@@ -380,7 +380,7 @@ class _EmptyQuota extends StatelessWidget {
           Text('未启用额度服务', style: IslandTypography.subhead.tint(colors.text)),
           const SizedBox(height: IslandMetrics.space4),
           Text(
-            '在设置 → AI 额度中添加并启用',
+            '在设置 → AI → 额度中添加并启用',
             style: IslandTypography.caption.tint(colors.muted),
           ),
         ],

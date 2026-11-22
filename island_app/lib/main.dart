@@ -20,6 +20,7 @@ import 'core/window/window_position.dart';
 import 'features/settings/settings_window.dart';
 import 'features/settings/settings_window_args.dart';
 import 'features/settings/settings_window_launcher.dart';
+import 'features/agents/agent_controller.dart';
 import 'features/dashboard/metrics_controller.dart';
 import 'features/diagnostics/diagnostics_controller.dart';
 import 'features/ime/ime_controller.dart';
@@ -83,6 +84,7 @@ Future<void> main(List<String> args) async {
   final anniversary = AnniversaryController(supervisor);
   final volume = VolumeController(supervisor);
   final shelf = ShelfController(supervisor);
+  final agents = AgentController(supervisor);
   final settings = SettingsController(supervisor);
   final settingsLauncher = SettingsWindowLauncher(settings);
   final island = IslandController(
@@ -91,6 +93,7 @@ Future<void> main(List<String> args) async {
     mail: mail,
     schedule: schedule,
     volume: volume,
+    agents: agents,
   );
   final clickThrough = ClickThroughController(windowSize: appWindowSize);
 
@@ -114,6 +117,7 @@ Future<void> main(List<String> args) async {
         island.showBanner ||
         island.showMailBanner ||
         island.showScheduleBanner ||
+        (appSettings.showAgentBanner && island.showAgentBanner) ||
         island.showVolumeBanner ||
         (appSettings.showImeBanner && ime.visible);
     clickThrough.setInteractiveRect(
@@ -134,6 +138,7 @@ Future<void> main(List<String> args) async {
 
   island.addListener(updateInteractiveRect);
   ime.addListener(updateInteractiveRect);
+  agents.addListener(updateInteractiveRect);
   settings.addListener(updateInteractiveRect);
   windowPosition.addListener(updateInteractiveRect);
   updateInteractiveRect();
@@ -155,6 +160,7 @@ Future<void> main(List<String> args) async {
         schedule: schedule,
         anniversary: anniversary,
         volume: volume,
+        agents: agents,
         shelf: shelf,
         settings: settings,
         settingsWindow: settingsLauncher,

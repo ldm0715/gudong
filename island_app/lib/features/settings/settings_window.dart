@@ -11,9 +11,9 @@ import '../../core/theme/island_colors.dart';
 import '../shelf/shelf_settings_page.dart';
 import '../translate/translate_bridge.dart';
 import '../weather/weather_bridge.dart';
+import 'ai_settings_page.dart';
 import 'dashboard_settings_page.dart';
 import 'mail_settings_page.dart';
-import 'quota_settings_page.dart';
 import 'settings_panel.dart';
 import 'settings_window_args.dart';
 import 'settings_window_native.dart';
@@ -43,7 +43,7 @@ extension SettingsSectionMeta on SettingsSection {
     SettingsSection.music => '音乐与歌词',
     SettingsSection.todos => '中转站',
     SettingsSection.notifications => '通知与日程',
-    SettingsSection.ai => 'AI 额度',
+    SettingsSection.ai => 'AI',
     SettingsSection.weather => '天气',
     SettingsSection.about => '关于',
   };
@@ -381,7 +381,7 @@ class _SettingsBodyState extends State<_SettingsBody> {
         settings: settings,
         onSave: onSave,
       ),
-      SettingsSection.ai => QuotaSettingsPage(
+      SettingsSection.ai => AiSettingsPage(
         settings: settings,
         onSave: onSave,
       ),

@@ -68,6 +68,22 @@ impl Config {
         values.get(key).and_then(Value::as_u64).unwrap_or(default)
     }
 
+    /// 读取字符串数组设置，只保留字符串项；缺省时返回 `default`。
+    pub fn string_list(&self, key: &str, default: &[&str]) -> Vec<String> {
+        let values = match self.values.lock() {
+            Ok(values) => values,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        match values.get(key).and_then(Value::as_array) {
+            Some(items) => items
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::to_string)
+                .collect(),
+            None => default.iter().map(|item| item.to_string()).collect(),
+        }
+    }
+
     /// 合并部分设置。写盘成功后才更新内存，失败时保持原值。
     pub fn merge(&self, patch: &Map<String, Value>) -> Result<Map<String, Value>, String> {
         let mut next = self.snapshot();

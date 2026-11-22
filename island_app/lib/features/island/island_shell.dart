@@ -11,6 +11,8 @@ import '../../core/theme/island_motion.dart';
 import '../../core/theme/island_typography.dart';
 import '../../core/window/dock_edge.dart';
 import '../../core/window/window_position.dart';
+import '../agents/agent_banner.dart';
+import '../agents/agent_controller.dart';
 import '../dashboard/dashboard_tab.dart';
 import '../dashboard/metrics_controller.dart';
 import '../diagnostics/diagnostics_controller.dart';
@@ -61,6 +63,7 @@ class IslandShell extends StatefulWidget {
     required this.schedule,
     required this.anniversary,
     required this.volume,
+    required this.agents,
     required this.shelf,
     required this.settings,
     required this.windowPosition,
@@ -80,6 +83,7 @@ class IslandShell extends StatefulWidget {
   final ScheduleController schedule;
   final AnniversaryController anniversary;
   final VolumeController volume;
+  final AgentController agents;
   final ShelfController shelf;
   final SettingsController settings;
   final WindowPositionKeeper windowPosition;
@@ -184,6 +188,7 @@ class _IslandShellState extends State<IslandShell> {
                   widget.schedule,
                   widget.anniversary,
                   widget.volume,
+                  widget.agents,
                   widget.settings,
                 ]),
                 builder: (context, _) {
@@ -195,24 +200,33 @@ class _IslandShellState extends State<IslandShell> {
                       island.showScheduleBanner &&
                       !showBanner &&
                       !showMailBanner;
+                  final settings = widget.settings.settings;
+                  final showAgentBanner =
+                      settings.showAgentBanner &&
+                      island.showAgentBanner &&
+                      !showBanner &&
+                      !showMailBanner &&
+                      !showScheduleBanner;
                   final showVolumeBanner =
                       island.showVolumeBanner &&
                       !showBanner &&
                       !showMailBanner &&
-                      !showScheduleBanner;
-                  final settings = widget.settings.settings;
-                  // 消息横幅优先，其次是新邮件、日程和音量，最后是输入法切换。
+                      !showScheduleBanner &&
+                      !showAgentBanner;
+                  // 消息横幅优先，其次是邮件、日程、agent 结束和音量，最后是输入法切换。
                   final showIme =
                       settings.showImeBanner &&
                       widget.ime.visible &&
                       !showBanner &&
                       !showMailBanner &&
                       !showScheduleBanner &&
+                      !showAgentBanner &&
                       !showVolumeBanner;
                   final activeBanner =
                       showBanner ||
                       showMailBanner ||
                       showScheduleBanner ||
+                      showAgentBanner ||
                       showVolumeBanner ||
                       showIme;
                   final tabs = settings.visibleTabs;
@@ -301,6 +315,8 @@ class _IslandShellState extends State<IslandShell> {
                             )
                           : showScheduleBanner
                           ? ScheduleBanner(item: island.scheduleBannerItem!)
+                          : showAgentBanner
+                          ? AgentBanner(item: island.agentBannerItem!)
                           : showVolumeBanner
                           ? VolumeBanner(controller: widget.volume)
                           : showIme
@@ -313,6 +329,8 @@ class _IslandShellState extends State<IslandShell> {
                               schedule: widget.schedule,
                               ime: widget.ime,
                               metrics: widget.metrics,
+                              agents: widget.agents,
+                              showAgents: settings.showAgentIndicator,
                               showWeather: settings.showWeather,
                               showPlayingIndicator:
                                   settings.showPlayingIndicator,

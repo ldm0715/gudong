@@ -31,6 +31,9 @@ void main() {
       'showImeIndicator': true,
       'showImeBanner': true,
       'showScheduleIndicator': true,
+      'enabledAgents': ['claude', 'codex', 'dsh', 'pi', 'omp'],
+      'showAgentIndicator': true,
+      'showAgentBanner': true,
       'tabOrder': [
         'messages',
         'mail',
@@ -203,6 +206,21 @@ void main() {
     expect(
       AppSettings.fromJson(const {'mailPollSeconds': 120}).mailPollSeconds,
       120,
+    );
+  });
+
+  test('normalizes agent ids and allows disabling every agent', () {
+    final settings = AppSettings.fromJson(const {
+      'enabledAgents': ['omp', 'unknown', 'omp', 'claude'],
+    });
+    expect(settings.enabledAgents, ['claude', 'omp']);
+    expect(
+      AppSettings.fromJson(const {'enabledAgents': <String>[]}).enabledAgents,
+      isEmpty,
+    );
+    expect(
+      AppSettings.fromJson(const {}).enabledAgents,
+      AppSettings.defaultEnabledAgents,
     );
   });
 

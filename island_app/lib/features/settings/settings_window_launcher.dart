@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../../core/log.dart';
 import '../../core/settings/app_settings.dart';
 import '../../core/settings/settings_controller.dart';
+import '../agents/agent_bridge.dart';
 import '../mail/mail_bridge.dart';
 import '../quota/quota_bridge.dart';
 import '../translate/translate_bridge.dart';
@@ -51,6 +52,31 @@ class SettingsWindowLauncher {
       await weatherChannel.setMethodCallHandler(_onWeatherCall);
     } catch (error) {
       AppLog.write('[settings-window] weather channel register failed: $error');
+    }
+    try {
+      await agentChannel.setMethodCallHandler(_onAgentCall);
+    } catch (error) {
+      AppLog.write('[settings-window] agent channel register failed: $error');
+    }
+  }
+
+  /// 设置窗口的 Agent 状态经主窗口转发给 sidecar。
+  Future<dynamic> _onAgentCall(MethodCall call) async {
+    try {
+      return switch (call.method) {
+        'get' => await settings.supervisor.call(
+          'agents.get',
+          const {},
+          const Duration(seconds: 5),
+        ),
+        _ => throw PlatformException(
+          code: 'METHOD_NOT_FOUND',
+          message: 'agent method not found: ${call.method}',
+        ),
+      };
+    } catch (error) {
+      AppLog.write('[settings-window] agent ${call.method} failed: $error');
+      rethrow;
     }
   }
 
@@ -222,6 +248,9 @@ class SettingsWindowLauncher {
           showImeIndicator: incoming.showImeIndicator,
           showImeBanner: incoming.showImeBanner,
           showScheduleIndicator: incoming.showScheduleIndicator,
+          enabledAgents: incoming.enabledAgents,
+          showAgentIndicator: incoming.showAgentIndicator,
+          showAgentBanner: incoming.showAgentBanner,
           tabOrder: incoming.tabOrder,
           hiddenTabs: incoming.hiddenTabs,
           dashboardMetrics: incoming.dashboardMetrics,

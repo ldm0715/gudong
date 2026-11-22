@@ -39,7 +39,7 @@ const List<_QuotaProviderMeta> _providers = [
   ),
 ];
 
-/// AI 额度设置：显示开关、服务顺序 / 显隐、凭据与刷新。
+/// AI - 额度设置：显示开关、服务顺序 / 显隐、凭据与刷新。
 class QuotaSettingsPage extends StatefulWidget {
   const QuotaSettingsPage({
     super.key,

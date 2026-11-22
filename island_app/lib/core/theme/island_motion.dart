@@ -29,6 +29,9 @@ abstract final class IslandMotion {
   /// 消息横幅停留时间。
   static const Duration bannerHold = Duration(seconds: 2);
 
+  /// agent 结束横幅停留时间，留出读一行回复摘要的时间。
+  static const Duration bannerHoldLong = Duration(seconds: 4);
+
   /// 复制完成等一次性反馈的保持时间。
   static const Duration feedbackHold = Duration(seconds: 1);
 

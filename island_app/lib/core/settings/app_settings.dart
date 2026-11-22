@@ -14,6 +14,9 @@ class AppSettings {
     this.showImeIndicator = true,
     this.showImeBanner = true,
     this.showScheduleIndicator = true,
+    this.enabledAgents = defaultEnabledAgents,
+    this.showAgentIndicator = true,
+    this.showAgentBanner = true,
     this.tabOrder = defaultTabOrder,
     this.hiddenTabs = const [],
     this.dashboardMetrics = defaultDashboardMetrics,
@@ -59,6 +62,15 @@ class AppSettings {
 
   static const List<String> defaultQuotaOrder = ['glm', 'deepseek', 'opencode'];
 
+  /// 默认开启检测的本地 agent。
+  static const List<String> defaultEnabledAgents = [
+    'claude',
+    'codex',
+    'dsh',
+    'pi',
+    'omp',
+  ];
+
   /// 收起态最多显示的指标数量，超出部分在解析时丢弃。
   static const int maxIslandMetrics = 2;
 
@@ -102,6 +114,9 @@ class AppSettings {
       showImeIndicator: json['showImeIndicator'] != false,
       showImeBanner: json['showImeBanner'] != false,
       showScheduleIndicator: json['showScheduleIndicator'] != false,
+      enabledAgents: _normalizeAgents(json['enabledAgents']),
+      showAgentIndicator: json['showAgentIndicator'] != false,
+      showAgentBanner: json['showAgentBanner'] != false,
       tabOrder: _normalizeOrder(json['tabOrder']),
       hiddenTabs: _normalizeHidden(json['hiddenTabs']),
       dashboardMetrics: _normalizeMetrics(
@@ -172,6 +187,15 @@ class AppSettings {
 
   /// 当天有日程时在收起态显示闹钟图标。
   final bool showScheduleIndicator;
+
+  /// 开启检测的本地 agent id。
+  final List<String> enabledAgents;
+
+  /// 运行中在收起态显示 agent 图标。
+  final bool showAgentIndicator;
+
+  /// 回合结束时弹出横幅。
+  final bool showAgentBanner;
   final List<String> tabOrder;
   final List<String> hiddenTabs;
 
@@ -285,6 +309,9 @@ class AppSettings {
     'showImeIndicator': showImeIndicator,
     'showImeBanner': showImeBanner,
     'showScheduleIndicator': showScheduleIndicator,
+    'enabledAgents': enabledAgents,
+    'showAgentIndicator': showAgentIndicator,
+    'showAgentBanner': showAgentBanner,
     'tabOrder': tabOrder,
     'hiddenTabs': hiddenTabs,
     'dashboardMetrics': dashboardMetrics,
@@ -330,6 +357,9 @@ class AppSettings {
     bool? showImeIndicator,
     bool? showImeBanner,
     bool? showScheduleIndicator,
+    List<String>? enabledAgents,
+    bool? showAgentIndicator,
+    bool? showAgentBanner,
     List<String>? tabOrder,
     List<String>? hiddenTabs,
     List<String>? dashboardMetrics,
@@ -373,6 +403,11 @@ class AppSettings {
       showImeBanner: showImeBanner ?? this.showImeBanner,
       showScheduleIndicator:
           showScheduleIndicator ?? this.showScheduleIndicator,
+      enabledAgents: enabledAgents == null
+          ? this.enabledAgents
+          : _normalizeAgents(enabledAgents),
+      showAgentIndicator: showAgentIndicator ?? this.showAgentIndicator,
+      showAgentBanner: showAgentBanner ?? this.showAgentBanner,
       tabOrder: tabOrder ?? this.tabOrder,
       hiddenTabs: hiddenTabs ?? this.hiddenTabs,
       dashboardMetrics: dashboardMetrics ?? this.dashboardMetrics,
@@ -500,6 +535,19 @@ class AppSettings {
     };
     final value = raw?.toString();
     return providers.contains(value) ? value! : 'auto';
+  }
+
+  static List<String> _normalizeAgents(Object? raw) {
+    if (raw is! List) return List<String>.of(defaultEnabledAgents);
+    final ids = <String>{};
+    for (final value in raw) {
+      final id = value.toString();
+      if (defaultEnabledAgents.contains(id)) ids.add(id);
+    }
+    return [
+      for (final id in defaultEnabledAgents)
+        if (ids.contains(id)) id,
+    ];
   }
 
   static List<String> _normalizeHidden(Object? raw) {

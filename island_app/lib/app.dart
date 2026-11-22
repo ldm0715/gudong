@@ -15,6 +15,7 @@ import 'core/settings/settings_controller.dart';
 import 'core/theme/island_colors.dart';
 import 'core/theme/island_cupertino.dart';
 import 'core/window/window_position.dart';
+import 'features/agents/agent_controller.dart';
 import 'features/dashboard/metrics_controller.dart';
 import 'features/diagnostics/diagnostics_controller.dart';
 import 'features/ime/ime_controller.dart';
@@ -49,6 +50,7 @@ class AppScope {
     required this.schedule,
     required this.anniversary,
     required this.volume,
+    required this.agents,
     required this.shelf,
     required this.settings,
     required this.settingsWindow,
@@ -70,6 +72,7 @@ class AppScope {
   final ScheduleController schedule;
   final AnniversaryController anniversary;
   final VolumeController volume;
+  final AgentController agents;
   final ShelfController shelf;
   final SettingsController settings;
   final SettingsWindowLauncher settingsWindow;
@@ -92,6 +95,7 @@ class AppScope {
     schedule.dispose();
     anniversary.dispose();
     volume.dispose();
+    agents.dispose();
     shelf.dispose();
     settings.dispose();
     await supervisor.close();
@@ -283,6 +287,7 @@ class _GuduoAppState extends State<GuduoApp> with WindowListener, TrayListener {
                 schedule: widget.scope.schedule,
                 anniversary: widget.scope.anniversary,
                 volume: widget.scope.volume,
+                agents: widget.scope.agents,
                 shelf: widget.scope.shelf,
                 settings: widget.scope.settings,
                 windowPosition: widget.scope.windowPosition,

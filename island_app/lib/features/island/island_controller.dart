@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 
 import '../../core/ipc/sidecar_supervisor.dart';
 import '../../core/theme/island_motion.dart';
+import '../agents/agent_controller.dart';
+import '../agents/agent_models.dart';
 import '../mail/mail_controller.dart';
 import '../mail/mail_models.dart';
 import '../messages/messages_controller.dart';
@@ -19,16 +21,19 @@ class IslandController extends ChangeNotifier {
     required this.mail,
     required this.schedule,
     required this.volume,
+    required this.agents,
   }) {
     supervisor.addListener(_onChanged);
     messages.addListener(_onMessagesChanged);
     mail.addListener(_onMailChanged);
     schedule.addListener(_onScheduleChanged);
     volume.addListener(_onVolumeChanged);
+    agents.addListener(_onAgentChanged);
     _lastRevision = messages.revision;
     _lastMailRevision = mail.revision;
     _lastScheduleRevision = schedule.revision;
     _lastVolumeRevision = volume.revision;
+    _lastAgentRevision = agents.revision;
   }
 
   final SidecarSupervisor supervisor;
@@ -36,6 +41,7 @@ class IslandController extends ChangeNotifier {
   final MailController mail;
   final ScheduleController schedule;
   final VolumeController volume;
+  final AgentController agents;
 
   bool _expanded = false;
   bool _pulse = false;
@@ -43,17 +49,21 @@ class IslandController extends ChangeNotifier {
   bool _mailBanner = false;
   bool _scheduleBanner = false;
   bool _volumeBanner = false;
+  bool _agentBanner = false;
   bool _handleVisible = false;
   bool _pointerInside = false;
   int _lastRevision = 0;
   int _lastMailRevision = 0;
   int _lastScheduleRevision = 0;
   int _lastVolumeRevision = 0;
+  int _lastAgentRevision = 0;
+  String? _agentBannerKey;
   Timer? _pulseTimer;
   Timer? _bannerTimer;
   Timer? _mailBannerTimer;
   Timer? _scheduleBannerTimer;
   Timer? _volumeBannerTimer;
+  Timer? _agentBannerTimer;
   Timer? _handleTimer;
   bool _disposed = false;
 
@@ -66,6 +76,8 @@ class IslandController extends ChangeNotifier {
   bool get showScheduleBanner => _scheduleBanner && schedule.bannerItem != null;
   ScheduleItem? get scheduleBannerItem => schedule.bannerItem;
   bool get showVolumeBanner => _volumeBanner;
+  bool get showAgentBanner => _agentBanner && agents.bannerItem != null;
+  AgentFinished? get agentBannerItem => agents.bannerItem;
   bool get ready => supervisor.ready;
   String get connectionDetail => supervisor.detail;
 
@@ -172,6 +184,26 @@ class IslandController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void _onAgentChanged() {
+    if (agents.revision != _lastAgentRevision) {
+      _lastAgentRevision = agents.revision;
+      final item = agents.bannerItem;
+      if (item != null && item.key != _agentBannerKey) {
+        _agentBannerKey = item.key;
+        _agentBanner = true;
+        _agentBannerTimer?.cancel();
+        _agentBannerTimer = Timer(IslandMotion.bannerHoldLong, () {
+          if (_disposed) return;
+          _agentBanner = false;
+          agents.dismissBanner();
+          notifyListeners();
+        });
+        _signalPulse();
+      }
+    }
+    notifyListeners();
+  }
+
   void _showBannerForAWhile() {
     _banner = true;
     _bannerTimer?.cancel();
@@ -200,12 +232,14 @@ class IslandController extends ChangeNotifier {
     _mailBannerTimer?.cancel();
     _scheduleBannerTimer?.cancel();
     _volumeBannerTimer?.cancel();
+    _agentBannerTimer?.cancel();
     _handleTimer?.cancel();
     supervisor.removeListener(_onChanged);
     messages.removeListener(_onMessagesChanged);
     mail.removeListener(_onMailChanged);
     schedule.removeListener(_onScheduleChanged);
     volume.removeListener(_onVolumeChanged);
+    agents.removeListener(_onAgentChanged);
     super.dispose();
   }
 }

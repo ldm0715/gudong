@@ -7,6 +7,8 @@ import '../../core/theme/island_colors.dart';
 import '../../core/theme/island_metrics.dart';
 import '../../core/theme/island_motion.dart';
 import '../../core/theme/island_typography.dart';
+import '../agents/agent_controller.dart';
+import '../agents/agent_glyph.dart';
 import '../dashboard/metrics_controller.dart';
 import '../dashboard/metrics_island_chips.dart';
 import '../ime/ime_controller.dart';
@@ -35,6 +37,8 @@ class CollapsedBar extends StatefulWidget {
     required this.schedule,
     required this.ime,
     required this.metrics,
+    required this.agents,
+    required this.showAgents,
     required this.showWeather,
     required this.showPlayingIndicator,
     required this.showImeIndicator,
@@ -50,6 +54,8 @@ class CollapsedBar extends StatefulWidget {
   final ScheduleController schedule;
   final ImeController ime;
   final MetricsController metrics;
+  final AgentController agents;
+  final bool showAgents;
   final bool showWeather;
   final bool showPlayingIndicator;
   final bool showImeIndicator;
@@ -112,6 +118,11 @@ class _CollapsedBarState extends State<CollapsedBar> {
     final mailProvider = latestAccount?.provider;
     final mailEmail = latestAccount?.email;
     final mailColor = colors.accent;
+    final runningAgents = widget.showAgents
+        ? widget.agents.runningAgentIds
+        : const <String>[];
+    final agentIcons = runningAgents.take(2).toList(growable: false);
+    final extraAgents = runningAgents.length - agentIcons.length;
     final size = IslandLayout.collapsedBarSize(
       vertical: widget.vertical,
       imeIndicator: widget.showImeIndicator,
@@ -159,6 +170,20 @@ class _CollapsedBarState extends State<CollapsedBar> {
                       controller: widget.metrics,
                       metricIds: widget.islandMetrics,
                     ),
+                  ],
+                  if (agentIcons.isNotEmpty) ...[
+                    const SizedBox(width: IslandMetrics.space6),
+                    for (var index = 0; index < agentIcons.length; index++) ...[
+                      if (index > 0) const SizedBox(width: IslandMetrics.space3),
+                      AgentGlyph(id: agentIcons[index], size: 18),
+                    ],
+                    if (extraAgents > 0) ...[
+                      const SizedBox(width: IslandMetrics.space2),
+                      Text(
+                        '+$extraAgents',
+                        style: IslandTypography.micro.tint(colors.muted),
+                      ),
+                    ],
                   ],
                   if (showIme) ...[
                     const SizedBox(width: IslandMetrics.space6),
@@ -208,6 +233,11 @@ class _CollapsedBarState extends State<CollapsedBar> {
     // 窄栏放不下 "HH:MM"，拆成小时在上、分钟在下。
     final parts = time.split(':');
     final clock = parts.length == 2 ? '${parts[0]}\n${parts[1]}' : time;
+    final runningAgents = widget.showAgents
+        ? widget.agents.runningAgentIds
+        : const <String>[];
+    final agentIcons = runningAgents.take(2).toList(growable: false);
+    final extraAgents = runningAgents.length - agentIcons.length;
     return SizedBox(
       width: size.width,
       height: size.height,
@@ -249,6 +279,23 @@ class _CollapsedBarState extends State<CollapsedBar> {
                       metricIds: widget.islandMetrics,
                       vertical: true,
                     ),
+                  ],
+                  if (agentIcons.isNotEmpty) ...[
+                    const SizedBox(height: IslandMetrics.space4),
+                    for (var index = 0; index < agentIcons.length; index++) ...[
+                      if (index > 0) const SizedBox(height: IslandMetrics.space3),
+                      AgentGlyph(
+                        id: agentIcons[index],
+                        size: IslandMetrics.iconSM,
+                      ),
+                    ],
+                    if (extraAgents > 0) ...[
+                      const SizedBox(height: IslandMetrics.space2),
+                      Text(
+                        '+$extraAgents',
+                        style: IslandTypography.micro.tint(colors.muted),
+                      ),
+                    ],
                   ],
                   if (showIme) ...[
                     const SizedBox(height: IslandMetrics.space6),
