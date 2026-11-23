@@ -80,7 +80,7 @@
 | `showScheduleIndicator` | bool | 当天有日程时在收起态显示闹钟图标，默认 `true` |
 | `tabOrder` | string[] | 岛体 tab 顺序：`messages` / `mail` / `translate` / `weather` / `media` / `quota` / `dashboard` / `schedule` / `diagnostics` |
 | `hiddenTabs` | string[] | 隐藏的 tab；允许全部隐藏，此时岛体只显示标题栏与设置入口 |
-| `dashboardMetrics` | string[] | 仪表盘显示的指标：`upload` / `download` / `network` / `cpu` / `memory` / `gpu` / `gpuMemory` / `cpuFrequency` / `totalTraffic`；缺省为全部 |
+| `dashboardMetrics` | string[] | 仪表盘显示的指标：`upload` / `download` / `network` / `cpu` / `memory` / `gpu0` / `gpu0Memory` / `gpu1` / `gpu1Memory` / `cpuFrequency` / `totalTraffic`；`gpu0`、`gpu1` 分别对应第一、二块显卡，`gpuNMemory` 为其显存占用；缺省为全部 |
 | `islandMetrics` | string[] | 收起态显示的指标，取值同上；缺省为空，最多 2 个，多余项忽略 |
 | `translateProvider` | string | 翻译引擎：`auto`（默认）/ `llm` / `deepl` / `caiyun` / `microsoftFree` / `mymemory` |
 | `translateBaseUrl` | string | OpenAI 兼容服务的 base URL，默认 `https://api.openai.com/v1` |
@@ -427,10 +427,28 @@
   "memoryTotalBytes": 17179869184,
   "cpuMhz": 3200,
   "cpuMaxMhz": 4800,
-  "gpuPercent": 42.0,
-  "gpuMemoryPercent": 33.0,
-  "gpuMemoryUsedBytes": 4294967296,
-  "gpuMemoryTotalBytes": 12884901888,
+  "gpuPercent": 45.0,
+  "gpuMemoryPercent": 35.9,
+  "gpuMemoryUsedBytes": 1481199616,
+  "gpuMemoryTotalBytes": 4646871040,
+  "gpus": [
+    {
+      "id": "gpu0",
+      "name": "NVIDIA GeForce GTX 1650 Ti",
+      "utilizationPercent": 42.0,
+      "memoryUsedBytes": 1480925184,
+      "memoryTotalBytes": 4126146560,
+      "memoryPercent": 35.9
+    },
+    {
+      "id": "gpu1",
+      "name": "AMD Radeon(TM) Graphics",
+      "utilizationPercent": 3.0,
+      "memoryUsedBytes": 274432,
+      "memoryTotalBytes": 520724480,
+      "memoryPercent": 0.1
+    }
+  ],
   "totalUploadBytes": 812345678,
   "totalDownloadBytes": 9123456789,
   "updatedAtMs": 1794997775244
@@ -438,10 +456,11 @@
 ```
 
 - `uploadBps` / `downloadBps` 为 1 秒窗口内的平均字节速率；`cpuPercent` / `memoryPercent` / `gpuPercent` / `gpuMemoryPercent` 为 0–100。
-- `cpuMhz` / `cpuMaxMhz` 为各逻辑核心当前与最大主频的平均值；取不到时为 `0`。
-- `gpuPercent` 为所有 GPU 引擎利用率之和，多引擎叠加后截断到 100。
-- `gpuMemoryUsedBytes` / `gpuMemoryTotalBytes` 为所有适配器的专用显存已用与总量；总量取不到时为 `0`，此时 `gpuMemoryPercent` 也为 `0`。
-- GPU 数据来自 PDH 性能计数器与 DXGI；驱动或系统不支持时相关字段为 `0`，不影响其余指标。
+- `cpuMhz` / `cpuMaxMhz` 为所有逻辑核心的实时平均主频与运行期观察到的峰值；`cpuMhz` 由 `% Processor Performance` × 基础频率计算，能反映睿频。取不到时为 `0`。
+- `gpus` 按 DXGI 枚举顺序排列，跳过软件适配器和没有专用显存的虚拟显示驱动；同一块显卡的重复条目按厂商与设备 ID 合并。
+- 单块显卡的 `utilizationPercent` 为该显卡所有引擎利用率之和，叠加后截断到 100；显存为专用显存（Dedicated）的已用与总量。
+- `gpuPercent` / `gpuMemoryUsedBytes` / `gpuMemoryTotalBytes` 是 `gpus` 的聚合值，仅用于向后兼容；客户端应优先按 `gpus` 分别展示。
+- GPU 数据来自 PDH 性能计数器与 DXGI；驱动或系统不支持时 `gpus` 为空，聚合字段为 `0`。
 - `totalUploadBytes` / `totalDownloadBytes` 是 sidecar 启动以来的累计收发字节，不跨会话累加。
 - 采样在 sidecar 内以 1Hz 运行，`metrics.updated` 固定推送；客户端可本地插值刷新界面。
 - 网络只统计处于 Up 状态的硬件网卡，虚拟网桥与回环接口不计入，避免重复计数。

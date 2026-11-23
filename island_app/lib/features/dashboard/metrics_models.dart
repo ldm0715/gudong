@@ -2,6 +2,36 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/island_colors.dart';
 
+/// 单块显卡的实时指标。
+class GpuSnapshot {
+  const GpuSnapshot({
+    required this.id,
+    required this.name,
+    required this.utilizationPercent,
+    required this.memoryUsedBytes,
+    required this.memoryTotalBytes,
+    required this.memoryPercent,
+  });
+
+  factory GpuSnapshot.fromJson(Map<String, dynamic> json) {
+    return GpuSnapshot(
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      utilizationPercent: _double(json['utilizationPercent']),
+      memoryUsedBytes: _int(json['memoryUsedBytes']),
+      memoryTotalBytes: _int(json['memoryTotalBytes']),
+      memoryPercent: _double(json['memoryPercent']),
+    );
+  }
+
+  final String id;
+  final String name;
+  final double utilizationPercent;
+  final int memoryUsedBytes;
+  final int memoryTotalBytes;
+  final double memoryPercent;
+}
+
 /// sidecar 每秒推送一帧的系统指标快照。
 class MetricsSnapshot {
   const MetricsSnapshot({
@@ -13,16 +43,22 @@ class MetricsSnapshot {
     required this.memoryTotalBytes,
     required this.cpuMhz,
     required this.cpuMaxMhz,
-    required this.gpuPercent,
-    required this.gpuMemoryPercent,
-    required this.gpuMemoryUsedBytes,
-    required this.gpuMemoryTotalBytes,
+    required this.gpus,
     required this.totalUploadBytes,
     required this.totalDownloadBytes,
     required this.updatedAtMs,
   });
 
   factory MetricsSnapshot.fromJson(Map<String, dynamic> json) {
+    final gpus = <GpuSnapshot>[];
+    final raw = json['gpus'];
+    if (raw is List) {
+      for (final item in raw) {
+        if (item is Map<String, dynamic>) {
+          gpus.add(GpuSnapshot.fromJson(item));
+        }
+      }
+    }
     return MetricsSnapshot(
       uploadBps: _double(json['uploadBps']),
       downloadBps: _double(json['downloadBps']),
@@ -32,10 +68,7 @@ class MetricsSnapshot {
       memoryTotalBytes: _int(json['memoryTotalBytes']),
       cpuMhz: _int(json['cpuMhz']),
       cpuMaxMhz: _int(json['cpuMaxMhz']),
-      gpuPercent: _double(json['gpuPercent']),
-      gpuMemoryPercent: _double(json['gpuMemoryPercent']),
-      gpuMemoryUsedBytes: _int(json['gpuMemoryUsedBytes']),
-      gpuMemoryTotalBytes: _int(json['gpuMemoryTotalBytes']),
+      gpus: gpus,
       totalUploadBytes: _int(json['totalUploadBytes']),
       totalDownloadBytes: _int(json['totalDownloadBytes']),
       updatedAtMs: _int(json['updatedAtMs']),
@@ -50,10 +83,7 @@ class MetricsSnapshot {
   final int memoryTotalBytes;
   final int cpuMhz;
   final int cpuMaxMhz;
-  final double gpuPercent;
-  final double gpuMemoryPercent;
-  final int gpuMemoryUsedBytes;
-  final int gpuMemoryTotalBytes;
+  final List<GpuSnapshot> gpus;
   final int totalUploadBytes;
   final int totalDownloadBytes;
   final int updatedAtMs;
@@ -64,17 +94,7 @@ class MetricsSnapshot {
 }
 
 /// 仪表盘可显示的指标。id 同时用于 `dashboardMetrics` / `islandMetrics`。
-enum DashboardMetric {
-  upload('upload', '上传', '实时上传速率', Icons.upload_rounded),
-  download('download', '下载', '实时下载速率', Icons.download_rounded),
-  network('network', '总网速', '上传与下载速率之和', Icons.swap_vert_rounded),
-  cpu('cpu', 'CPU 利用率', '系统总 CPU 占用率', Icons.speed_rounded),
-  memory('memory', '内存利用率', '物理内存占用率', Icons.developer_board_rounded),
-  gpu('gpu', 'GPU 利用率', '显卡整体使用率', Icons.hardware_rounded),
-  gpuMemory('gpuMemory', '显存占用', '独立显存使用率', Icons.memory_rounded),
-  cpuFrequency('cpuFrequency', 'CPU 频率', '当前平均主频', Icons.timer_rounded),
-  totalTraffic('totalTraffic', '总流量', '本次运行累计收发字节', Icons.data_usage_rounded);
-
+class DashboardMetric {
   const DashboardMetric(this.id, this.label, this.hint, this.icon);
 
   final String id;
@@ -82,93 +102,219 @@ enum DashboardMetric {
   final String hint;
   final IconData icon;
 
+  static const upload = DashboardMetric(
+    'upload',
+    '上传',
+    '实时上传速率',
+    Icons.upload_rounded,
+  );
+  static const download = DashboardMetric(
+    'download',
+    '下载',
+    '实时下载速率',
+    Icons.download_rounded,
+  );
+  static const network = DashboardMetric(
+    'network',
+    '总网速',
+    '上传与下载速率之和',
+    Icons.swap_vert_rounded,
+  );
+  static const cpu = DashboardMetric(
+    'cpu',
+    'CPU 利用率',
+    '系统总 CPU 占用率',
+    Icons.speed_rounded,
+  );
+  static const memory = DashboardMetric(
+    'memory',
+    '内存利用率',
+    '物理内存占用率',
+    Icons.developer_board_rounded,
+  );
+  static const gpu0 = DashboardMetric(
+    'gpu0',
+    'GPU1 利用率',
+    '第一块显卡使用率',
+    Icons.hardware_rounded,
+  );
+  static const gpu0Memory = DashboardMetric(
+    'gpu0Memory',
+    'GPU1 显存',
+    '第一块显卡显存占用',
+    Icons.memory_rounded,
+  );
+  static const gpu1 = DashboardMetric(
+    'gpu1',
+    'GPU2 利用率',
+    '第二块显卡使用率',
+    Icons.hardware_rounded,
+  );
+  static const gpu1Memory = DashboardMetric(
+    'gpu1Memory',
+    'GPU2 显存',
+    '第二块显卡显存占用',
+    Icons.memory_rounded,
+  );
+  static const cpuFrequency = DashboardMetric(
+    'cpuFrequency',
+    'CPU 频率',
+    '当前平均主频',
+    Icons.timer_rounded,
+  );
+  static const totalTraffic = DashboardMetric(
+    'totalTraffic',
+    '总流量',
+    '本次运行累计收发字节',
+    Icons.data_usage_rounded,
+  );
+
+  /// 设置页与排序使用的固定顺序。
+  static const List<DashboardMetric> all = [
+    upload,
+    download,
+    network,
+    cpu,
+    memory,
+    gpu0,
+    gpu0Memory,
+    gpu1,
+    gpu1Memory,
+    cpuFrequency,
+    totalTraffic,
+  ];
+
   static DashboardMetric? byId(String id) {
-    for (final metric in values) {
+    for (final metric in all) {
       if (metric.id == id) return metric;
     }
     return null;
   }
 
+  static final RegExp _gpuPattern = RegExp(r'^gpu(\d+)(Memory)?$');
+
+  /// GPU 指标返回显卡序号，其他指标返回 null。
+  int? get gpuIndex {
+    final match = _gpuPattern.firstMatch(id);
+    if (match == null) return null;
+    return int.tryParse(match.group(1)!);
+  }
+
+  bool get isGpuMemory => id.endsWith('Memory');
+
+  GpuSnapshot? _gpu(MetricsSnapshot? snapshot) {
+    final index = gpuIndex;
+    if (snapshot == null || index == null || index >= snapshot.gpus.length) {
+      return null;
+    }
+    return snapshot.gpus[index];
+  }
+
   /// 仪表盘卡片使用的主数值。
   String value(MetricsSnapshot? snapshot) {
     if (snapshot == null) return '—';
-    return switch (this) {
-      upload => formatRate(snapshot.uploadBps),
-      download => formatRate(snapshot.downloadBps),
-      network => formatRate(snapshot.totalBps),
-      cpu => formatPercent(snapshot.cpuPercent),
-      memory => formatPercent(snapshot.memoryPercent),
-      gpu => formatPercent(snapshot.gpuPercent),
-      gpuMemory => snapshot.gpuMemoryTotalBytes > 0
-          ? formatPercent(snapshot.gpuMemoryPercent)
-          : '—',
-      cpuFrequency => formatFrequency(snapshot.cpuMhz.toDouble()),
-      totalTraffic => formatTraffic(snapshot.totalTrafficBytes.toDouble()),
+    if (gpuIndex != null) {
+      final gpu = _gpu(snapshot);
+      if (gpu == null) return '—';
+      if (isGpuMemory) {
+        return gpu.memoryTotalBytes > 0
+            ? formatPercent(gpu.memoryPercent)
+            : '—';
+      }
+      return formatPercent(gpu.utilizationPercent);
+    }
+    return switch (id) {
+      'upload' => formatRate(snapshot.uploadBps),
+      'download' => formatRate(snapshot.downloadBps),
+      'network' => formatRate(snapshot.totalBps),
+      'cpu' => formatPercent(snapshot.cpuPercent),
+      'memory' => formatPercent(snapshot.memoryPercent),
+      'cpuFrequency' => formatFrequency(snapshot.cpuMhz.toDouble()),
+      'totalTraffic' => formatTraffic(snapshot.totalTrafficBytes.toDouble()),
+      _ => '—',
     };
   }
 
   /// 收起态使用的最短形式。
   String compactValue(MetricsSnapshot? snapshot) {
     if (snapshot == null) return '—';
-    return switch (this) {
-      upload => formatRate(snapshot.uploadBps, compact: true),
-      download => formatRate(snapshot.downloadBps, compact: true),
-      network => formatRate(snapshot.totalBps, compact: true),
-      cpu => formatPercent(snapshot.cpuPercent),
-      memory => formatPercent(snapshot.memoryPercent),
-      gpu => formatPercent(snapshot.gpuPercent),
-      gpuMemory => snapshot.gpuMemoryTotalBytes > 0
-          ? formatPercent(snapshot.gpuMemoryPercent)
-          : '—',
-      cpuFrequency => formatFrequency(
+    if (gpuIndex != null) {
+      final gpu = _gpu(snapshot);
+      if (gpu == null) return '—';
+      if (isGpuMemory) {
+        return gpu.memoryTotalBytes > 0
+            ? formatPercent(gpu.memoryPercent)
+            : '—';
+      }
+      return formatPercent(gpu.utilizationPercent);
+    }
+    return switch (id) {
+      'upload' => formatRate(snapshot.uploadBps, compact: true),
+      'download' => formatRate(snapshot.downloadBps, compact: true),
+      'network' => formatRate(snapshot.totalBps, compact: true),
+      'cpu' => formatPercent(snapshot.cpuPercent),
+      'memory' => formatPercent(snapshot.memoryPercent),
+      'cpuFrequency' => formatFrequency(
         snapshot.cpuMhz.toDouble(),
         compact: true,
       ),
-      totalTraffic => formatTraffic(
+      'totalTraffic' => formatTraffic(
         snapshot.totalTrafficBytes.toDouble(),
         compact: true,
       ),
+      _ => '—',
     };
   }
 
   /// 卡片与提示里的补充说明。
   String detail(MetricsSnapshot? snapshot) {
     if (snapshot == null) return '正在采样';
-    return switch (this) {
-      upload || download || network =>
+    if (gpuIndex != null) {
+      final gpu = _gpu(snapshot);
+      if (gpu == null) return '未检测到这块显卡';
+      if (isGpuMemory) {
+        return gpu.memoryTotalBytes > 0
+            ? '${formatTraffic(gpu.memoryUsedBytes.toDouble())}'
+                  ' / ${formatTraffic(gpu.memoryTotalBytes.toDouble())}'
+            : '未检测到显存';
+      }
+      return '${gpu.name} · 1 秒刷新';
+    }
+    return switch (id) {
+      'upload' || 'download' || 'network' =>
         '↑ ${formatTraffic(snapshot.totalUploadBytes.toDouble())}'
             ' · ↓ ${formatTraffic(snapshot.totalDownloadBytes.toDouble())}',
-      cpu => '${formatPercent(snapshot.cpuPercent)} · 1 秒刷新',
-      memory =>
+      'cpu' => '${formatPercent(snapshot.cpuPercent)} · 1 秒刷新',
+      'memory' =>
         '${formatTraffic(snapshot.memoryUsedBytes.toDouble())}'
             ' / ${formatTraffic(snapshot.memoryTotalBytes.toDouble())}',
-      gpu => '${formatPercent(snapshot.gpuPercent)} · 1 秒刷新',
-      gpuMemory => snapshot.gpuMemoryTotalBytes > 0
-          ? '${formatTraffic(snapshot.gpuMemoryUsedBytes.toDouble())}'
-                ' / ${formatTraffic(snapshot.gpuMemoryTotalBytes.toDouble())}'
-          : '未检测到显存',
-      cpuFrequency =>
+      'cpuFrequency' =>
         snapshot.cpuMaxMhz > 0
-            ? '最大 ${formatFrequency(snapshot.cpuMaxMhz.toDouble())}'
+            ? '峰值 ${formatFrequency(snapshot.cpuMaxMhz.toDouble())}'
             : hint,
-      totalTraffic =>
+      'totalTraffic' =>
         '↑ ${formatTraffic(snapshot.totalUploadBytes.toDouble())}'
             ' · ↓ ${formatTraffic(snapshot.totalDownloadBytes.toDouble())}',
+      _ => hint,
     };
   }
 
   Color tone(IslandColors colors, MetricsSnapshot? snapshot) {
     if (snapshot == null) return colors.muted;
-    return switch (this) {
-      cpu => snapshot.cpuPercent >= 85 ? colors.warning : colors.accent,
-      memory => snapshot.memoryPercent >= 85 ? colors.warning : colors.accent,
-      gpu => snapshot.gpuPercent >= 85 ? colors.warning : colors.accent,
-      gpuMemory =>
-        snapshot.gpuMemoryPercent >= 85 ? colors.warning : colors.accent,
-      download => colors.qq,
-      upload || network => colors.accent,
-      cpuFrequency => colors.text,
-      totalTraffic => colors.muted,
+    if (gpuIndex != null) {
+      final gpu = _gpu(snapshot);
+      if (gpu == null) return colors.muted;
+      final percent = isGpuMemory ? gpu.memoryPercent : gpu.utilizationPercent;
+      return percent >= 85 ? colors.warning : colors.accent;
+    }
+    return switch (id) {
+      'cpu' => snapshot.cpuPercent >= 85 ? colors.warning : colors.accent,
+      'memory' => snapshot.memoryPercent >= 85 ? colors.warning : colors.accent,
+      'download' => colors.qq,
+      'upload' || 'network' => colors.accent,
+      'cpuFrequency' => colors.text,
+      'totalTraffic' => colors.muted,
+      _ => colors.muted,
     };
   }
 }

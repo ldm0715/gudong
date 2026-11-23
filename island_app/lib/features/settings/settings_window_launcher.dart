@@ -7,6 +7,7 @@ import '../../core/log.dart';
 import '../../core/settings/app_settings.dart';
 import '../../core/settings/settings_controller.dart';
 import '../agents/agent_bridge.dart';
+import '../dashboard/metrics_controller.dart';
 import '../mail/mail_bridge.dart';
 import '../quota/quota_bridge.dart';
 import '../translate/translate_bridge.dart';
@@ -15,11 +16,12 @@ import 'settings_window_args.dart';
 
 /// 主窗口侧：打开 / 复用独立设置窗口，并接收设置窗口的保存请求。
 class SettingsWindowLauncher {
-  SettingsWindowLauncher(this.settings) {
+  SettingsWindowLauncher(this.settings, this.metrics) {
     unawaited(_register());
   }
 
   final SettingsController settings;
+  final MetricsController metrics;
   static const _channel = WindowMethodChannel(
     'gudong.settings',
     mode: ChannelMode.unidirectional,
@@ -300,7 +302,10 @@ class SettingsWindowLauncher {
         WindowConfiguration(
           hiddenAtLaunch: true,
           arguments: SettingsWindowArguments(
-            settings: settings.settings,
+            // 设置窗口没有 sidecar 连接，显卡名称随启动参数一起传过去。
+            settings: settings.settings.copyWith(
+              gpuNames: metrics.gpuNames,
+            ),
           ).encode(),
         ),
       );

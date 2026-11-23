@@ -89,7 +89,7 @@ Future<void> main(List<String> args) async {
   final shelf = ShelfController(supervisor);
   final agents = AgentController(supervisor);
   final settings = SettingsController(supervisor);
-  final settingsLauncher = SettingsWindowLauncher(settings);
+  final settingsLauncher = SettingsWindowLauncher(settings, metrics);
   final island = IslandController(
     supervisor: supervisor,
     messages: messages,

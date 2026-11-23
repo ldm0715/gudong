@@ -21,6 +21,11 @@ class MetricsController extends ChangeNotifier {
   /// 最近一帧；首次采样完成前为 `null`。
   MetricsSnapshot? get snapshot => _snapshot;
 
+  /// 按 GPU0 / GPU1 顺序排列的显卡名称，设置窗口用它显示具体型号。
+  List<String> get gpuNames =>
+      _snapshot?.gpus.map((gpu) => gpu.name).toList(growable: false) ??
+      const [];
+
   void _onSupervisorChanged() {
     if (!supervisor.ready) {
       _loaded = false;

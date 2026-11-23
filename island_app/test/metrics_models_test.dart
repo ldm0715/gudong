@@ -11,10 +11,24 @@ void main() {
     memoryTotalBytes: 17179869184,
     cpuMhz: 3200,
     cpuMaxMhz: 4800,
-    gpuPercent: 42,
-    gpuMemoryPercent: 33,
-    gpuMemoryUsedBytes: 4 * 1024 * 1024 * 1024,
-    gpuMemoryTotalBytes: 12 * 1024 * 1024 * 1024,
+    gpus: [
+      GpuSnapshot(
+        id: 'gpu0',
+        name: 'Test GPU 0',
+        utilizationPercent: 42,
+        memoryUsedBytes: 4 * 1024 * 1024 * 1024,
+        memoryTotalBytes: 12 * 1024 * 1024 * 1024,
+        memoryPercent: 33,
+      ),
+      GpuSnapshot(
+        id: 'gpu1',
+        name: 'Test GPU 1',
+        utilizationPercent: 8,
+        memoryUsedBytes: 100 * 1024 * 1024,
+        memoryTotalBytes: 512 * 1024 * 1024,
+        memoryPercent: 19.5,
+      ),
+    ],
     totalUploadBytes: 1024 * 1024,
     totalDownloadBytes: 1024 * 1024 * 1024,
     updatedAtMs: 1794997775244,
@@ -30,10 +44,16 @@ void main() {
       'memoryTotalBytes': 16000,
       'cpuMhz': 3200,
       'cpuMaxMhz': 4800,
-      'gpuPercent': 42.0,
-      'gpuMemoryPercent': 33.0,
-      'gpuMemoryUsedBytes': 4000,
-      'gpuMemoryTotalBytes': 12000,
+      'gpus': [
+        {
+          'id': 'gpu0',
+          'name': 'Test GPU',
+          'utilizationPercent': 42.0,
+          'memoryUsedBytes': 4000,
+          'memoryTotalBytes': 12000,
+          'memoryPercent': 33.0,
+        },
+      ],
       'totalUploadBytes': 100,
       'totalDownloadBytes': 200,
       'updatedAtMs': 1,
@@ -41,8 +61,9 @@ void main() {
     expect(parsed.totalBps, 4.0);
     expect(parsed.totalTrafficBytes, 300);
     expect(parsed.memoryUsedBytes, 8000);
-    expect(parsed.gpuPercent, 42.0);
-    expect(parsed.gpuMemoryTotalBytes, 12000);
+    expect(parsed.gpus.single.name, 'Test GPU');
+    expect(parsed.gpus.single.utilizationPercent, 42.0);
+    expect(parsed.gpus.single.memoryTotalBytes, 12000);
   });
 
   test('formats rates with binary units', () {
@@ -62,16 +83,50 @@ void main() {
 
   test('maps metric ids to display values', () {
     expect(DashboardMetric.byId('cpu'), DashboardMetric.cpu);
+    expect(DashboardMetric.byId('gpu0'), DashboardMetric.gpu0);
+    expect(DashboardMetric.byId('gpu1Memory'), DashboardMetric.gpu1Memory);
+    expect(DashboardMetric.byId('gpu'), isNull);
     expect(DashboardMetric.byId('missing'), isNull);
     expect(DashboardMetric.upload.value(snapshot), '125 KB/s');
     expect(DashboardMetric.download.value(snapshot), '1.5 MB/s');
     expect(DashboardMetric.cpu.value(snapshot), '23%');
     expect(DashboardMetric.memory.value(snapshot), '61%');
-    expect(DashboardMetric.gpu.value(snapshot), '42%');
-    expect(DashboardMetric.gpuMemory.value(snapshot), '33%');
+    expect(DashboardMetric.gpu0.value(snapshot), '42%');
+    expect(DashboardMetric.gpu0Memory.value(snapshot), '33%');
+    expect(DashboardMetric.gpu1.value(snapshot), '8%');
+    expect(DashboardMetric.gpu1Memory.value(snapshot), '20%');
     expect(DashboardMetric.cpuFrequency.value(snapshot), '3.20 GHz');
     expect(DashboardMetric.totalTraffic.value(snapshot), '1 GB');
     expect(DashboardMetric.cpu.value(null), '—');
+  });
+
+  test('shows a dash for a missing GPU', () {
+    final single = MetricsSnapshot(
+      uploadBps: 0,
+      downloadBps: 0,
+      cpuPercent: 0,
+      memoryPercent: 0,
+      memoryUsedBytes: 0,
+      memoryTotalBytes: 0,
+      cpuMhz: 0,
+      cpuMaxMhz: 0,
+      gpus: const [
+        GpuSnapshot(
+          id: 'gpu0',
+          name: 'Only GPU',
+          utilizationPercent: 10,
+          memoryUsedBytes: 100,
+          memoryTotalBytes: 1000,
+          memoryPercent: 10,
+        ),
+      ],
+      totalUploadBytes: 0,
+      totalDownloadBytes: 0,
+      updatedAtMs: 1,
+    );
+    expect(DashboardMetric.gpu1.value(single), '—');
+    expect(DashboardMetric.gpu1Memory.value(single), '—');
+    expect(DashboardMetric.gpu1.detail(single), '未检测到这块显卡');
   });
 
   test('hides GPU memory when the total is unknown', () {
@@ -84,16 +139,22 @@ void main() {
       memoryTotalBytes: 0,
       cpuMhz: 0,
       cpuMaxMhz: 0,
-      gpuPercent: 0,
-      gpuMemoryPercent: 0,
-      gpuMemoryUsedBytes: 0,
-      gpuMemoryTotalBytes: 0,
+      gpus: [
+        GpuSnapshot(
+          id: 'gpu0',
+          name: '',
+          utilizationPercent: 0,
+          memoryUsedBytes: 0,
+          memoryTotalBytes: 0,
+          memoryPercent: 0,
+        ),
+      ],
       totalUploadBytes: 0,
       totalDownloadBytes: 0,
       updatedAtMs: 1,
     );
-    expect(DashboardMetric.gpuMemory.value(unknown), '—');
-    expect(DashboardMetric.gpuMemory.compactValue(unknown), '—');
-    expect(DashboardMetric.gpuMemory.detail(unknown), '未检测到显存');
+    expect(DashboardMetric.gpu0Memory.value(unknown), '—');
+    expect(DashboardMetric.gpu0Memory.compactValue(unknown), '—');
+    expect(DashboardMetric.gpu0Memory.detail(unknown), '未检测到显存');
   });
 }

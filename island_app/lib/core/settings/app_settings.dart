@@ -23,6 +23,7 @@ class AppSettings {
     this.hiddenTabs = const [],
     this.dashboardMetrics = defaultDashboardMetrics,
     this.islandMetrics = const [],
+    this.gpuNames = const [],
     this.dockSide = 'top',
     this.dockOffset,
     this.translateProvider = 'auto',
@@ -88,14 +89,30 @@ class AppSettings {
   /// 收起态最多显示的指标数量，超出部分在解析时丢弃。
   static const int maxIslandMetrics = 2;
 
+  /// 仪表盘可选的指标 id，顺序与 `DashboardMetric.all` 一致。
+  static const List<String> allDashboardMetrics = [
+    'upload',
+    'download',
+    'network',
+    'cpu',
+    'memory',
+    'gpu0',
+    'gpu0Memory',
+    'gpu1',
+    'gpu1Memory',
+    'cpuFrequency',
+    'totalTraffic',
+  ];
+
+  /// 默认开启的指标。第二块显卡需要用户自行开启。
   static const List<String> defaultDashboardMetrics = [
     'upload',
     'download',
     'network',
     'cpu',
     'memory',
-    'gpu',
-    'gpuMemory',
+    'gpu0',
+    'gpu0Memory',
     'cpuFrequency',
     'totalTraffic',
   ];
@@ -146,6 +163,7 @@ class AppSettings {
         allByDefault: false,
         maxCount: maxIslandMetrics,
       ),
+      gpuNames: _normalizeGpuNames(json['gpuNames']),
       dockSide: _normalizeDockSide(json['dockSide']),
       dockOffset: (json['dockOffset'] as num?)?.toDouble(),
       translateProvider: _normalizeTranslateProvider(json['translateProvider']),
@@ -238,6 +256,9 @@ class AppSettings {
 
   /// 收起态显示的指标 id。
   final List<String> islandMetrics;
+
+  /// 只读派生状态：按 GPU0 / GPU1 顺序排列的显卡名称，来自主进程。
+  final List<String> gpuNames;
 
   /// 停靠边缘：`top` / `left` / `right`。
   final String dockSide;
@@ -404,6 +425,7 @@ class AppSettings {
     'shelfMaxItems': shelfMaxItems,
     'shelfViewMode': shelfViewMode,
     if (includeRuntime) ...{
+      'gpuNames': gpuNames,
       'translateLlmKeyConfigured': translateLlmKeyConfigured,
       'translateDeeplKeyConfigured': translateDeeplKeyConfigured,
       'translateCaiyunKeyConfigured': translateCaiyunKeyConfigured,
@@ -438,6 +460,7 @@ class AppSettings {
     List<String>? hiddenTabs,
     List<String>? dashboardMetrics,
     List<String>? islandMetrics,
+    List<String>? gpuNames,
     String? dockSide,
     double? dockOffset,
     String? translateProvider,
@@ -500,6 +523,7 @@ class AppSettings {
               allByDefault: false,
               maxCount: maxIslandMetrics,
             ),
+      gpuNames: gpuNames ?? this.gpuNames,
       dockSide: dockSide ?? this.dockSide,
       dockOffset: dockOffset ?? this.dockOffset,
       translateProvider: translateProvider ?? this.translateProvider,
@@ -556,13 +580,30 @@ class AppSettings {
     if (raw is! List) {
       return allByDefault ? List<String>.of(defaultDashboardMetrics) : const [];
     }
-    final ids = raw.map((value) => value.toString()).toSet();
+    final ids = raw
+        .map((value) => _migrateMetricId(value.toString()))
+        .toSet();
     final metrics = [
-      for (final id in defaultDashboardMetrics)
+      for (final id in allDashboardMetrics)
         if (ids.contains(id)) id,
     ];
     if (maxCount == null || metrics.length <= maxCount) return metrics;
     return metrics.take(maxCount).toList(growable: false);
+  }
+
+  /// 旧版本把 GPU 指标存成聚合项，读取时迁移到第一块显卡。
+  static String _migrateMetricId(String id) => switch (id) {
+    'gpu' => 'gpu0',
+    'gpuMemory' => 'gpu0Memory',
+    _ => id,
+  };
+
+  static List<String> _normalizeGpuNames(Object? raw) {
+    if (raw is! List) return const [];
+    return [
+      for (final value in raw.take(4))
+        if (value.toString().trim().isNotEmpty) value.toString().trim(),
+    ];
   }
 
   static List<String> _normalizeOrder(Object? raw) {

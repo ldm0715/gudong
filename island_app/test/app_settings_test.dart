@@ -54,8 +54,8 @@ void main() {
         'network',
         'cpu',
         'memory',
-        'gpu',
-        'gpuMemory',
+        'gpu0',
+        'gpu0Memory',
         'cpuFrequency',
         'totalTraffic',
       ],
@@ -178,6 +178,13 @@ void main() {
     });
     expect(settings.dashboardMetrics, ['upload', 'cpu']);
     expect(settings.islandMetrics, ['download', 'memory']);
+  });
+
+  test('migrates legacy aggregate GPU metrics', () {
+    final settings = AppSettings.fromJson(const {
+      'dashboardMetrics': ['gpu', 'gpuMemory', 'cpu'],
+    });
+    expect(settings.dashboardMetrics, ['cpu', 'gpu0', 'gpu0Memory']);
   });
 
   test('limits island metrics to two', () {

@@ -28,9 +28,31 @@ class DashboardSettingsPage extends StatelessWidget {
       ids.remove(metric.id);
     }
     return [
-      for (final item in DashboardMetric.values)
+      for (final item in DashboardMetric.all)
         if (ids.contains(item.id)) item.id,
     ];
+  }
+
+  /// GPU 指标显示具体显卡型号；其他指标沿用说明文案。
+  String _gpuName(DashboardMetric metric) {
+    final index = metric.gpuIndex;
+    if (index == null || index >= settings.gpuNames.length) return '';
+    return settings.gpuNames[index];
+  }
+
+  String _dashboardSubtitle(DashboardMetric metric) {
+    final name = _gpuName(metric);
+    return name.isEmpty ? metric.hint : name;
+  }
+
+  String _islandSubtitle(DashboardMetric metric, bool islandFull) {
+    final status = settings.islandMetrics.contains(metric.id)
+        ? '收起态显示'
+        : islandFull
+        ? '最多显示 ${AppSettings.maxIslandMetrics} 个'
+        : '收起态显示';
+    final name = _gpuName(metric);
+    return name.isEmpty ? status : '$name · $status';
   }
 
   @override
@@ -46,26 +68,26 @@ class DashboardSettingsPage extends StatelessWidget {
           children: [
             for (
               var index = 0;
-              index < DashboardMetric.values.length;
+              index < DashboardMetric.all.length;
               index++
             ) ...[
               if (index > 0) const SettingsDivider(),
               SettingsSwitchRow(
-                title: DashboardMetric.values[index].label,
-                subtitle: DashboardMetric.values[index].hint,
+                title: DashboardMetric.all[index].label,
+                subtitle: _dashboardSubtitle(DashboardMetric.all[index]),
                 leading: Icon(
-                  DashboardMetric.values[index].icon,
+                  DashboardMetric.all[index].icon,
                   size: 18,
                   color: colors.muted,
                 ),
                 value: settings.dashboardMetrics.contains(
-                  DashboardMetric.values[index].id,
+                  DashboardMetric.all[index].id,
                 ),
                 onChanged: (value) => onSave(
                   settings.copyWith(
                     dashboardMetrics: _toggle(
                       settings.dashboardMetrics,
-                      DashboardMetric.values[index],
+                      DashboardMetric.all[index],
                       value,
                     ),
                   ),
@@ -80,38 +102,34 @@ class DashboardSettingsPage extends StatelessWidget {
           children: [
             for (
               var index = 0;
-              index < DashboardMetric.values.length;
+              index < DashboardMetric.all.length;
               index++
             ) ...[
               if (index > 0) const SettingsDivider(),
               SettingsSwitchRow(
-                title: DashboardMetric.values[index].label,
-                subtitle:
-                    settings.islandMetrics.contains(
-                      DashboardMetric.values[index].id,
-                    )
-                    ? '收起态显示'
-                    : islandFull
-                    ? '最多显示 ${AppSettings.maxIslandMetrics} 个'
-                    : '收起态显示',
+                title: DashboardMetric.all[index].label,
+                subtitle: _islandSubtitle(
+                  DashboardMetric.all[index],
+                  islandFull,
+                ),
                 leading: Icon(
-                  DashboardMetric.values[index].icon,
+                  DashboardMetric.all[index].icon,
                   size: 18,
                   color: colors.muted,
                 ),
                 value: settings.islandMetrics.contains(
-                  DashboardMetric.values[index].id,
+                  DashboardMetric.all[index].id,
                 ),
                 onChanged:
                     settings.islandMetrics.contains(
-                          DashboardMetric.values[index].id,
+                          DashboardMetric.all[index].id,
                         ) ||
                         !islandFull
                     ? (value) => onSave(
                         settings.copyWith(
                           islandMetrics: _toggle(
                             settings.islandMetrics,
-                            DashboardMetric.values[index],
+                            DashboardMetric.all[index],
                             value,
                           ),
                         ),
