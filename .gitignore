@@ -13,6 +13,9 @@
 .vscode/
 *.iml
 
+# Claude Code local config (may contain API keys)
+/.claude/
+
 # Local
 *.log
 /README_example.md
