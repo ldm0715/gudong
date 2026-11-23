@@ -272,6 +272,8 @@ class SettingsWindowLauncher {
           shelfMaxItems: incoming.shelfMaxItems,
           shelfViewMode: incoming.shelfViewMode,
           quotaGlmRegion: incoming.quotaGlmRegion,
+          quotaNewApiSites: incoming.quotaNewApiSites,
+          quotaKrillBaseUrl: incoming.quotaKrillBaseUrl,
         ),
       );
       return {'ok': true};

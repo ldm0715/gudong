@@ -63,6 +63,7 @@ class QuotaProvider {
     this.plan,
     this.windows = const [],
     this.message,
+    this.logo,
     this.updatedAtMs,
   });
 
@@ -83,6 +84,7 @@ class QuotaProvider {
       plan: json['plan']?.toString(),
       windows: windows,
       message: json['message']?.toString(),
+      logo: json['logo']?.toString(),
       updatedAtMs: (json['updatedAtMs'] as num?)?.toInt(),
     );
   }
@@ -93,6 +95,7 @@ class QuotaProvider {
   final String? plan;
   final List<QuotaWindow> windows;
   final String? message;
+  final String? logo;
   final int? updatedAtMs;
 
   /// 收起态用的短名，避免挤占时间与天气。
@@ -100,6 +103,7 @@ class QuotaProvider {
     'glm' => 'GLM',
     'deepseek' => 'DS',
     'opencode' => 'OC',
+    _ when id.startsWith('newapi:') => 'NA',
     _ => label,
   };
 
@@ -146,12 +150,14 @@ String formatBalance(QuotaWindow window) {
   final amount = window.remaining;
   if (amount == null) return '--';
   final symbol = switch (window.currency) {
-    'USD' => r'$',
-    'CNY' => '¥',
+    'USD' || r'$' => r'$',
+    'CNY' || '¥' => '¥',
     null || '' => '',
-    final code => '$code ',
+    final code => code.length <= 2 ? code : '$code ',
   };
-  return '$symbol${amount.toStringAsFixed(2)}';
+  // 没有货币单位时是站点原始配额，按整数显示更易读。
+  final digits = (window.currency == null || window.currency!.isEmpty) ? 0 : 2;
+  return '$symbol${amount.toStringAsFixed(digits)}';
 }
 
 String formatPercent(double? percent) {

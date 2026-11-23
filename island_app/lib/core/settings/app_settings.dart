@@ -45,6 +45,11 @@ class AppSettings {
     this.quotaDeepseekKeyConfigured = false,
     this.quotaOpencodeKeyConfigured = false,
     this.quotaOpencodeCookieConfigured = false,
+    this.quotaNewApiSites = const [],
+    this.quotaNewApiKeyConfigured = const {},
+    this.quotaNewApiAccessTokenConfigured = const {},
+    this.quotaKrillBaseUrl = defaultQuotaKrillBaseUrl,
+    this.quotaKrillTokenConfigured = false,
     this.shelfMaxItems = defaultShelfMaxItems,
     this.shelfViewMode = 'list',
   });
@@ -61,7 +66,14 @@ class AppSettings {
     'diagnostics',
   ];
 
-  static const List<String> defaultQuotaOrder = ['glm', 'deepseek', 'opencode'];
+  static const List<String> defaultQuotaOrder = [
+    'glm',
+    'deepseek',
+    'opencode',
+    'krill',
+  ];
+
+  static const String defaultQuotaKrillBaseUrl = 'https://www.krill-code.com';
 
   /// 默认开启检测的本地 agent。
   static const List<String> defaultEnabledAgents = [
@@ -165,6 +177,16 @@ class AppSettings {
       quotaOpencodeKeyConfigured: json['quotaOpencodeKeyConfigured'] == true,
       quotaOpencodeCookieConfigured:
           json['quotaOpencodeCookieConfigured'] == true,
+      quotaNewApiSites: _normalizeNewApiSites(json['quotaNewApiSites']),
+      quotaNewApiKeyConfigured: _normalizeBoolMap(
+        json['quotaNewApiKeyConfigured'],
+      ),
+      quotaNewApiAccessTokenConfigured: _normalizeBoolMap(
+        json['quotaNewApiAccessTokenConfigured'],
+      ),
+      quotaKrillBaseUrl:
+          json['quotaKrillBaseUrl']?.toString() ?? defaultQuotaKrillBaseUrl,
+      quotaKrillTokenConfigured: json['quotaKrillTokenConfigured'] == true,
       shelfMaxItems: _normalizeShelfMaxItems(json['shelfMaxItems']),
       shelfViewMode: _normalizeShelfViewMode(json['shelfViewMode']),
     );
@@ -242,7 +264,7 @@ class AppSettings {
   /// 邮件详情翻译使用的服务，与翻译页的全局服务相互独立。
   final String mailTranslateProvider;
 
-  /// 额度服务顺序：`glm` / `deepseek` / `opencode`。
+  /// 额度服务顺序：`glm` / `deepseek` / `opencode` / `newapi:<siteId>`。
   final List<String> quotaOrder;
 
   /// 隐藏的额度服务，展开面板与收起态都不显示。
@@ -256,6 +278,17 @@ class AppSettings {
   final bool quotaDeepseekKeyConfigured;
   final bool quotaOpencodeKeyConfigured;
   final bool quotaOpencodeCookieConfigured;
+
+  /// New API 站点列表，每个站点独立保存地址、凭据与顺序。
+  final List<QuotaNewApiSite> quotaNewApiSites;
+
+  /// 只读派生状态：站点 id → 是否已保存对应凭据，不写回 config.json。
+  final Map<String, bool> quotaNewApiKeyConfigured;
+  final Map<String, bool> quotaNewApiAccessTokenConfigured;
+
+  /// Krill Code 站点地址与 JWT 状态。
+  final String quotaKrillBaseUrl;
+  final bool quotaKrillTokenConfigured;
 
   /// 中转站条目上限，引用式存储只限制列表长度。
   final int shelfMaxItems;
@@ -285,20 +318,38 @@ class AppSettings {
   List<String> get orderedQuotaProviders {
     final ordered = <String>[];
     for (final id in quotaOrder) {
-      if (defaultQuotaOrder.contains(id) && !ordered.contains(id)) {
-        ordered.add(id);
-      }
+      if (_quotaProviderKnown(id) && !ordered.contains(id)) ordered.add(id);
     }
     for (final id in defaultQuotaOrder) {
       if (!ordered.contains(id)) ordered.add(id);
+    }
+    for (final site in quotaNewApiSites) {
+      final id = site.providerId;
+      if (site.ready && !ordered.contains(id)) ordered.add(id);
     }
     return ordered;
   }
 
   /// 展开面板和收起态实际使用的额度服务。
+  /// Krill 未保存 JWT 前不占用面板空间。
   List<String> get visibleQuotaProviders => orderedQuotaProviders
       .where((id) => !hiddenQuotaProviders.contains(id))
+      .where((id) => id != 'krill' || quotaKrillTokenConfigured)
       .toList(growable: false);
+
+  QuotaNewApiSite? newApiSite(String id) {
+    for (final site in quotaNewApiSites) {
+      if (site.id == id) return site;
+    }
+    return null;
+  }
+
+  bool _quotaProviderKnown(String id) {
+    if (defaultQuotaOrder.contains(id)) return true;
+    if (!id.startsWith(QuotaNewApiSite.providerPrefix)) return false;
+    final site = newApiSite(id.substring(QuotaNewApiSite.providerPrefix.length));
+    return site?.ready == true;
+  }
 
   /// [includeRuntime] 为 true 时带上只读凭据状态，只用于设置窗口的启动参数。
   /// 写回 sidecar 时必须保持默认 false，否则派生键会混进 settings.set。
@@ -338,6 +389,10 @@ class AppSettings {
     'quotaOrder': quotaOrder,
     'hiddenQuotaProviders': hiddenQuotaProviders,
     'quotaGlmRegion': quotaGlmRegion,
+    'quotaNewApiSites': [
+      for (final site in quotaNewApiSites) site.toJson(),
+    ],
+    'quotaKrillBaseUrl': quotaKrillBaseUrl,
     'shelfMaxItems': shelfMaxItems,
     'shelfViewMode': shelfViewMode,
     if (includeRuntime) ...{
@@ -348,6 +403,9 @@ class AppSettings {
       'quotaDeepseekKeyConfigured': quotaDeepseekKeyConfigured,
       'quotaOpencodeKeyConfigured': quotaOpencodeKeyConfigured,
       'quotaOpencodeCookieConfigured': quotaOpencodeCookieConfigured,
+      'quotaNewApiKeyConfigured': quotaNewApiKeyConfigured,
+      'quotaNewApiAccessTokenConfigured': quotaNewApiAccessTokenConfigured,
+      'quotaKrillTokenConfigured': quotaKrillTokenConfigured,
     },
   };
 
@@ -394,6 +452,11 @@ class AppSettings {
     bool? quotaDeepseekKeyConfigured,
     bool? quotaOpencodeKeyConfigured,
     bool? quotaOpencodeCookieConfigured,
+    List<QuotaNewApiSite>? quotaNewApiSites,
+    Map<String, bool>? quotaNewApiKeyConfigured,
+    Map<String, bool>? quotaNewApiAccessTokenConfigured,
+    String? quotaKrillBaseUrl,
+    bool? quotaKrillTokenConfigured,
     int? shelfMaxItems,
     String? shelfViewMode,
   }) {
@@ -460,6 +523,15 @@ class AppSettings {
           quotaOpencodeKeyConfigured ?? this.quotaOpencodeKeyConfigured,
       quotaOpencodeCookieConfigured:
           quotaOpencodeCookieConfigured ?? this.quotaOpencodeCookieConfigured,
+      quotaNewApiSites: quotaNewApiSites ?? this.quotaNewApiSites,
+      quotaNewApiKeyConfigured:
+          quotaNewApiKeyConfigured ?? this.quotaNewApiKeyConfigured,
+      quotaNewApiAccessTokenConfigured:
+          quotaNewApiAccessTokenConfigured ??
+          this.quotaNewApiAccessTokenConfigured,
+      quotaKrillBaseUrl: quotaKrillBaseUrl ?? this.quotaKrillBaseUrl,
+      quotaKrillTokenConfigured:
+          quotaKrillTokenConfigured ?? this.quotaKrillTokenConfigured,
       shelfMaxItems: shelfMaxItems ?? this.shelfMaxItems,
       shelfViewMode: shelfViewMode ?? this.shelfViewMode,
     );
@@ -575,7 +647,7 @@ class AppSettings {
     if (raw is List) {
       for (final value in raw) {
         final id = value.toString();
-        if (defaultQuotaOrder.contains(id) && !ids.contains(id)) ids.add(id);
+        if (_isQuotaProviderId(id) && !ids.contains(id)) ids.add(id);
       }
     }
     for (final id in defaultQuotaOrder) {
@@ -589,9 +661,118 @@ class AppSettings {
     if (raw is List) {
       for (final value in raw) {
         final id = value.toString();
-        if (defaultQuotaOrder.contains(id) && !ids.contains(id)) ids.add(id);
+        if (_isQuotaProviderId(id) && !ids.contains(id)) ids.add(id);
       }
     }
     return ids;
   }
+
+  static bool _isQuotaProviderId(String id) =>
+      defaultQuotaOrder.contains(id) ||
+      id.startsWith(QuotaNewApiSite.providerPrefix);
+
+  static List<QuotaNewApiSite> _normalizeNewApiSites(Object? raw) {
+    if (raw is! List) return const [];
+    final sites = <QuotaNewApiSite>[];
+    final ids = <String>{};
+    for (final item in raw) {
+      if (item is! Map) continue;
+      final site = QuotaNewApiSite.fromJson(Map<String, dynamic>.from(item));
+      if (site.id.isEmpty || ids.contains(site.id)) continue;
+      ids.add(site.id);
+      sites.add(site);
+    }
+    return sites;
+  }
+
+  static Map<String, bool> _normalizeBoolMap(Object? raw) {
+    if (raw is! Map) return const {};
+    final result = <String, bool>{};
+    raw.forEach((key, value) {
+      if (value == true) result[key.toString()] = true;
+    });
+    return result;
+  }
+}
+
+/// 一个 New API 站点。凭据单独放在 Windows 凭据管理器。
+class QuotaNewApiSite {
+  const QuotaNewApiSite({
+    required this.id,
+    this.name = '',
+    this.baseUrl = '',
+    this.mode = 'account',
+    this.userId = '',
+    this.quotaPerUnit = 0,
+    this.currencySymbol = '',
+  });
+
+  factory QuotaNewApiSite.fromJson(Map<String, dynamic> json) {
+    return QuotaNewApiSite(
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      baseUrl: json['baseUrl']?.toString() ?? '',
+      mode: json['mode'] == 'token' ? 'token' : 'account',
+      userId: json['userId']?.toString() ?? '',
+      quotaPerUnit: (json['quotaPerUnit'] as num?)?.toDouble() ?? 0,
+      currencySymbol: json['currencySymbol']?.toString() ?? '',
+    );
+  }
+
+  static const String providerPrefix = 'newapi:';
+
+  final String id;
+  final String name;
+  final String baseUrl;
+  final String mode;
+  final String userId;
+
+  /// 手动换算比例：1 货币单位 = 多少配额；`0` 表示自动读取 `/api/status`。
+  final double quotaPerUnit;
+
+  /// 手动货币符号；为空表示自动。
+  final String currencySymbol;
+
+  String get providerId => '$providerPrefix$id';
+
+  bool get ready => baseUrl.trim().isNotEmpty;
+
+  bool get accountMode => mode != 'token';
+
+  String get label {
+    final trimmed = name.trim();
+    if (trimmed.isNotEmpty) return trimmed;
+    final uri = Uri.tryParse(baseUrl.trim());
+    final host = uri?.host ?? '';
+    return host.isEmpty ? 'New API' : 'New API · $host';
+  }
+
+  QuotaNewApiSite copyWith({
+    String? name,
+    String? baseUrl,
+    String? mode,
+    String? userId,
+    double? quotaPerUnit,
+    String? currencySymbol,
+  }) {
+    return QuotaNewApiSite(
+      id: id,
+      name: name ?? this.name,
+      baseUrl: baseUrl ?? this.baseUrl,
+      mode: mode ?? this.mode,
+      userId: userId ?? this.userId,
+      quotaPerUnit: quotaPerUnit ?? this.quotaPerUnit,
+      currencySymbol: currencySymbol ?? this.currencySymbol,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'baseUrl': baseUrl,
+    'mode': mode,
+    'userId': userId,
+    'quotaPerUnit': quotaPerUnit,
+    'currencySymbol': currencySymbol,
+  };
 }

@@ -61,6 +61,7 @@ class _QuotaTabState extends State<QuotaTab> {
       'glm' => 'GLM',
       'deepseek' => 'DeepSeek',
       'opencode' => 'OpenCode',
+      _ when id.startsWith('newapi:') => 'New API',
       _ => id,
     };
     return QuotaProvider(id: id, label: label, status: 'loading');
@@ -98,6 +99,7 @@ class QuotaProviderCard extends StatelessWidget {
             children: [
               QuotaProviderIcon(
                 id: provider.id,
+                logo: provider.logo,
                 fallback: provider.shortLabel,
                 color: tone,
                 size: IslandMetrics.iconXL,
@@ -179,11 +181,15 @@ class _QuotaWindowRow extends StatelessWidget {
         padding: const EdgeInsets.only(top: IslandMetrics.space6),
         child: Row(
           children: [
-            Text(
-              quotaWindowLabel(window),
-              style: IslandTypography.micro.tint(colors.muted),
+            Expanded(
+              child: Text(
+                quotaWindowLabel(window),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: IslandTypography.micro.tint(colors.muted),
+              ),
             ),
-            const Spacer(),
+            const SizedBox(width: IslandMetrics.space8),
             Text(
               formatBalance(window),
               style: IslandTypography.bodyStrong.tint(colors.text),
@@ -201,11 +207,15 @@ class _QuotaWindowRow extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text(
-                quotaWindowLabel(window),
-                style: IslandTypography.micro.tint(colors.muted),
+              Expanded(
+                child: Text(
+                  quotaWindowLabel(window),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: IslandTypography.micro.tint(colors.muted),
+                ),
               ),
-              const Spacer(),
+              const SizedBox(width: IslandMetrics.space8),
               if (reset.isNotEmpty) ...[
                 Text(
                   '$reset后重置',
@@ -349,7 +359,10 @@ String quotaWindowLabel(QuotaWindow window) => switch (window.kind) {
   'session' => '5小时',
   'weekly' => '本周',
   'monthly' => '本月',
-  'billing' => window.currency != null ? '余额' : window.label,
+  'billing' =>
+    window.label == 'Balance'
+        ? (window.currency != null ? '余额' : window.label)
+        : window.label,
   _ => window.label,
 };
 

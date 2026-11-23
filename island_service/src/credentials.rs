@@ -10,6 +10,16 @@ pub const GLM_KEY: &str = "gudong/quota/glm";
 pub const DEEPSEEK_KEY: &str = "gudong/quota/deepseek";
 pub const OPENCODE_KEY: &str = "gudong/quota/opencode";
 pub const OPENCODE_COOKIE: &str = "gudong/quota/opencode-cookie";
+pub const KRILL_TOKEN: &str = "gudong/quota/krill";
+
+/// New API 站点按站点 id 分开保存，避免多站点互相覆盖。
+pub fn newapi_key(site_id: &str) -> String {
+    format!("gudong/quota/newapi/{site_id}")
+}
+
+pub fn newapi_access_token(site_id: &str) -> String {
+    format!("gudong/quota/newapi/{site_id}/access")
+}
 
 const USER_NAME: &str = "gudong";
 
@@ -97,6 +107,7 @@ pub fn migrate_legacy() -> Vec<String> {
         DEEPSEEK_KEY,
         OPENCODE_KEY,
         OPENCODE_COOKIE,
+        KRILL_TOKEN,
     ] {
         let old = target.replacen("gudong/", "guduo/", 1);
         if migrate_target(&old, target) {

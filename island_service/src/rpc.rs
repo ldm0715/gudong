@@ -506,7 +506,10 @@ pub fn handle(
             let provider = params
                 .get("provider")
                 .and_then(Value::as_str)
-                .filter(|value| matches!(*value, "glm" | "deepseek" | "opencode"))
+                .filter(|value| {
+                    matches!(*value, "glm" | "deepseek" | "opencode" | "krill")
+                        || value.starts_with("newapi:")
+                })
                 .map(str::to_string);
             wake_quota(state, provider);
             Ok(Action::Respond(json!({ "ok": true })))
@@ -524,11 +527,23 @@ pub fn handle(
                 .get("value")
                 .and_then(Value::as_str)
                 .unwrap_or_default();
+            let site_id = params
+                .get("siteId")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .trim();
             let target = match (provider, field) {
-                ("glm", "apiKey") => crate::credentials::GLM_KEY,
-                ("deepseek", "apiKey") => crate::credentials::DEEPSEEK_KEY,
-                ("opencode", "apiKey") => crate::credentials::OPENCODE_KEY,
-                ("opencode", "cookie") => crate::credentials::OPENCODE_COOKIE,
+                ("glm", "apiKey") => crate::credentials::GLM_KEY.to_string(),
+                ("deepseek", "apiKey") => crate::credentials::DEEPSEEK_KEY.to_string(),
+                ("opencode", "apiKey") => crate::credentials::OPENCODE_KEY.to_string(),
+                ("opencode", "cookie") => crate::credentials::OPENCODE_COOKIE.to_string(),
+                ("krill", "jwt") => crate::credentials::KRILL_TOKEN.to_string(),
+                ("newapi", "apiKey") if valid_newapi_site_id(site_id) => {
+                    crate::credentials::newapi_key(site_id)
+                }
+                ("newapi", "accessToken") if valid_newapi_site_id(site_id) => {
+                    crate::credentials::newapi_access_token(site_id)
+                }
                 _ => {
                     return Err(RpcError::new(
                         ERR_INVALID_PARAMS,
@@ -536,12 +551,17 @@ pub fn handle(
                     ))
                 }
             };
-            crate::credentials::write(target, value)
+            crate::credentials::write(&target, value)
                 .map_err(|message| RpcError::new(ERR_INTERNAL, message))?;
-            wake_quota(state, Some(provider.to_string()));
+            let refresh = if provider == "newapi" && valid_newapi_site_id(site_id) {
+                format!("newapi:{site_id}")
+            } else {
+                provider.to_string()
+            };
+            wake_quota(state, Some(refresh));
             Ok(Action::Respond(json!({
                 "ok": true,
-                "configured": crate::credentials::read(target).is_some(),
+                "configured": crate::credentials::read(&target).is_some(),
             })))
         }
         "agents.get" => {
@@ -646,14 +666,23 @@ pub fn handle(
                 "quotaDeepseekKeyConfigured",
                 "quotaOpencodeKeyConfigured",
                 "quotaOpencodeCookieConfigured",
+                "quotaNewApiKeyConfigured",
+                "quotaNewApiAccessTokenConfigured",
+                "quotaKrillTokenConfigured",
             ] {
                 patch.remove(key);
             }
             // 客户端每次设置保存都会带上全部键，只有真正变化的额度设置才触发刷新。
             let previous = state.config.snapshot();
-            let quota_changed = ["quotaOrder", "quotaRefreshSeconds", "quotaGlmRegion"]
-                .iter()
-                .any(|key| previous.get(*key) != patch.get(*key));
+            let quota_changed = [
+                "quotaOrder",
+                "quotaRefreshSeconds",
+                "quotaGlmRegion",
+                "quotaNewApiSites",
+                "quotaKrillBaseUrl",
+            ]
+            .iter()
+            .any(|key| previous.get(*key) != patch.get(*key));
             let weather_changed = [
                 "weatherLocationMode",
                 "weatherLocationName",
@@ -751,7 +780,48 @@ fn settings_snapshot(state: &State) -> Map<String, Value> {
         "quotaOpencodeCookieConfigured".into(),
         json!(crate::credentials::read(crate::credentials::OPENCODE_COOKIE).is_some()),
     );
+    settings.insert(
+        "quotaKrillTokenConfigured".into(),
+        json!(crate::credentials::read(crate::credentials::KRILL_TOKEN).is_some()),
+    );
+    let mut newapi_keys = Map::new();
+    let mut newapi_tokens = Map::new();
+    for id in newapi_site_ids(&settings) {
+        let key_target = crate::credentials::newapi_key(&id);
+        let token_target = crate::credentials::newapi_access_token(&id);
+        newapi_keys.insert(
+            id.clone(),
+            json!(crate::credentials::read(&key_target).is_some()),
+        );
+        newapi_tokens.insert(id, json!(crate::credentials::read(&token_target).is_some()));
+    }
+    settings.insert("quotaNewApiKeyConfigured".into(), Value::Object(newapi_keys));
+    settings.insert(
+        "quotaNewApiAccessTokenConfigured".into(),
+        Value::Object(newapi_tokens),
+    );
     settings
+}
+
+fn newapi_site_ids(settings: &Map<String, Value>) -> Vec<String> {
+    settings
+        .get("quotaNewApiSites")
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|item| item["id"].as_str().map(str::to_string))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn valid_newapi_site_id(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 64
+        && value
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
 }
 
 #[cfg(windows)]

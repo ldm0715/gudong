@@ -40,8 +40,8 @@
 | `mail.refresh` | `{accountId?}` | `{ok}`；立即触发一次增量收取 |
 | `mail.markSeen` | `{id?, accountId?}` | `{ok, marked, message?}`；传 `id` 只标记该封；传 `accountId` 标记该账号全部未读；都不传处理所有启用账号 |
 | `quota.get` | `{}` | `{providers:[QuotaProvider], updatedAtMs}`；返回最近一次快照，未刷新过时为空数组 |
-| `quota.refresh` | `{provider?}` | `{ok}`；`provider` 为 `glm` / `deepseek` / `opencode`，省略表示全部；结果通过 `quota.updated` 推送 |
-| `quota.setSecret` | `{provider, field, value}` | `{ok, configured}`；`field` 为 `apiKey`（三家）或 `cookie`（仅 `opencode`）；`value` 为空表示删除 |
+| `quota.refresh` | `{provider?}` | `{ok}`；`provider` 为 `glm` / `deepseek` / `opencode` / `krill` / `newapi:<siteId>`，省略表示全部；结果通过 `quota.updated` 推送 |
+| `quota.setSecret` | `{provider, field, value, siteId?}` | `{ok, configured}`；`field` 为 `apiKey`、`cookie`（仅 `opencode`）、`accessToken`（仅 `newapi`）或 `jwt`（仅 `krill`）；`newapi` 必须带 `siteId`；`value` 为空表示删除 |
 | `agents.get` | `{}` | `{sessions:[AgentSession], agents:[AgentStatus]}`；返回最近一次本地会话扫描结果 |
 | `schedule.list` | `{}` | `{items:[ScheduleItem]}`；按 `atMs` 升序，含已触发条目 |
 | `schedule.add` | `{title, atMs}` | `{item:ScheduleItem}`；`title` 1–80 字符，`atMs` 必须晚于当前时间 |
@@ -90,9 +90,11 @@
 | `windowX` / `windowY` | number | 窗口左上角屏幕坐标（物理像素），缺省表示按默认位置摆放 |
 | `mailPollSeconds` | number | 邮件轮询间隔秒数，默认 `180`，限制在 `60`–`900` |
 | `mailTranslateProvider` | string | 邮件翻译使用的服务，默认 `auto`；取值与 `translateProvider` 相同，两者相互独立 |
-| `quotaOrder` | string[] | 额度服务顺序：`glm` / `deepseek` / `opencode`；未知项忽略，缺项补齐 |
+| `quotaOrder` | string[] | 额度服务顺序：`glm` / `deepseek` / `opencode` / `krill` / `newapi:<siteId>`；未知项忽略，缺项补齐 |
 | `hiddenQuotaProviders` | string[] | 隐藏的额度服务；展开面板与收起态都不显示 |
 | `quotaGlmRegion` | string | GLM 区域：`global`（Z.ai，默认）/ `bigmodel-cn`（智谱开放平台） |
+| `quotaNewApiSites` | object[] | New API 站点列表，见下方 `NewApiSite`；可添加多个，地址为空的站点不参与刷新 |
+| `quotaKrillBaseUrl` | string | Krill Code 站点地址，默认 `https://www.krill-code.com` |
 | `quotaRefreshSeconds` | number | 额度刷新间隔秒数，默认 `300`，限制在 `60`–`3600` |
 | `enabledAgents` | string[] | 需要检测的本地 agent：`claude` / `codex` / `dsh` / `pi` / `omp`；缺省为全部，空数组表示全部关闭 |
 | `showAgentIndicator` | bool | 收起态显示运行中的 agent 图标，默认 `true` |
@@ -101,9 +103,29 @@
 | `shelfMaxItems` | number | 中转站条目上限，默认 `100`，限制在 `10`–`500`；达到上限后拒绝新条目，不淘汰旧条目 |
 | `shelfViewMode` | string | 中转站默认视图：`list`（列表，默认）/ `grid`（图标网格） |
 
-`settings.get` 与 `settings.set` 的返回里还会带 `translateLlmKeyConfigured` / `translateDeeplKeyConfigured` / `translateCaiyunKeyConfigured` 三个只读布尔值，以及 `quotaGlmKeyConfigured` / `quotaDeepseekKeyConfigured` / `quotaOpencodeKeyConfigured` / `quotaOpencodeCookieConfigured`。它们不写入 config.json，也不接受写入，表示对应密钥是否已在 Windows 凭据管理器里。
+`NewApiSite`：
 
-设置落盘到 `%APPDATA%\gudong\config.json`，先写临时文件再替换。`settings.set` 只合并传入的 key，未传的键保持不变；值必须是合法 JSON，空 key 返回 `-32602`。翻译密钥通过 `translate.setSecret` 写入 Windows 凭据管理器（目标名 `gudong/translate/llm`、`gudong/translate/deepl`、`gudong/translate/caiyun`），不落 config.json。额度凭据通过 `quota.setSecret` 写入同一凭据管理器（目标名 `gudong/quota/glm`、`gudong/quota/deepseek`、`gudong/quota/opencode`、`gudong/quota/opencode-cookie`）。
+```json
+{
+  "id": "na_lx2k9",
+  "name": "",
+  "baseUrl": "https://ai.example.com",
+  "mode": "account",
+  "userId": "1",
+  "quotaPerUnit": 0,
+  "currencySymbol": ""
+}
+```
+
+- `id` 由客户端生成并在站点生命周期内保持不变；凭据与额度 id 都用它区分，不能包含空格或斜杠。
+- `name` 为空时优先使用站点 `/api/status` 的 `system_name`，取不到再按站点域名显示；`mode` 为 `account`（系统访问令牌 + 用户 ID）或 `token`（API 密钥）。
+- `userId` 只在账户模式使用，会作为 `New-Api-User` 请求头发送。
+- `quotaPerUnit` 为手动换算比例：1 货币单位 = 多少配额；`0` 表示自动读取 `/api/status`。`/api/status` 被站点前端拦截时用它兜底。
+- `currencySymbol` 为手动货币符号：`¥` / `$` / 空（自动）。
+
+`settings.get` 与 `settings.set` 的返回里还会带 `translateLlmKeyConfigured` / `translateDeeplKeyConfigured` / `translateCaiyunKeyConfigured` 三个只读布尔值，以及 `quotaGlmKeyConfigured` / `quotaDeepseekKeyConfigured` / `quotaOpencodeKeyConfigured` / `quotaOpencodeCookieConfigured` / `quotaKrillTokenConfigured`。`quotaNewApiKeyConfigured` 与 `quotaNewApiAccessTokenConfigured` 是只读对象，键为站点 `id`、值为是否已保存。它们不写入 config.json，也不接受写入。
+
+设置落盘到 `%APPDATA%\gudong\config.json`，先写临时文件再替换。`settings.set` 只合并传入的 key，未传的键保持不变；值必须是合法 JSON，空 key 返回 `-32602`。翻译密钥通过 `translate.setSecret` 写入 Windows 凭据管理器（目标名 `gudong/translate/llm`、`gudong/translate/deepl`、`gudong/translate/caiyun`），不落 config.json。额度凭据通过 `quota.setSecret` 写入同一凭据管理器（目标名 `gudong/quota/glm`、`gudong/quota/deepseek`、`gudong/quota/opencode`、`gudong/quota/opencode-cookie`、`gudong/quota/krill`；New API 为 `gudong/quota/newapi/<siteId>` 与 `gudong/quota/newapi/<siteId>/access`）。
 
 `QuotaProvider`：
 
@@ -137,10 +159,16 @@
 }
 ```
 
-- `id` 为 `glm` / `deepseek` / `opencode`；`status` 为 `ok` / `notConfigured` / `unauthorized` / `rateLimited` / `unavailable`。
+- `id` 为 `glm` / `deepseek` / `opencode` / `krill` / `newapi:<siteId>`；`status` 为 `ok` / `notConfigured` / `unauthorized` / `rateLimited` / `unavailable`。
+- `logo` 可选，为站点图标的 data URI；New API 站点优先使用 `/api/status` 返回的 `logo` 地址，其次尝试 `/logo.png`、`/favicon.png`、`/favicon.ico`，缺失时客户端使用内置图标。图片会缩到 64px 后再下发。
 - `windows[].kind` 为 `session`（5 小时）/ `weekly` / `monthly` / `billing`；`billing` 用于余额或 MCP 额度。余额窗口没有 `usedPercent`，`showMeter=false`，数值在 `remaining` 与 `currency` 中。
 - `resetsAtMs` 是 Unix 毫秒时间戳；缺失表示服务没有提供重置时间。
 - GLM 使用 `quotaGlmRegion` 选择 Z.ai 或智谱开放平台，5 小时与周窗口来自 Coding Plan 配额接口；DeepSeek 只有余额；OpenCode 的 API Key 读取 Go 额度，Cookie 额外补充 Zen 余额。
+- 每个 `quotaNewApiSites` 条目都会生成一个 `newapi:<siteId>` 额度服务，按站点分别展示。`account` 模式请求 `/api/user/self` 返回账户额度；`token` 模式请求 `/api/usage/token` 返回令牌额度。
+- 余额按 `/api/status` 的 `quota_per_unit` 与 `quota_display_type` 换算：`USD` 显示美元、`CNY` 使用 `usd_exchange_rate` 显示人民币、`CUSTOM` 使用自定义符号与汇率、`TOKENS` 显示原始配额。`unlimited_quota` 为真时只显示“无限额度”。
+- `/api/status` 不可用或没有 `quota_per_unit` 时，使用站点的 `quotaPerUnit` / `currencySymbol`；两者都为空则显示原始配额。
+- Krill Code 使用 `quotaKrillBaseUrl` 与 JWT 请求 `/api/subscription` 读取套餐用量、到期时间，再请求 `/api/credits` 读取余额。`subscriptions` 可能有多项，会逐个生成额度窗口；字段缺失时回退到 `summary` 汇总值。
+- New API 返回 401/403 时，`message` 尽量保留服务端原文（例如“access token 无效”或“New-Api-User 与登录用户不匹配”），便于区分令牌错误与用户 ID 不匹配。
 - 凭据缺失时返回 `notConfigured` 且 `windows` 为空；凭据失效返回 `unauthorized`，客户端应提示重新填写。
 - 刷新间隔由 `quotaRefreshSeconds` 控制，`quota.refresh` 可立即触发一次；单个服务请求失败时只把该服务标记为错误状态并清空其窗口，其他服务不受影响。
 

@@ -76,9 +76,11 @@ void main() {
       'translateMyMemoryEmail': '',
       'mailPollSeconds': 180,
       'mailTranslateProvider': 'auto',
-      'quotaOrder': ['glm', 'deepseek', 'opencode'],
+      'quotaOrder': ['glm', 'deepseek', 'opencode', 'krill'],
       'hiddenQuotaProviders': <String>[],
       'quotaGlmRegion': 'global',
+      'quotaNewApiSites': <Map<String, dynamic>>[],
+      'quotaKrillBaseUrl': 'https://www.krill-code.com',
       'shelfMaxItems': 100,
       'shelfViewMode': 'list',
     });
@@ -235,5 +237,25 @@ void main() {
       AppSettings.fromJson(const {'shelfMaxItems': 200}).shelfMaxItems,
       200,
     );
+  });
+
+  test('keeps multiple New API sites and orders ready ones last', () {
+    final settings = AppSettings.fromJson(const {
+      'quotaOrder': ['glm', 'deepseek', 'opencode', 'newapi:a'],
+      'quotaNewApiSites': [
+        {'id': 'a', 'baseUrl': 'https://a.example.com', 'mode': 'token'},
+        {'id': 'b', 'name': '备用站', 'baseUrl': '', 'mode': 'account'},
+      ],
+    });
+    expect(settings.quotaNewApiSites.length, 2);
+    expect(settings.orderedQuotaProviders, [
+      'glm',
+      'deepseek',
+      'opencode',
+      'newapi:a',
+      'krill',
+    ]);
+    expect(settings.visibleQuotaProviders, contains('newapi:a'));
+    expect(settings.quotaNewApiSites.last.label, '备用站');
   });
 }
