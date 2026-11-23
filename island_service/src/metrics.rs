@@ -1,8 +1,9 @@
-//! 系统指标采样：CPU、内存、网络速率与累计流量。
+//! 系统指标采样：CPU、内存、网络速率、累计流量与 GPU。
 //!
 //! 采样线程按 1Hz 运行，只向 stdout 推送 `metrics.updated`；主循环缓存最近一帧
 //! 供 `metrics.get` 读取。网络流量只统计处于 Up 状态的硬件网卡，避免虚拟网桥
 //! 与物理网卡重复计数。累计流量从 sidecar 启动开始计算，不同会话之间不累加。
+//! GPU 利用率与专用显存用量取自 PDH 性能计数器，显存总量取自 DXGI。
 
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -25,6 +26,10 @@ pub struct MetricsSnapshot {
     pub memory_total_bytes: u64,
     pub cpu_mhz: u32,
     pub cpu_max_mhz: u32,
+    pub gpu_percent: f64,
+    pub gpu_memory_percent: f64,
+    pub gpu_memory_used_bytes: u64,
+    pub gpu_memory_total_bytes: u64,
     pub total_upload_bytes: u64,
     pub total_download_bytes: u64,
     pub updated_at_ms: i64,
@@ -51,6 +56,7 @@ pub fn start(state: Arc<State>, tx: Sender<Value>) {
 fn run(state: Arc<State>, tx: Sender<Value>) {
     // 第一次只建立基线，CPU 与网络速率都需要一个时间窗口才能算出增量。
     let mut baseline = Baseline::capture();
+    let mut gpu = GpuSampler::new();
     let mut total_upload = 0u64;
     let mut total_download = 0u64;
     loop {
@@ -64,6 +70,15 @@ fn run(state: Arc<State>, tx: Sender<Value>) {
         total_download = total_download.saturating_add(download_delta);
         let (memory_percent, memory_used, memory_total) = memory();
         let (cpu_mhz, cpu_max_mhz) = cpu_frequency();
+        let (gpu_percent, gpu_memory_used, gpu_memory_total) = gpu
+            .as_mut()
+            .map(GpuSampler::sample)
+            .unwrap_or((0.0, 0, 0));
+        let gpu_memory_percent = if gpu_memory_total > 0 {
+            (gpu_memory_used as f64 / gpu_memory_total as f64 * 100.0).clamp(0.0, 100.0)
+        } else {
+            0.0
+        };
 
         let snapshot = MetricsSnapshot {
             upload_bps: upload_delta as f64 / elapsed,
@@ -74,6 +89,10 @@ fn run(state: Arc<State>, tx: Sender<Value>) {
             memory_total_bytes: memory_total,
             cpu_mhz,
             cpu_max_mhz,
+            gpu_percent,
+            gpu_memory_percent,
+            gpu_memory_used_bytes: gpu_memory_used,
+            gpu_memory_total_bytes: gpu_memory_total,
             total_upload_bytes: total_upload,
             total_download_bytes: total_download,
             updated_at_ms: chrono::Utc::now().timestamp_millis(),
@@ -231,6 +250,173 @@ fn network_totals() -> (u64, u64) {
     (received, sent)
 }
 
+/// PDH 采样器：GPU 引擎利用率与专用显存用量。
+#[cfg(windows)]
+struct GpuSampler {
+    query: isize,
+    engine: Option<isize>,
+    dedicated: Option<isize>,
+    memory_total: u64,
+    last_total_probe: Option<Instant>,
+}
+
+#[cfg(windows)]
+impl GpuSampler {
+    fn new() -> Option<Self> {
+        use windows::Win32::System::Performance::{
+            PdhCloseQuery, PdhCollectQueryData, PdhOpenQueryW,
+        };
+
+        let mut query = 0isize;
+        // 数据源传 NULL 表示实时数据；空字符串会被 PDH 判为非法参数。
+        let status = unsafe { PdhOpenQueryW(None, 0, &mut query) };
+        if status != 0 {
+            crate::log(&format!("metrics: GPU 查询创建失败 ({status:#x})"));
+            return None;
+        }
+        let engine = add_counter(query, "\\GPU Engine(*)\\Utilization Percentage");
+        let dedicated = add_counter(query, "\\GPU Adapter Memory(*)\\Dedicated Usage");
+        if engine.is_none() && dedicated.is_none() {
+            unsafe { PdhCloseQuery(query) };
+            return None;
+        }
+        // 建立 PDH 基线，下一次采集才有百分比与增量。
+        unsafe { PdhCollectQueryData(query) };
+        let mut sampler = Self {
+            query,
+            engine,
+            dedicated,
+            memory_total: 0,
+            last_total_probe: None,
+        };
+        sampler.memory_total = gpu_memory_total();
+        sampler.last_total_probe = Some(Instant::now());
+        Some(sampler)
+    }
+
+    /// 返回 `(利用率, 专用显存已用, 专用显存总量)`。
+    fn sample(&mut self) -> (f64, u64, u64) {
+        use windows::Win32::System::Performance::PdhCollectQueryData;
+
+        if unsafe { PdhCollectQueryData(self.query) } != 0 {
+            return (0.0, 0, self.memory_total);
+        }
+        // 多个引擎、多个进程实例的利用率相加后可能超过 100，按整体占用截断。
+        let gpu_percent = self
+            .engine
+            .map(|counter| {
+                read_counter_array(counter)
+                    .into_iter()
+                    .sum::<f64>()
+                    .clamp(0.0, 100.0)
+            })
+            .unwrap_or(0.0);
+        let used = self
+            .dedicated
+            .map(|counter| {
+                read_counter_array(counter)
+                    .into_iter()
+                    .sum::<f64>()
+                    .max(0.0) as u64
+            })
+            .unwrap_or(0);
+        // 显存总量在启动时探测一次；取不到时每 30 秒重试，兼容 eGPU 热插拔。
+        if self.memory_total == 0
+            && self
+                .last_total_probe
+                .map_or(true, |at| at.elapsed() >= Duration::from_secs(30))
+        {
+            self.memory_total = gpu_memory_total();
+            self.last_total_probe = Some(Instant::now());
+        }
+        (gpu_percent, used, self.memory_total)
+    }
+}
+
+#[cfg(windows)]
+impl Drop for GpuSampler {
+    fn drop(&mut self) {
+        unsafe { windows::Win32::System::Performance::PdhCloseQuery(self.query) };
+    }
+}
+
+#[cfg(windows)]
+fn add_counter(query: isize, path: &str) -> Option<isize> {
+    use windows::Win32::System::Performance::PdhAddEnglishCounterW;
+
+    let path = windows::core::HSTRING::from(path);
+    let mut counter = 0isize;
+    let status = unsafe { PdhAddEnglishCounterW(query, &path, 0, &mut counter) };
+    (status == 0).then_some(counter)
+}
+
+/// 读取通配符计数器的全部实例值。缓冲区不足时 PDH 返回 `PDH_MORE_DATA`，
+/// 按返回的字节数分配后再读一次。
+#[cfg(windows)]
+fn read_counter_array(counter: isize) -> Vec<f64> {
+    use windows::Win32::System::Performance::{
+        PdhGetFormattedCounterArrayW, PDH_FMT_COUNTERVALUE_ITEM_W, PDH_FMT_DOUBLE, PDH_MORE_DATA,
+    };
+
+    let mut size = 0u32;
+    let mut count = 0u32;
+    let status = unsafe {
+        PdhGetFormattedCounterArrayW(counter, PDH_FMT_DOUBLE, &mut size, &mut count, None)
+    };
+    if status != PDH_MORE_DATA || size == 0 {
+        return Vec::new();
+    }
+    let item_size = std::mem::size_of::<PDH_FMT_COUNTERVALUE_ITEM_W>();
+    let capacity = (size as usize + item_size - 1) / item_size;
+    let mut buffer = vec![PDH_FMT_COUNTERVALUE_ITEM_W::default(); capacity];
+    let status = unsafe {
+        PdhGetFormattedCounterArrayW(
+            counter,
+            PDH_FMT_DOUBLE,
+            &mut size,
+            &mut count,
+            Some(buffer.as_mut_ptr()),
+        )
+    };
+    if status != 0 {
+        return Vec::new();
+    }
+    let count = (count as usize).min(buffer.len());
+    let mut values = Vec::with_capacity(count);
+    for item in buffer.iter().take(count) {
+        // PDH_CSTATUS_VALID_DATA = 0，PDH_CSTATUS_NEW_DATA = 1。
+        if item.FmtValue.CStatus > 1 {
+            continue;
+        }
+        let value = unsafe { item.FmtValue.Anonymous.doubleValue };
+        if value.is_finite() && value >= 0.0 {
+            values.push(value);
+        }
+    }
+    values
+}
+
+/// 汇总所有 DXGI 适配器的专用显存容量；软件适配器容量为 0，不影响结果。
+#[cfg(windows)]
+fn gpu_memory_total() -> u64 {
+    use windows::Win32::Graphics::Dxgi::{CreateDXGIFactory1, IDXGIFactory1};
+
+    let factory: IDXGIFactory1 = match unsafe { CreateDXGIFactory1() } {
+        Ok(factory) => factory,
+        Err(_) => return 0,
+    };
+    let mut total = 0u64;
+    for index in 0..16 {
+        let Ok(adapter) = (unsafe { factory.EnumAdapters1(index) }) else {
+            break;
+        };
+        if let Ok(desc) = unsafe { adapter.GetDesc1() } {
+            total = total.saturating_add(desc.DedicatedVideoMemory as u64);
+        }
+    }
+    total
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -246,6 +432,10 @@ mod tests {
             memory_total_bytes: 16_000,
             cpu_mhz: 3200,
             cpu_max_mhz: 4800,
+            gpu_percent: 42.0,
+            gpu_memory_percent: 33.0,
+            gpu_memory_used_bytes: 4_000,
+            gpu_memory_total_bytes: 12_000,
             total_upload_bytes: 100,
             total_download_bytes: 200,
             updated_at_ms: 1,
@@ -253,6 +443,8 @@ mod tests {
         let value = serde_json::to_value(&snapshot).unwrap();
         assert_eq!(value["uploadBps"], 1.5);
         assert_eq!(value["cpuPercent"], 12.0);
+        assert_eq!(value["gpuPercent"], 42.0);
+        assert_eq!(value["gpuMemoryUsedBytes"], 4_000);
         assert_eq!(value["totalDownloadBytes"], 200);
     }
 }

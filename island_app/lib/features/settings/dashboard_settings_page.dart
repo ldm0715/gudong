@@ -53,6 +53,11 @@ class DashboardSettingsPage extends StatelessWidget {
               SettingsSwitchRow(
                 title: DashboardMetric.values[index].label,
                 subtitle: DashboardMetric.values[index].hint,
+                leading: Icon(
+                  DashboardMetric.values[index].icon,
+                  size: 18,
+                  color: colors.muted,
+                ),
                 value: settings.dashboardMetrics.contains(
                   DashboardMetric.values[index].id,
                 ),
@@ -89,6 +94,11 @@ class DashboardSettingsPage extends StatelessWidget {
                     : islandFull
                     ? '最多显示 ${AppSettings.maxIslandMetrics} 个'
                     : '收起态显示',
+                leading: Icon(
+                  DashboardMetric.values[index].icon,
+                  size: 18,
+                  color: colors.muted,
+                ),
                 value: settings.islandMetrics.contains(
                   DashboardMetric.values[index].id,
                 ),

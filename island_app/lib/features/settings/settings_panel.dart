@@ -93,12 +93,14 @@ class SettingsSwitchRow extends StatelessWidget {
     super.key,
     required this.title,
     this.subtitle,
+    this.leading,
     required this.value,
     required this.onChanged,
   });
 
   final String title;
   final String? subtitle;
+  final Widget? leading;
   final bool value;
 
   /// 为 null 时开关不可操作，用于已达数量上限的选项。
@@ -109,6 +111,7 @@ class SettingsSwitchRow extends StatelessWidget {
     return SettingsRow(
       title: title,
       subtitle: subtitle,
+      leading: leading,
       trailing: Switch(value: value, onChanged: onChanged),
     );
   }

@@ -53,6 +53,8 @@ void main() {
         'network',
         'cpu',
         'memory',
+        'gpu',
+        'gpuMemory',
         'cpuFrequency',
         'totalTraffic',
       ],

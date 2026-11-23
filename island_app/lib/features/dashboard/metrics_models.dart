@@ -13,6 +13,10 @@ class MetricsSnapshot {
     required this.memoryTotalBytes,
     required this.cpuMhz,
     required this.cpuMaxMhz,
+    required this.gpuPercent,
+    required this.gpuMemoryPercent,
+    required this.gpuMemoryUsedBytes,
+    required this.gpuMemoryTotalBytes,
     required this.totalUploadBytes,
     required this.totalDownloadBytes,
     required this.updatedAtMs,
@@ -28,6 +32,10 @@ class MetricsSnapshot {
       memoryTotalBytes: _int(json['memoryTotalBytes']),
       cpuMhz: _int(json['cpuMhz']),
       cpuMaxMhz: _int(json['cpuMaxMhz']),
+      gpuPercent: _double(json['gpuPercent']),
+      gpuMemoryPercent: _double(json['gpuMemoryPercent']),
+      gpuMemoryUsedBytes: _int(json['gpuMemoryUsedBytes']),
+      gpuMemoryTotalBytes: _int(json['gpuMemoryTotalBytes']),
       totalUploadBytes: _int(json['totalUploadBytes']),
       totalDownloadBytes: _int(json['totalDownloadBytes']),
       updatedAtMs: _int(json['updatedAtMs']),
@@ -42,6 +50,10 @@ class MetricsSnapshot {
   final int memoryTotalBytes;
   final int cpuMhz;
   final int cpuMaxMhz;
+  final double gpuPercent;
+  final double gpuMemoryPercent;
+  final int gpuMemoryUsedBytes;
+  final int gpuMemoryTotalBytes;
   final int totalUploadBytes;
   final int totalDownloadBytes;
   final int updatedAtMs;
@@ -56,9 +68,11 @@ enum DashboardMetric {
   upload('upload', '上传', '实时上传速率', Icons.upload_rounded),
   download('download', '下载', '实时下载速率', Icons.download_rounded),
   network('network', '总网速', '上传与下载速率之和', Icons.swap_vert_rounded),
-  cpu('cpu', 'CPU 利用率', '系统总 CPU 占用率', Icons.memory_rounded),
+  cpu('cpu', 'CPU 利用率', '系统总 CPU 占用率', Icons.speed_rounded),
   memory('memory', '内存利用率', '物理内存占用率', Icons.developer_board_rounded),
-  cpuFrequency('cpuFrequency', 'CPU 频率', '当前平均主频', Icons.speed_rounded),
+  gpu('gpu', 'GPU 利用率', '显卡整体使用率', Icons.hardware_rounded),
+  gpuMemory('gpuMemory', '显存占用', '独立显存使用率', Icons.memory_rounded),
+  cpuFrequency('cpuFrequency', 'CPU 频率', '当前平均主频', Icons.timer_rounded),
   totalTraffic('totalTraffic', '总流量', '本次运行累计收发字节', Icons.data_usage_rounded);
 
   const DashboardMetric(this.id, this.label, this.hint, this.icon);
@@ -84,6 +98,10 @@ enum DashboardMetric {
       network => formatRate(snapshot.totalBps),
       cpu => formatPercent(snapshot.cpuPercent),
       memory => formatPercent(snapshot.memoryPercent),
+      gpu => formatPercent(snapshot.gpuPercent),
+      gpuMemory => snapshot.gpuMemoryTotalBytes > 0
+          ? formatPercent(snapshot.gpuMemoryPercent)
+          : '—',
       cpuFrequency => formatFrequency(snapshot.cpuMhz.toDouble()),
       totalTraffic => formatTraffic(snapshot.totalTrafficBytes.toDouble()),
     };
@@ -98,6 +116,10 @@ enum DashboardMetric {
       network => formatRate(snapshot.totalBps, compact: true),
       cpu => formatPercent(snapshot.cpuPercent),
       memory => formatPercent(snapshot.memoryPercent),
+      gpu => formatPercent(snapshot.gpuPercent),
+      gpuMemory => snapshot.gpuMemoryTotalBytes > 0
+          ? formatPercent(snapshot.gpuMemoryPercent)
+          : '—',
       cpuFrequency => formatFrequency(
         snapshot.cpuMhz.toDouble(),
         compact: true,
@@ -120,6 +142,11 @@ enum DashboardMetric {
       memory =>
         '${formatTraffic(snapshot.memoryUsedBytes.toDouble())}'
             ' / ${formatTraffic(snapshot.memoryTotalBytes.toDouble())}',
+      gpu => '${formatPercent(snapshot.gpuPercent)} · 1 秒刷新',
+      gpuMemory => snapshot.gpuMemoryTotalBytes > 0
+          ? '${formatTraffic(snapshot.gpuMemoryUsedBytes.toDouble())}'
+                ' / ${formatTraffic(snapshot.gpuMemoryTotalBytes.toDouble())}'
+          : '未检测到显存',
       cpuFrequency =>
         snapshot.cpuMaxMhz > 0
             ? '最大 ${formatFrequency(snapshot.cpuMaxMhz.toDouble())}'
@@ -135,6 +162,9 @@ enum DashboardMetric {
     return switch (this) {
       cpu => snapshot.cpuPercent >= 85 ? colors.warning : colors.accent,
       memory => snapshot.memoryPercent >= 85 ? colors.warning : colors.accent,
+      gpu => snapshot.gpuPercent >= 85 ? colors.warning : colors.accent,
+      gpuMemory =>
+        snapshot.gpuMemoryPercent >= 85 ? colors.warning : colors.accent,
       download => colors.qq,
       upload || network => colors.accent,
       cpuFrequency => colors.text,

@@ -93,6 +93,8 @@ class AppSettings {
     'network',
     'cpu',
     'memory',
+    'gpu',
+    'gpuMemory',
     'cpuFrequency',
     'totalTraffic',
   ];
