@@ -51,6 +51,10 @@ pub const CAPABILITIES: &[&str] = &[
     "schedule.update",
     "schedule.remove",
     "schedule.clearExpired",
+    "alarm.list",
+    "alarm.add",
+    "alarm.update",
+    "alarm.remove",
     "anniversary.list",
     "anniversary.add",
     "anniversary.update",
@@ -117,6 +121,8 @@ pub struct State {
     pub agents: Mutex<Option<Value>>,
     /// 日程读写与到点检查队列。
     pub schedule_tx: Mutex<Option<std::sync::mpsc::Sender<crate::schedule::Command>>>,
+    /// 每日闹钟读写与到点检查队列。
+    pub alarm_tx: Mutex<Option<std::sync::mpsc::Sender<crate::alarm::Command>>>,
     /// 倒计时与纪念日读写队列。
     pub anniversary_tx: Mutex<Option<std::sync::mpsc::Sender<crate::anniversary::Command>>>,
     /// 中转站读写队列。
@@ -158,6 +164,7 @@ impl State {
             quota_tx: Mutex::new(None),
             agents: Mutex::new(None),
             schedule_tx: Mutex::new(None),
+            alarm_tx: Mutex::new(None),
             anniversary_tx: Mutex::new(None),
             shelf_tx: Mutex::new(None),
         }
@@ -205,6 +212,12 @@ impl State {
         sender: std::sync::mpsc::Sender<crate::schedule::Command>,
     ) {
         if let Ok(mut slot) = self.schedule_tx.lock() {
+            *slot = Some(sender);
+        }
+    }
+
+    pub fn set_alarm_sender(&self, sender: std::sync::mpsc::Sender<crate::alarm::Command>) {
+        if let Ok(mut slot) = self.alarm_tx.lock() {
             *slot = Some(sender);
         }
     }
@@ -596,6 +609,20 @@ pub fn handle(
                     params: params.clone(),
                 })
                 .map_err(|_| RpcError::new(ERR_INTERNAL, "schedule worker stopped"))?;
+            Ok(Action::Pending)
+        }
+        "alarm.list" | "alarm.add" | "alarm.update" | "alarm.remove" => {
+            let sender = state.alarm_tx.lock().ok().and_then(|slot| slot.clone());
+            let Some(sender) = sender else {
+                return Err(RpcError::new(ERR_INTERNAL, "alarm worker is not running"));
+            };
+            sender
+                .send(crate::alarm::Command {
+                    id: id.clone(),
+                    method: method.to_string(),
+                    params: params.clone(),
+                })
+                .map_err(|_| RpcError::new(ERR_INTERNAL, "alarm worker stopped"))?;
             Ok(Action::Pending)
         }
         "anniversary.list"

@@ -31,6 +31,7 @@ import 'features/mail/mail_controller.dart';
 import 'features/media/media_controller.dart';
 import 'features/messages/messages_controller.dart';
 import 'features/quota/quota_controller.dart';
+import 'features/schedule/alarm_controller.dart';
 import 'features/schedule/anniversary_controller.dart';
 import 'features/schedule/schedule_controller.dart';
 import 'features/shelf/shelf_controller.dart';
@@ -83,6 +84,7 @@ Future<void> main(List<String> args) async {
   final metrics = MetricsController(supervisor);
   final schedule = ScheduleController(supervisor);
   final anniversary = AnniversaryController(supervisor);
+  final alarm = AlarmController(supervisor);
   final volume = VolumeController(supervisor);
   final shelf = ShelfController(supervisor);
   final agents = AgentController(supervisor);
@@ -93,6 +95,7 @@ Future<void> main(List<String> args) async {
     messages: messages,
     mail: mail,
     schedule: schedule,
+    alarm: alarm,
     volume: volume,
     agents: agents,
   );
@@ -118,6 +121,7 @@ Future<void> main(List<String> args) async {
         island.showBanner ||
         island.showMailBanner ||
         island.showScheduleBanner ||
+        island.showAlarmBanner ||
         (appSettings.showAgentBanner && island.showAgentBanner) ||
         island.showVolumeBanner ||
         (appSettings.showImeBanner && ime.visible);
@@ -156,6 +160,7 @@ Future<void> main(List<String> args) async {
   media.addListener(updateInteractiveRect);
   ime.addListener(updateInteractiveRect);
   schedule.addListener(updateInteractiveRect);
+  alarm.addListener(updateInteractiveRect);
   agents.addListener(updateInteractiveRect);
   settings.addListener(updateInteractiveRect);
   windowPosition.addListener(updateInteractiveRect);
@@ -177,6 +182,7 @@ Future<void> main(List<String> args) async {
         metrics: metrics,
         schedule: schedule,
         anniversary: anniversary,
+        alarm: alarm,
         volume: volume,
         agents: agents,
         shelf: shelf,

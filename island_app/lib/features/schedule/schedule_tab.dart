@@ -6,6 +6,8 @@ import '../../core/theme/island_colors.dart';
 import '../../core/theme/island_metrics.dart';
 import '../../core/theme/island_typography.dart';
 import '../../core/widgets/page_edge_button.dart';
+import 'alarm_controller.dart';
+import 'alarm_page.dart';
 import 'anniversary_controller.dart';
 import 'anniversary_page.dart';
 import 'schedule_controller.dart';
@@ -21,17 +23,20 @@ class ScheduleTab extends StatefulWidget {
     super.key,
     required this.controller,
     required this.anniversary,
+    required this.alarm,
   });
 
   final ScheduleController controller;
   final AnniversaryController anniversary;
+  final AlarmController alarm;
 
   @override
   State<ScheduleTab> createState() => _ScheduleTabState();
 }
 
 class _ScheduleTabState extends State<ScheduleTab> {
-  int _page = 0;
+  // 日程在中间，左侧是闹钟，右侧是倒计时与纪念日。
+  int _page = 1;
   late DateTime _month;
   late DateTime _selected;
   final TextEditingController _title = TextEditingController();
@@ -306,6 +311,12 @@ class _ScheduleTabState extends State<ScheduleTab> {
     }
   }
 
+  String _pageLabel(int page) {
+    if (page <= 0) return '闹钟';
+    if (page == 1) return '日程';
+    return '倒计时与纪念日';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Row(
@@ -315,23 +326,25 @@ class _ScheduleTabState extends State<ScheduleTab> {
           width: IslandMetrics.iconSM,
           child: PageEdgeButton(
             icon: Icons.chevron_left_rounded,
-            tooltip: '日程',
+            tooltip: _pageLabel(_page - 1),
             enabled: _page > 0,
-            onTap: () => setState(() => _page = 0),
+            onTap: () => setState(() => _page -= 1),
           ),
         ),
         Expanded(
-          child: _page == 0
-              ? _schedulePage(context)
-              : AnniversaryPage(controller: widget.anniversary),
+          child: switch (_page) {
+            0 => AlarmPage(controller: widget.alarm),
+            1 => _schedulePage(context),
+            _ => AnniversaryPage(controller: widget.anniversary),
+          },
         ),
         SizedBox(
           width: IslandMetrics.iconSM,
           child: PageEdgeButton(
             icon: Icons.chevron_right_rounded,
-            tooltip: '倒计时与纪念日',
-            enabled: _page < 1,
-            onTap: () => setState(() => _page = 1),
+            tooltip: _pageLabel(_page + 1),
+            enabled: _page < 2,
+            onTap: () => setState(() => _page += 1),
           ),
         ),
       ],

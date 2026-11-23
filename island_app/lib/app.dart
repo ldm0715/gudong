@@ -26,6 +26,7 @@ import 'features/mail/mail_controller.dart';
 import 'features/media/media_controller.dart';
 import 'features/messages/messages_controller.dart';
 import 'features/quota/quota_controller.dart';
+import 'features/schedule/alarm_controller.dart';
 import 'features/schedule/anniversary_controller.dart';
 import 'features/schedule/schedule_controller.dart';
 import 'features/settings/settings_window_launcher.dart';
@@ -50,6 +51,7 @@ class AppScope {
     required this.metrics,
     required this.schedule,
     required this.anniversary,
+    required this.alarm,
     required this.volume,
     required this.agents,
     required this.shelf,
@@ -72,6 +74,7 @@ class AppScope {
   final MetricsController metrics;
   final ScheduleController schedule;
   final AnniversaryController anniversary;
+  final AlarmController alarm;
   final VolumeController volume;
   final AgentController agents;
   final ShelfController shelf;
@@ -95,6 +98,7 @@ class AppScope {
     metrics.dispose();
     schedule.dispose();
     anniversary.dispose();
+    alarm.dispose();
     volume.dispose();
     agents.dispose();
     shelf.dispose();
@@ -313,6 +317,7 @@ class _GudongAppState extends State<GudongApp> with WindowListener, TrayListener
                 metrics: widget.scope.metrics,
                 schedule: widget.scope.schedule,
                 anniversary: widget.scope.anniversary,
+                alarm: widget.scope.alarm,
                 volume: widget.scope.volume,
                 agents: widget.scope.agents,
                 shelf: widget.scope.shelf,

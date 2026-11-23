@@ -48,6 +48,10 @@
 | `schedule.update` | `{id, title?, atMs?}` | `{item:ScheduleItem}`；至少传一个字段，改成未来时间会重置 `fired` |
 | `schedule.remove` | `{id}` | `{ok}`；删除后不可恢复 |
 | `schedule.clearExpired` | `{}` | `{ok, removed}`；删除所有 `fired=true` 的日程，返回删除数量 |
+| `alarm.list` | `{}` | `{items:[AlarmItem]}`；按 `hour`、`minute` 升序 |
+| `alarm.add` | `{title, hour, minute, days, enabled?}` | `{item:AlarmItem}`；`title` 1–80 字符，`hour` 0–23，`minute` 0–59，`days` 为 1–7 的非空数组，`enabled` 默认 `true` |
+| `alarm.update` | `{id, title?, hour?, minute?, days?, enabled?}` | `{item:AlarmItem}`；至少传一个字段 |
+| `alarm.remove` | `{id}` | `{ok}`；删除后不可恢复 |
 | `anniversary.list` | `{}` | `{items:[AnniversaryItem]}`；按 `date` 升序 |
 | `anniversary.add` | `{title, date}` | `{item:AnniversaryItem}`；`title` 1–80 字符，`date` 为 `YYYY-MM-DD` |
 | `anniversary.update` | `{id, title?, date?}` | `{item:AnniversaryItem}`；至少传一个字段 |
@@ -282,6 +286,8 @@
 | `foreground.maximized` | 前台窗口最大化状态变化，带 `maximized`；前台是 gudong 自身窗口时不更新，客户端保持上一次状态 |
 | `schedule.updated` | 日程新增、修改、删除或触发后推送最新全量列表，带 `items` |
 | `schedule.fired` | 日程到点，带 `item`；sidecar 同时播放系统提示音并发送 Windows 气泡通知 |
+| `alarm.updated` | 闹钟新增、修改或删除后推送最新全量列表，带 `items` |
+| `alarm.fired` | 闹钟到点，带 `item`；sidecar 同时播放系统提示音并发送 Windows 通知，客户端据此显示横幅 |
 | `anniversary.updated` | 倒计时 / 纪念日新增、修改或删除后推送最新全量列表，带 `items` |
 | `shelf.updated` | 中转站条目新增、删除、清空或重复拖入置顶后推送最新全量列表，带 `items` |
 | `shelf.icon` | 某个条目的系统缩略图 / 原始图标生成完成，带 `id` 与 `data`（PNG data URL）；每个条目只推一次，客户端按 `id` 缓存 |
@@ -304,6 +310,26 @@
 - 启动时已过点但未触发的日程会被直接标记为已触发，不补发横幅、提示音或 Windows 通知。
 - 已触发日程保留 7 天，之后由 sidecar 自动清理；客户端也可调用 `schedule.clearExpired` 手动清理。
 - 到点检查在 sidecar 线程内完成，客户端只消费 `schedule.fired` 与 `schedule.updated`。
+
+`AlarmItem`：
+
+```json
+{
+  "id": "al_18f2a3b4c5d_0",
+  "title": "喝水",
+  "hour": 9,
+  "minute": 30,
+  "days": [1, 2, 3, 4, 5],
+  "enabled": true,
+  "createdAtMs": 1794997775244
+}
+```
+
+- `days` 为 ISO 星期：1 = 周一，7 = 周日；至少选择一天，重复项会被忽略。
+- 按本地时间匹配 `hour` 与 `minute`，同一分钟内只触发一次；`enabled=false` 时不触发。
+- 到点推送 `alarm.fired`，同时播放系统提示音并发送 Windows 通知；客户端收到后显示闹钟横幅。
+- 闹钟写 `%APPDATA%\gudong\alarms.json`，先写临时文件再替换，最多 100 条。
+- 该页面位于日程 tab 的第三页，不单独占用 `tabOrder`。
 
 `AnniversaryItem`：
 

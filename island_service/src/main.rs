@@ -6,6 +6,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod agent;
+mod alarm;
 mod anniversary;
 mod config;
 mod credentials;
@@ -99,8 +100,10 @@ fn main() {
     let mail_tx = mail::start(state.clone(), tx.clone());
     state.set_mail_sender(mail_tx);
     let toast_tx = toast::start();
-    let schedule_tx = schedule::start(tx.clone(), toast_tx);
+    let schedule_tx = schedule::start(tx.clone(), toast_tx.clone());
     state.set_schedule_sender(schedule_tx);
+    let alarm_tx = alarm::start(tx.clone(), toast_tx);
+    state.set_alarm_sender(alarm_tx);
     let anniversary_tx = anniversary::start(tx.clone());
     state.set_anniversary_sender(anniversary_tx);
     let icon_tx = shelf_icons::start(tx.clone());

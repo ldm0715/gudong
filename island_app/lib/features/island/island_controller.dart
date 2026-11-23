@@ -9,6 +9,8 @@ import '../agents/agent_models.dart';
 import '../mail/mail_controller.dart';
 import '../mail/mail_models.dart';
 import '../messages/messages_controller.dart';
+import '../schedule/alarm_controller.dart';
+import '../schedule/alarm_models.dart';
 import '../schedule/schedule_controller.dart';
 import '../schedule/schedule_models.dart';
 import '../volume/volume_controller.dart';
@@ -20,6 +22,7 @@ class IslandController extends ChangeNotifier {
     required this.messages,
     required this.mail,
     required this.schedule,
+    required this.alarm,
     required this.volume,
     required this.agents,
   }) {
@@ -28,11 +31,13 @@ class IslandController extends ChangeNotifier {
     messages.addListener(_onMessagesChanged);
     mail.addListener(_onMailChanged);
     schedule.addListener(_onScheduleChanged);
+    alarm.addListener(_onAlarmChanged);
     volume.addListener(_onVolumeChanged);
     agents.addListener(_onAgentChanged);
     _lastRevision = messages.revision;
     _lastMailRevision = mail.revision;
     _lastScheduleRevision = schedule.revision;
+    _lastAlarmRevision = alarm.revision;
     _lastVolumeRevision = volume.revision;
     _lastAgentRevision = agents.revision;
   }
@@ -41,6 +46,7 @@ class IslandController extends ChangeNotifier {
   final MessagesController messages;
   final MailController mail;
   final ScheduleController schedule;
+  final AlarmController alarm;
   final VolumeController volume;
   final AgentController agents;
 
@@ -49,6 +55,7 @@ class IslandController extends ChangeNotifier {
   bool _banner = false;
   bool _mailBanner = false;
   bool _scheduleBanner = false;
+  bool _alarmBanner = false;
   bool _volumeBanner = false;
   bool _agentBanner = false;
   bool _handleVisible = false;
@@ -58,6 +65,7 @@ class IslandController extends ChangeNotifier {
   int _lastRevision = 0;
   int _lastMailRevision = 0;
   int _lastScheduleRevision = 0;
+  int _lastAlarmRevision = 0;
   int _lastVolumeRevision = 0;
   int _lastAgentRevision = 0;
   String? _agentBannerKey;
@@ -65,6 +73,7 @@ class IslandController extends ChangeNotifier {
   Timer? _bannerTimer;
   Timer? _mailBannerTimer;
   Timer? _scheduleBannerTimer;
+  Timer? _alarmBannerTimer;
   Timer? _volumeBannerTimer;
   Timer? _agentBannerTimer;
   Timer? _handleTimer;
@@ -82,6 +91,8 @@ class IslandController extends ChangeNotifier {
   MailSummary? get mailBannerItem => mail.bannerItem;
   bool get showScheduleBanner => _scheduleBanner && schedule.bannerItem != null;
   ScheduleItem? get scheduleBannerItem => schedule.bannerItem;
+  bool get showAlarmBanner => _alarmBanner && alarm.bannerItem != null;
+  AlarmItem? get alarmBannerItem => alarm.bannerItem;
   bool get showVolumeBanner => _volumeBanner;
   bool get showAgentBanner => _agentBanner && agents.bannerItem != null;
   AgentFinished? get agentBannerItem => agents.bannerItem;
@@ -186,6 +197,24 @@ class IslandController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void _onAlarmChanged() {
+    if (alarm.revision != _lastAlarmRevision) {
+      _lastAlarmRevision = alarm.revision;
+      if (alarm.bannerItem != null) {
+        _alarmBanner = true;
+        _alarmBannerTimer?.cancel();
+        _alarmBannerTimer = Timer(IslandMotion.bannerHoldLong, () {
+          if (_disposed) return;
+          _alarmBanner = false;
+          alarm.dismissBanner();
+          notifyListeners();
+        });
+        _signalPulse();
+      }
+    }
+    notifyListeners();
+  }
+
   void _onVolumeChanged() {
     if (volume.revision != _lastVolumeRevision) {
       _lastVolumeRevision = volume.revision;
@@ -248,6 +277,7 @@ class IslandController extends ChangeNotifier {
     _bannerTimer?.cancel();
     _mailBannerTimer?.cancel();
     _scheduleBannerTimer?.cancel();
+    _alarmBannerTimer?.cancel();
     _volumeBannerTimer?.cancel();
     _agentBannerTimer?.cancel();
     _handleTimer?.cancel();
@@ -256,6 +286,7 @@ class IslandController extends ChangeNotifier {
     messages.removeListener(_onMessagesChanged);
     mail.removeListener(_onMailChanged);
     schedule.removeListener(_onScheduleChanged);
+    alarm.removeListener(_onAlarmChanged);
     volume.removeListener(_onVolumeChanged);
     agents.removeListener(_onAgentChanged);
     super.dispose();
