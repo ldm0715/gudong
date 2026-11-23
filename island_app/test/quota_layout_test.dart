@@ -37,6 +37,31 @@ QuotaProvider _provider({String id = 'glm'}) => QuotaProvider.fromJson({
 });
 
 void main() {
+  test('formats the last refresh time', () {
+    final now = DateTime(2026, 11, 23, 12, 30);
+    int ms(DateTime value) => value.millisecondsSinceEpoch;
+    expect(formatUpdatedAt(null), '');
+    expect(
+      formatUpdatedAt(
+        ms(now.subtract(const Duration(seconds: 20))),
+        now: now,
+      ),
+      '刚刚更新',
+    );
+    expect(
+      formatUpdatedAt(ms(now.subtract(const Duration(minutes: 5))), now: now),
+      '5 分钟前',
+    );
+    expect(
+      formatUpdatedAt(ms(now.subtract(const Duration(hours: 3))), now: now),
+      '3 小时前',
+    );
+    expect(
+      formatUpdatedAt(ms(DateTime(2026, 11, 20, 9, 5)), now: now),
+      '11-20 09:05',
+    );
+  });
+
   testWidgets('quota cards render every window inside a scrollable list', (
     tester,
   ) async {

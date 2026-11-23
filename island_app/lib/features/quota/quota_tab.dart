@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../core/settings/app_settings.dart';
 import '../../core/theme/island_colors.dart';
 import '../../core/theme/island_metrics.dart';
+import '../../core/theme/island_motion.dart';
 import '../../core/theme/island_typography.dart';
 import 'quota_controller.dart';
 import 'quota_icons.dart';
@@ -51,8 +52,12 @@ class _QuotaTabState extends State<QuotaTab> {
       padding: EdgeInsets.zero,
       itemCount: providers.length,
       separatorBuilder: (_, _) => const SizedBox(height: IslandMetrics.space6),
-      itemBuilder: (context, index) =>
-          QuotaProviderCard(provider: providers[index]),
+      itemBuilder: (context, index) => QuotaProviderCard(
+        provider: providers[index],
+        onRefresh: () => widget.controller.refresh(
+          provider: providers[index].id,
+        ),
+      ),
     );
   }
 
@@ -68,17 +73,67 @@ class _QuotaTabState extends State<QuotaTab> {
   }
 }
 
-/// 单个服务的额度卡片：标题、每个窗口的图表与余额。
-class QuotaProviderCard extends StatelessWidget {
-  const QuotaProviderCard({super.key, required this.provider});
+/// 单个服务的额度卡片：标题、最近刷新时间、手动刷新与各窗口图表。
+class QuotaProviderCard extends StatefulWidget {
+  const QuotaProviderCard({super.key, required this.provider, this.onRefresh});
 
   final QuotaProvider provider;
+  final Future<void> Function()? onRefresh;
+
+  @override
+  State<QuotaProviderCard> createState() => _QuotaProviderCardState();
+}
+
+class _QuotaProviderCardState extends State<QuotaProviderCard> {
+  Timer? _timeout;
+  bool _refreshing = false;
+
+  @override
+  void didUpdateWidget(covariant QuotaProviderCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 新快照到达后停止转圈；无变化或失败时由超时兜底。
+    if (_refreshing &&
+        oldWidget.provider.updatedAtMs != widget.provider.updatedAtMs) {
+      _stopRefreshing();
+    }
+  }
+
+  @override
+  void dispose() {
+    _timeout?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _refresh() async {
+    final onRefresh = widget.onRefresh;
+    if (_refreshing || onRefresh == null) return;
+    setState(() => _refreshing = true);
+    _timeout?.cancel();
+    _timeout = Timer(const Duration(seconds: 20), _stopRefreshing);
+    await onRefresh();
+  }
+
+  void _stopRefreshing() {
+    _timeout?.cancel();
+    _timeout = null;
+    if (mounted && _refreshing) setState(() => _refreshing = false);
+  }
 
   @override
   Widget build(BuildContext context) {
     final colors = context.islandColors;
+    final provider = widget.provider;
     final primary = provider.sessionWindow ?? provider.secondaryWindow;
     final tone = quotaTone(colors, primary?.usedPercent);
+    final updated = formatUpdatedAt(provider.updatedAtMs);
+    final subtitle = [
+      provider.plan?.isNotEmpty == true
+          ? provider.plan!
+          : provider.ok
+          ? '已连接'
+          : provider.statusLabel,
+      if (updated.isNotEmpty) updated,
+    ].join(' · ');
     return Container(
       padding: const EdgeInsets.fromLTRB(
         IslandMetrics.space10,
@@ -117,11 +172,7 @@ class QuotaProviderCard extends StatelessWidget {
                       style: IslandTypography.bodyStrong.tint(colors.text),
                     ),
                     Text(
-                      provider.plan?.isNotEmpty == true
-                          ? provider.plan!
-                          : provider.ok
-                          ? '已连接'
-                          : provider.statusLabel,
+                      subtitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: IslandTypography.micro.tint(colors.muted),
@@ -130,17 +181,25 @@ class QuotaProviderCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: IslandMetrics.space8),
-              if (primary?.hasMeter == true)
+              _RefreshButton(
+                label: provider.label,
+                refreshing: _refreshing,
+                onTap: _refresh,
+              ),
+              if (primary?.hasMeter == true) ...[
+                const SizedBox(width: IslandMetrics.space4),
                 QuotaRing(
                   value: primary!.remainingValue,
                   color: tone,
                   label: formatPercent(primary.effectiveRemainingPercent),
-                )
-              else if (!provider.ok)
+                ),
+              ] else if (!provider.ok) ...[
+                const SizedBox(width: IslandMetrics.space8),
                 Text(
                   provider.statusLabel,
                   style: IslandTypography.micro.tint(colors.muted),
                 ),
+              ],
             ],
           ),
           if (provider.ok && provider.windows.isNotEmpty) ...[
@@ -162,6 +221,84 @@ class QuotaProviderCard extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// 自绘刷新按钮，带 hover / focus 与刷新中状态。
+class _RefreshButton extends StatefulWidget {
+  const _RefreshButton({
+    required this.label,
+    required this.refreshing,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool refreshing;
+  final VoidCallback onTap;
+
+  @override
+  State<_RefreshButton> createState() => _RefreshButtonState();
+}
+
+class _RefreshButtonState extends State<_RefreshButton> {
+  bool _hover = false;
+  bool _focus = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.islandColors;
+    final highlighted = _hover || _focus;
+    return Tooltip(
+      message: '刷新 ${widget.label}',
+      waitDuration: IslandMotion.tooltipDelay,
+      child: Semantics(
+        button: true,
+        label: '刷新 ${widget.label}',
+        child: FocusableActionDetector(
+          enabled: !widget.refreshing,
+          mouseCursor: SystemMouseCursors.click,
+          onShowHoverHighlight: (value) => setState(() => _hover = value),
+          onShowFocusHighlight: (value) => setState(() => _focus = value),
+          actions: {
+            ActivateIntent: CallbackAction<ActivateIntent>(
+              onInvoke: (_) {
+                widget.onTap();
+                return null;
+              },
+            ),
+          },
+          child: GestureDetector(
+            onTap: widget.refreshing ? null : widget.onTap,
+            child: Container(
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                color: highlighted && !widget.refreshing
+                    ? colors.chip
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(IslandMetrics.radiusChip),
+              ),
+              child: Center(
+                child: widget.refreshing
+                    ? SizedBox(
+                        width: 12,
+                        height: 12,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 1.5,
+                          color: colors.muted,
+                        ),
+                      )
+                    : Icon(
+                        Icons.refresh_rounded,
+                        size: 16,
+                        color: highlighted ? colors.text : colors.muted,
+                      ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

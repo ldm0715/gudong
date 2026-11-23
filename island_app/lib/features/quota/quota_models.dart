@@ -166,6 +166,20 @@ String formatPercent(double? percent) {
   return '$rounded%';
 }
 
+/// 最近刷新时间。一小时内显示相对时间，更久显示日期。
+String formatUpdatedAt(int? millis, {DateTime? now}) {
+  if (millis == null || millis <= 0) return '';
+  final at = DateTime.fromMillisecondsSinceEpoch(millis);
+  final current = now ?? DateTime.now();
+  final diff = current.difference(at);
+  if (diff.isNegative || diff.inSeconds < 60) return '刚刚更新';
+  if (diff.inMinutes < 60) return '${diff.inMinutes} 分钟前';
+  if (diff.inHours < 24) return '${diff.inHours} 小时前';
+  final hour = at.hour.toString().padLeft(2, '0');
+  final minute = at.minute.toString().padLeft(2, '0');
+  return '${at.month}-${at.day} $hour:$minute';
+}
+
 /// 重置倒计时只保留最有用的粒度，避免每帧重排。
 String formatReset(DateTime? reset, {DateTime? now}) {
   if (reset == null) return '';
