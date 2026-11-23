@@ -224,11 +224,20 @@ class GeneralSettingsPage extends StatelessWidget {
         ),
         const SizedBox(height: 18),
         const SettingsSectionLabel('启动与快捷键'),
-        const SettingsCard(
+        SettingsCard(
           children: [
-            SettingsInfoRow(title: '全局快捷键', value: 'Ctrl + Alt + Space'),
-            SettingsDivider(),
-            SettingsInfoRow(title: '开机自启', value: 'Phase 3 接入'),
+            const SettingsInfoRow(
+              title: '全局快捷键',
+              value: 'Ctrl + Alt + Space',
+            ),
+            const SettingsDivider(),
+            SettingsSwitchRow(
+              title: '开机自启',
+              subtitle: '登录 Windows 后自动启动 Guduo',
+              value: settings.launchAtLogin,
+              onChanged: (value) =>
+                  onSave(settings.copyWith(launchAtLogin: value)),
+            ),
           ],
         ),
       ],

@@ -35,6 +35,7 @@ void main() {
       'showAgentIndicator': true,
       'showAgentBanner': true,
       'autoCollapseOnMaximized': true,
+      'launchAtLogin': false,
       'tabOrder': [
         'messages',
         'mail',

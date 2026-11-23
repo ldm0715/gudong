@@ -100,6 +100,7 @@
 | `showAgentIndicator` | bool | 收起态显示运行中的 agent 图标，默认 `true` |
 | `showAgentBanner` | bool | agent 回合结束时弹出横幅，默认 `true` |
 | `autoCollapseOnMaximized` | bool | 前台窗口最大化时只保留一条横杠，点击横杠显示收起态，默认 `true` |
+| `launchAtLogin` | bool | 登录 Windows 后自动启动；写入 HKCU `Software\Microsoft\Windows\CurrentVersion\Run`，启动项指向 sidecar 同目录的 `island_app.exe`。`settings.get` 返回注册表真实状态，不写入 config.json |
 | `shelfMaxItems` | number | 中转站条目上限，默认 `100`，限制在 `10`–`500`；达到上限后拒绝新条目，不淘汰旧条目 |
 | `shelfViewMode` | string | 中转站默认视图：`list`（列表，默认）/ `grid`（图标网格） |
 

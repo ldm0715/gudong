@@ -18,6 +18,7 @@ class AppSettings {
     this.showAgentIndicator = true,
     this.showAgentBanner = true,
     this.autoCollapseOnMaximized = true,
+    this.launchAtLogin = false,
     this.tabOrder = defaultTabOrder,
     this.hiddenTabs = const [],
     this.dashboardMetrics = defaultDashboardMetrics,
@@ -133,6 +134,7 @@ class AppSettings {
       showAgentIndicator: json['showAgentIndicator'] != false,
       showAgentBanner: json['showAgentBanner'] != false,
       autoCollapseOnMaximized: json['autoCollapseOnMaximized'] != false,
+      launchAtLogin: json['launchAtLogin'] == true,
       tabOrder: _normalizeOrder(json['tabOrder']),
       hiddenTabs: _normalizeHidden(json['hiddenTabs']),
       dashboardMetrics: _normalizeMetrics(
@@ -225,6 +227,9 @@ class AppSettings {
 
   /// 前台窗口最大化时只保留一条横杠，点击后显示收起态。
   final bool autoCollapseOnMaximized;
+
+  /// 登录 Windows 后自动启动；真实状态来自注册表，不写入 config.json。
+  final bool launchAtLogin;
   final List<String> tabOrder;
   final List<String> hiddenTabs;
 
@@ -371,6 +376,7 @@ class AppSettings {
     'showAgentIndicator': showAgentIndicator,
     'showAgentBanner': showAgentBanner,
     'autoCollapseOnMaximized': autoCollapseOnMaximized,
+    'launchAtLogin': launchAtLogin,
     'tabOrder': tabOrder,
     'hiddenTabs': hiddenTabs,
     'dashboardMetrics': dashboardMetrics,
@@ -427,6 +433,7 @@ class AppSettings {
     bool? showAgentIndicator,
     bool? showAgentBanner,
     bool? autoCollapseOnMaximized,
+    bool? launchAtLogin,
     List<String>? tabOrder,
     List<String>? hiddenTabs,
     List<String>? dashboardMetrics,
@@ -482,6 +489,7 @@ class AppSettings {
       showAgentBanner: showAgentBanner ?? this.showAgentBanner,
       autoCollapseOnMaximized:
           autoCollapseOnMaximized ?? this.autoCollapseOnMaximized,
+      launchAtLogin: launchAtLogin ?? this.launchAtLogin,
       tabOrder: tabOrder ?? this.tabOrder,
       hiddenTabs: hiddenTabs ?? this.hiddenTabs,
       dashboardMetrics: dashboardMetrics ?? this.dashboardMetrics,

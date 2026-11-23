@@ -672,6 +672,10 @@ pub fn handle(
             ] {
                 patch.remove(key);
             }
+            // 开机自启以注册表为准，不写进 config.json。
+            let launch_at_login = patch
+                .remove("launchAtLogin")
+                .and_then(|value| value.as_bool());
             // 客户端每次设置保存都会带上全部键，只有真正变化的额度设置才触发刷新。
             let previous = state.config.snapshot();
             let quota_changed = [
@@ -693,6 +697,13 @@ pub fn handle(
             .any(|key| previous.get(*key) != patch.get(*key));
             match state.config.merge(&patch) {
                 Ok(_) => {
+                    if let Some(enabled) = launch_at_login {
+                        if enabled != crate::shell::launch_at_login_enabled() {
+                            if let Err(message) = crate::shell::set_launch_at_login(enabled) {
+                                crate::log(&format!("autostart: {message}"));
+                            }
+                        }
+                    }
                     if quota_changed {
                         wake_quota(state, None);
                     }
@@ -752,6 +763,11 @@ fn media_control(params: &Value) -> Result<Action, RpcError> {
 /// 设置快照 + 凭据状态。凭据键是只读派生值，不写入 config.json。
 fn settings_snapshot(state: &State) -> Map<String, Value> {
     let mut settings = state.config.snapshot();
+    // 开机自启的真实状态来自注册表，config.json 不保存这个键。
+    settings.insert(
+        "launchAtLogin".into(),
+        json!(crate::shell::launch_at_login_enabled()),
+    );
     settings.insert(
         "translateLlmKeyConfigured".into(),
         json!(crate::credentials::read(crate::credentials::LLM).is_some()),
