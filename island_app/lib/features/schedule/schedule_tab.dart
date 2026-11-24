@@ -6,6 +6,7 @@ import '../../core/theme/island_colors.dart';
 import '../../core/theme/island_metrics.dart';
 import '../../core/theme/island_typography.dart';
 import '../../core/widgets/page_edge_button.dart';
+import '../island/island_controller.dart';
 import 'alarm_controller.dart';
 import 'alarm_page.dart';
 import 'anniversary_controller.dart';
@@ -13,6 +14,7 @@ import 'anniversary_page.dart';
 import 'schedule_controller.dart';
 import 'schedule_controls.dart';
 import 'schedule_models.dart';
+import 'time_picker.dart';
 
 /// 展开态日程页：左侧当天事宜，右侧月历。
 ///
@@ -24,11 +26,13 @@ class ScheduleTab extends StatefulWidget {
     required this.controller,
     required this.anniversary,
     required this.alarm,
+    required this.island,
   });
 
   final ScheduleController controller;
   final AnniversaryController anniversary;
   final AlarmController alarm;
+  final IslandController island;
 
   @override
   State<ScheduleTab> createState() => _ScheduleTabState();
@@ -153,6 +157,27 @@ class _ScheduleTabState extends State<ScheduleTab> {
       hour,
       minute,
     );
+  }
+
+  Future<void> _pickTime() async {
+    final current = _parseTime(_time.text);
+    PickedTime? picked;
+    widget.island.holdExpanded(true);
+    try {
+      picked = await showIslandTimePicker(
+        context,
+        hour: current?.hour ?? 9,
+        minute: current?.minute ?? 0,
+      );
+    } finally {
+      widget.island.holdExpanded(false);
+    }
+    final value = picked;
+    if (value == null || !mounted) return;
+    setState(() {
+      _time.text = formatClockTime(value.hour, value.minute);
+      _timeEdited = true;
+    });
   }
 
   void _submit() {
@@ -333,7 +358,10 @@ class _ScheduleTabState extends State<ScheduleTab> {
         ),
         Expanded(
           child: switch (_page) {
-            0 => AlarmPage(controller: widget.alarm),
+            0 => AlarmPage(
+              controller: widget.alarm,
+              island: widget.island,
+            ),
             1 => _schedulePage(context),
             _ => AnniversaryPage(controller: widget.anniversary),
           },
@@ -570,10 +598,10 @@ class _ScheduleTabState extends State<ScheduleTab> {
         const SizedBox(height: IslandMetrics.space6),
         Row(
           children: [
-            Icon(
-              Icons.schedule_rounded,
-              size: IslandMetrics.iconSM,
-              color: colors.muted,
+            ScheduleSmallIconButton(
+              icon: Icons.schedule_rounded,
+              tooltip: '选择时间',
+              onTap: _saving ? null : _pickTime,
             ),
             const SizedBox(width: IslandMetrics.space4),
             SizedBox(

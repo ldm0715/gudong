@@ -66,6 +66,7 @@ class IslandController extends ChangeNotifier {
   bool _agentBanner = false;
   bool _handleVisible = false;
   bool _pointerInside = false;
+  bool _expandHold = false;
   bool _foregroundMaximized = false;
   StreamSubscription<Map<String, dynamic>>? _eventSubscription;
   int _lastRevision = 0;
@@ -122,6 +123,18 @@ class IslandController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 模态浮层打开时保持展开。指针离开窗口后岛体不收起，
+  /// 避免浮层悬空在桌面上。
+  void holdExpanded(bool value) {
+    if (_expandHold == value) return;
+    _expandHold = value;
+    if (value) {
+      setExpanded(true);
+    } else if (!_pointerInside) {
+      setExpanded(false);
+    }
+  }
+
   void _onEvent(Map<String, dynamic> event) {
     if (event['type'] != 'foreground.maximized') return;
     final maximized = event['maximized'];
@@ -140,7 +153,7 @@ class IslandController extends ChangeNotifier {
         _handleVisible = false;
         notifyListeners();
       }
-      setExpanded(false);
+      if (!_expandHold) setExpanded(false);
       return;
     }
     // 音量横幅需要拖动，悬停期间不展开；等横幅结束后再按指针状态展开。

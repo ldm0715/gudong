@@ -718,6 +718,7 @@ class _ExpandedBody extends StatelessWidget {
         controller: schedule,
         anniversary: anniversary,
         alarm: alarm,
+        island: island,
       ),
       IslandTab.diagnostics => DiagnosticsTab(
         connectionDetail: island.connectionDetail,

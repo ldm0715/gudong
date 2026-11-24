@@ -8,17 +8,24 @@ import '../../core/theme/island_colors.dart';
 import '../../core/theme/island_metrics.dart';
 import '../../core/theme/island_motion.dart';
 import '../../core/theme/island_typography.dart';
+import '../island/island_controller.dart';
 import 'alarm_controller.dart';
 import 'alarm_models.dart';
 import 'schedule_controls.dart';
+import 'time_picker.dart';
 
 /// 日程第三页：每日闹钟。
 ///
 /// 每张卡片可直接开关，点击卡片编辑时间、名称与生效星期。
 class AlarmPage extends StatefulWidget {
-  const AlarmPage({super.key, required this.controller});
+  const AlarmPage({
+    super.key,
+    required this.controller,
+    required this.island,
+  });
 
   final AlarmController controller;
+  final IslandController island;
 
   @override
   State<AlarmPage> createState() => _AlarmPageState();
@@ -87,6 +94,26 @@ class _AlarmPageState extends State<AlarmPage> {
       return null;
     }
     return (hour, minute);
+  }
+
+  Future<void> _pickTime() async {
+    final current = _parseTime(_time.text) ?? (9, 0);
+    PickedTime? picked;
+    widget.island.holdExpanded(true);
+    try {
+      picked = await showIslandTimePicker(
+        context,
+        hour: current.$1,
+        minute: current.$2,
+      );
+    } finally {
+      widget.island.holdExpanded(false);
+    }
+    final value = picked;
+    if (value == null || !mounted) return;
+    setState(
+      () => _time.text = formatClockTime(value.hour, value.minute),
+    );
   }
 
   Future<void> _submit() async {
@@ -335,10 +362,10 @@ class _AlarmPageState extends State<AlarmPage> {
         const SizedBox(height: IslandMetrics.space6),
         Row(
           children: [
-            Icon(
-              Icons.schedule_rounded,
-              size: IslandMetrics.iconSM,
-              color: colors.muted,
+            ScheduleSmallIconButton(
+              icon: Icons.schedule_rounded,
+              tooltip: '选择时间',
+              onTap: _saving ? null : _pickTime,
             ),
             const SizedBox(width: IslandMetrics.space4),
             SizedBox(
