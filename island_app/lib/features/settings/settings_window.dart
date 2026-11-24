@@ -11,6 +11,7 @@ import '../../core/settings/app_settings.dart';
 import '../../core/theme/island_colors.dart';
 import '../shelf/shelf_settings_page.dart';
 import '../translate/translate_bridge.dart';
+import '../update/update_bridge.dart';
 import '../weather/weather_bridge.dart';
 import 'ai_settings_page.dart';
 import 'dashboard_settings_page.dart';
@@ -219,6 +220,11 @@ Future<void> runSettingsWindow(SettingsWindowArguments args) async {
   } catch (error) {
     AppLog.write('[settings-window] weather channel register failed: $error');
   }
+  try {
+    await updateChannel.setMethodCallHandler((call) async => null);
+  } catch (error) {
+    AppLog.write('[settings-window] update channel register failed: $error');
+  }
 
   // 主窗口通过 WindowController 发送 focus / close。
   try {
@@ -394,7 +400,10 @@ class _SettingsBodyState extends State<_SettingsBody> {
         settings: settings,
         onSave: onSave,
       ),
-      SettingsSection.about => const AboutSettingsPage(),
+      SettingsSection.about => AboutSettingsPage(
+        settings: settings,
+        onSave: onSave,
+      ),
     };
   }
 }

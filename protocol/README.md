@@ -29,6 +29,10 @@
 | `translate.setSecret` | `{provider, key}` | `{ok, configured}`；`provider` 为 `llm` / `deepl` / `caiyun`，空 `key` 表示删除 |
 | `settings.get` | `{}` | `{settings}` |
 | `settings.set` | `{settings:{...}}` | `{ok, settings}`；按 key 合并后返回全量设置 |
+| `update.check` | `{}` | `{snapshot:UpdateSnapshot}`；同步请求 GitHub Releases，客户端超时放宽到 30 秒 |
+| `update.status` | `{}` | `{snapshot:UpdateSnapshot}`；最近一次检查与下载状态 |
+| `update.download` | `{}` | `{ok, message?}`；立即返回，下载在后台继续，进度通过 `update.status` 轮询；便携版返回 `ok:false` |
+| `update.install` | `{}` | `{ok, message?}`；启动已下载的安装程序 |
 | `mail.accounts.list` | `{}` | `{accounts:[MailAccount]}`；不含任何密码或令牌 |
 | `mail.accounts.add` | `{provider, email, password?, custom?, label?}` | `{account: MailAccount}`；写入账号与凭据后立即返回，连接结果由 `mail.account` 事件推送 |
 | `mail.accounts.update` | `{id, label}` | `{account: MailAccount}`；只修改别名，`label` 为空表示清除别名，不影响凭据和连接 |
@@ -104,6 +108,8 @@
 | `showAgentIndicator` | bool | 收起态显示运行中的 agent 图标，默认 `true` |
 | `showAgentBanner` | bool | agent 回合结束时弹出横幅，默认 `true` |
 | `autoCollapseOnMaximized` | bool | 前台窗口最大化时只保留一条横杠，点击横杠显示收起态，默认 `true` |
+| `autoCheckUpdates` | bool | 启动后与每天中午自动检查更新，默认 `true` |
+| `updateSnoozeDate` | string | 用户选择「今日不再提醒」的本地日期 `YYYY-MM-DD`；当天自动检查跳过，手动检查不受影响 |
 | `launchAtLogin` | bool | 登录 Windows 后自动启动；写入 HKCU `Software\Microsoft\Windows\CurrentVersion\Run`，启动项指向 sidecar 同目录的 `island_app.exe`。`settings.get` 返回注册表真实状态，不写入 config.json |
 | `shelfMaxItems` | number | 中转站条目上限，默认 `100`，限制在 `10`–`500`；达到上限后拒绝新条目，不淘汰旧条目 |
 | `shelfViewMode` | string | 中转站默认视图：`list`（列表，默认）/ `grid`（图标网格） |
@@ -291,6 +297,8 @@
 | `anniversary.updated` | 倒计时 / 纪念日新增、修改或删除后推送最新全量列表，带 `items` |
 | `shelf.updated` | 中转站条目新增、删除、清空或重复拖入置顶后推送最新全量列表，带 `items` |
 | `shelf.icon` | 某个条目的系统缩略图 / 原始图标生成完成，带 `id` 与 `data`（PNG data URL）；每个条目只推一次，客户端按 `id` 缓存 |
+| `update.available` | 自动检查发现新版本，带 `snapshot` |
+| `update.ready` | 安装包下载并校验完成，带 `snapshot` |
 
 `ScheduleItem`：
 
@@ -370,6 +378,32 @@
 - 图标由 sidecar 在后台线程用 `IShellItemImageFactory` 生成 96 px 缩略图；文件夹和无法生成缩略图的文件退回 shell 原始图标。编码为 PNG 后通过 `shelf.icon` 推送，生成失败不推送，客户端退回分类图标。
 - 拖入和拖出都由 Flutter 侧原生拖放实现：拖入拿到文件路径后调用 `shelf.add`；拖出直接由窗口进程把 `CF_HDROP` 交给目标程序，不经过 sidecar。
 - 不在 sidecar 里调用 `DoDragDrop`：OLE 拖拽循环需要稳定的 UI 线程消息循环，后台线程一旦收不到鼠标抬起消息会占住全局鼠标捕获，影响资源管理器等所有程序的拖放。
+
+`UpdateSnapshot`：
+
+```json
+{
+  "state": "idle",
+  "currentVersion": "0.1.0",
+  "installed": true,
+  "latestVersion": "0.2.0",
+  "updateAvailable": true,
+  "releaseUrl": "https://github.com/ldm0715/gudong/releases/tag/v0.2.0",
+  "notes": "## 0.2.0 — 2026-12-01\n\n### 新增\n\n- …",
+  "assetName": "gudong-0.2.0-setup.exe",
+  "assetSize": 20480000,
+  "receivedBytes": 0,
+  "message": "发现新版本 0.2.0",
+  "filePath": ""
+}
+```
+
+- `state` 为 `idle` / `checking` / `downloading` / `ready` / `installing` / `error`。
+- `installed` 为 `true` 表示当前是 NSIS 安装版，可以下载并安装；便携版只能前往发布页手动下载。
+- 更新源为 `https://api.github.com/repos/ldm0715/gudong/releases/latest`；优先选择 `-setup.exe`，没有时回退 zip。
+- 安装包保存到 `%LOCALAPPDATA%\gudong\updates`，下载完成后按发布说明里的 SHA-256 表校验；校验失败会删除临时文件并返回 `error`。
+- `update.install` 只启动安装程序。NSIS 安装过程会结束正在运行的 gudong 进程，用户按向导完成安装。
+- 自动检查在 sidecar 启动 10 秒后进行，之后每天中午检查一次；`updateSnoozeDate` 等于当天时跳过自动检查。发现新版本推送 `update.available`，不会自动下载。
 
 `MediaSnapshot`：
 

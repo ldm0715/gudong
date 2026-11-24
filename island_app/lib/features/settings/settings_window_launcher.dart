@@ -11,6 +11,7 @@ import '../dashboard/metrics_controller.dart';
 import '../mail/mail_bridge.dart';
 import '../quota/quota_bridge.dart';
 import '../translate/translate_bridge.dart';
+import '../update/update_bridge.dart';
 import '../weather/weather_bridge.dart';
 import 'settings_window_args.dart';
 
@@ -59,6 +60,46 @@ class SettingsWindowLauncher {
       await agentChannel.setMethodCallHandler(_onAgentCall);
     } catch (error) {
       AppLog.write('[settings-window] agent channel register failed: $error');
+    }
+    try {
+      await updateChannel.setMethodCallHandler(_onUpdateCall);
+    } catch (error) {
+      AppLog.write('[settings-window] update channel register failed: $error');
+    }
+  }
+
+  /// 设置窗口的检查、下载与安装请求经主窗口转发给 sidecar。
+  Future<dynamic> _onUpdateCall(MethodCall call) async {
+    try {
+      return switch (call.method) {
+        'check' => await settings.supervisor.call(
+          'update.check',
+          const {},
+          const Duration(seconds: 30),
+        ),
+        'download' => await settings.supervisor.call(
+          'update.download',
+          const {},
+          const Duration(seconds: 30),
+        ),
+        'install' => await settings.supervisor.call(
+          'update.install',
+          const {},
+          const Duration(seconds: 10),
+        ),
+        'status' => await settings.supervisor.call(
+          'update.status',
+          const {},
+          const Duration(seconds: 5),
+        ),
+        _ => throw PlatformException(
+          code: 'METHOD_NOT_FOUND',
+          message: 'update method not found: ${call.method}',
+        ),
+      };
+    } catch (error) {
+      AppLog.write('[settings-window] update ${call.method} failed: $error');
+      rethrow;
     }
   }
 
@@ -254,6 +295,8 @@ class SettingsWindowLauncher {
           showAgentIndicator: incoming.showAgentIndicator,
           showAgentBanner: incoming.showAgentBanner,
           autoCollapseOnMaximized: incoming.autoCollapseOnMaximized,
+          autoCheckUpdates: incoming.autoCheckUpdates,
+          updateSnoozeDate: incoming.updateSnoozeDate,
           launchAtLogin: incoming.launchAtLogin,
           tabOrder: incoming.tabOrder,
           hiddenTabs: incoming.hiddenTabs,

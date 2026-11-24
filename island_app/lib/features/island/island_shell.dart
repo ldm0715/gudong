@@ -5,6 +5,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/app_info.dart';
+import '../../core/settings/app_settings.dart';
 import '../../core/settings/island_tabs.dart';
 import '../../core/settings/settings_controller.dart';
 import '../../core/theme/island_colors.dart';
@@ -40,6 +41,8 @@ import '../shelf/shelf_controller.dart';
 import '../shelf/shelf_drawer.dart';
 import '../translate/translate_controller.dart';
 import '../translate/translate_tab.dart';
+import '../update/update_banner.dart';
+import '../update/update_controller.dart';
 import '../volume/volume_banner.dart';
 import '../volume/volume_controller.dart';
 import '../weather/weather_controller.dart';
@@ -67,6 +70,7 @@ class IslandShell extends StatefulWidget {
     required this.schedule,
     required this.anniversary,
     required this.alarm,
+    required this.update,
     required this.volume,
     required this.agents,
     required this.shelf,
@@ -88,6 +92,7 @@ class IslandShell extends StatefulWidget {
   final ScheduleController schedule;
   final AnniversaryController anniversary;
   final AlarmController alarm;
+  final UpdateController update;
   final VolumeController volume;
   final AgentController agents;
   final ShelfController shelf;
@@ -184,6 +189,7 @@ class _IslandShellState extends State<IslandShell> {
                 widget.schedule,
                 widget.anniversary,
                 widget.alarm,
+                widget.update,
                 widget.volume,
                 widget.agents,
                 widget.settings,
@@ -201,21 +207,31 @@ class _IslandShellState extends State<IslandShell> {
                     !showMailBanner &&
                     !showScheduleBanner;
                 final settings = widget.settings.settings;
+                final showUpdateBanner =
+                    island.showUpdateBanner &&
+                    settings.autoCheckUpdates &&
+                    !updateSnoozedToday(settings) &&
+                    !showBanner &&
+                    !showMailBanner &&
+                    !showScheduleBanner &&
+                    !showAlarmBanner;
                 final showAgentBanner =
                     settings.showAgentBanner &&
                     island.showAgentBanner &&
                     !showBanner &&
                     !showMailBanner &&
                     !showScheduleBanner &&
-                    !showAlarmBanner;
+                    !showAlarmBanner &&
+                    !showUpdateBanner;
                 final showVolumeBanner =
                     island.showVolumeBanner &&
                     !showBanner &&
                     !showMailBanner &&
                     !showScheduleBanner &&
                     !showAlarmBanner &&
+                    !showUpdateBanner &&
                     !showAgentBanner;
-                // 消息横幅优先，其次是邮件、日程、闹钟、agent 结束和音量，最后是输入法切换。
+                // 消息横幅优先，其次是邮件、日程、闹钟、更新、agent 结束和音量，最后是输入法切换。
                 final showIme =
                     settings.showImeBanner &&
                     widget.ime.visible &&
@@ -223,6 +239,7 @@ class _IslandShellState extends State<IslandShell> {
                     !showMailBanner &&
                     !showScheduleBanner &&
                     !showAlarmBanner &&
+                    !showUpdateBanner &&
                     !showAgentBanner &&
                     !showVolumeBanner;
                 final activeBanner =
@@ -230,6 +247,7 @@ class _IslandShellState extends State<IslandShell> {
                     showMailBanner ||
                     showScheduleBanner ||
                     showAlarmBanner ||
+                    showUpdateBanner ||
                     showAgentBanner ||
                     showVolumeBanner ||
                     showIme;
@@ -247,6 +265,7 @@ class _IslandShellState extends State<IslandShell> {
                   ime: widget.ime,
                   schedule: widget.schedule,
                   agents: widget.agents,
+                  update: widget.update,
                 );
                 final size = mini
                     ? IslandLayout.miniBarHitSizeFor(side)
@@ -274,6 +293,8 @@ class _IslandShellState extends State<IslandShell> {
                     ? 'banner-schedule'
                     : showAlarmBanner
                     ? 'banner-alarm'
+                    : showUpdateBanner
+                    ? 'banner-update'
                     : showAgentBanner
                     ? 'banner-agent'
                     : showVolumeBanner
@@ -415,6 +436,8 @@ class _IslandShellState extends State<IslandShell> {
                               ? ScheduleBanner(item: island.scheduleBannerItem!)
                               : showAlarmBanner
                               ? AlarmBanner(item: island.alarmBannerItem!)
+                              : showUpdateBanner
+                              ? UpdateBanner(version: island.updateLatestVersion)
                               : showAgentBanner
                               ? AgentBanner(item: island.agentBannerItem!)
                               : showVolumeBanner
@@ -437,6 +460,10 @@ class _IslandShellState extends State<IslandShell> {
                                   showImeIndicator: settings.showImeIndicator,
                                   showScheduleIndicator:
                                       settings.showScheduleIndicator,
+                                  showUpdate:
+                                      settings.autoCheckUpdates &&
+                                      widget.update.available &&
+                                      !updateSnoozedToday(settings),
                                   islandMetrics: settings.islandMetrics,
                                   size: size,
                                   vertical: side.isVertical,

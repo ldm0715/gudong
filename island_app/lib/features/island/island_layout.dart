@@ -18,6 +18,7 @@ class CollapsedContent {
     this.qq = false,
     this.mail = false,
     this.playing = false,
+    this.update = false,
   });
 
   /// 当天还有未触发的日程，时间右侧显示闹钟。
@@ -45,6 +46,9 @@ class CollapsedContent {
 
   /// 正在播放，右侧显示音波。
   final bool playing;
+
+  /// 有新版本可用，时间右侧显示更新图标。
+  final bool update;
 }
 
 /// 岛体各状态的尺寸与命中区域。绘制与点击穿透都以这里为准，避免两处手抄。
@@ -91,6 +95,7 @@ abstract final class IslandLayout {
   static const double _qqWidth = 22;
   static const double _mailWidth = 24;
   static const double _waveWidth = 26;
+  static const double _updateWidth = 24;
 
   // 收起态内容高度预算，包含上下各 10 的内边距与两行时间。
   static const double _clockHeight = 26;
@@ -104,6 +109,7 @@ abstract final class IslandLayout {
   static const double _qqHeight = 22;
   static const double _mailHeight = 22;
   static const double _waveHeight = 20;
+  static const double _updateHeight = 24;
 
   /// 只剩时钟时的最小宽 / 高，避免贴边过紧。
   static const double minCollapsedWidth = 96;
@@ -150,6 +156,7 @@ abstract final class IslandLayout {
     if (content.wechat) width += _wechatWidth;
     if (content.qq) width += _qqWidth;
     if (content.mail) width += _mailWidth;
+    if (content.update) width += _updateWidth;
     if (content.playing) width += _waveWidth;
     return width + _sizingSafety;
   }
@@ -169,6 +176,7 @@ abstract final class IslandLayout {
     if (content.wechat) height += _wechatHeight;
     if (content.qq) height += _qqHeight;
     if (content.mail) height += _mailHeight;
+    if (content.update) height += _updateHeight;
     if (content.playing) height += _waveHeight;
     return height + _sizingSafety;
   }

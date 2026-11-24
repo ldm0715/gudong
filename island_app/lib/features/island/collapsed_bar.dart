@@ -42,6 +42,7 @@ class CollapsedBar extends StatefulWidget {
     required this.showPlayingIndicator,
     required this.showImeIndicator,
     required this.showScheduleIndicator,
+    required this.showUpdate,
     required this.islandMetrics,
     required this.size,
     this.vertical = false,
@@ -60,6 +61,9 @@ class CollapsedBar extends StatefulWidget {
   final bool showPlayingIndicator;
   final bool showImeIndicator;
   final bool showScheduleIndicator;
+
+  /// 有新版本可用时显示更新图标。
+  final bool showUpdate;
 
   /// 收起态显示的指标 id，来自设置。
   final List<String> islandMetrics;
@@ -158,6 +162,10 @@ class _CollapsedBarState extends State<CollapsedBar> {
                   if (hasScheduleToday) ...[
                     const SizedBox(width: IslandMetrics.space6),
                     const _ScheduleGlyph(),
+                  ],
+                  if (widget.showUpdate) ...[
+                    const SizedBox(width: IslandMetrics.space6),
+                    const _UpdateGlyph(),
                   ],
                   if (snapshot != null) ...[
                     const SizedBox(width: IslandMetrics.space7),
@@ -264,6 +272,10 @@ class _CollapsedBarState extends State<CollapsedBar> {
                     const SizedBox(height: IslandMetrics.space6),
                     const _ScheduleGlyph(size: iconSize),
                   ],
+                  if (widget.showUpdate) ...[
+                    const SizedBox(height: IslandMetrics.space6),
+                    const _UpdateGlyph(size: iconSize),
+                  ],
                   if (snapshot != null) ...[
                     const SizedBox(height: IslandMetrics.space6),
                     Icon(
@@ -353,6 +365,30 @@ class _ScheduleGlyph extends StatelessWidget {
       child: Semantics(
         label: '今日有日程',
         child: Icon(Icons.alarm_rounded, size: size, color: colors.accent),
+      ),
+    );
+  }
+}
+
+/// 有新版本时在收起态显示的更新标识。
+class _UpdateGlyph extends StatelessWidget {
+  const _UpdateGlyph({this.size = IslandMetrics.iconSM});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.islandColors;
+    return Tooltip(
+      message: '有新版本可用',
+      waitDuration: IslandMotion.tooltipDelay,
+      child: Semantics(
+        label: '有新版本可用',
+        child: Icon(
+          Icons.new_releases_rounded,
+          size: size,
+          color: colors.accent,
+        ),
       ),
     );
   }

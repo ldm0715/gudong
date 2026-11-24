@@ -24,6 +24,7 @@ mod shell;
 mod single_instance;
 mod toast;
 mod translate;
+mod update;
 mod weather;
 #[cfg(windows)]
 mod clients;
@@ -104,6 +105,8 @@ fn main() {
     state.set_schedule_sender(schedule_tx);
     let alarm_tx = alarm::start(tx.clone(), toast_tx);
     state.set_alarm_sender(alarm_tx);
+    let update_tx = update::start(state.clone(), tx.clone());
+    state.set_update_sender(update_tx);
     let anniversary_tx = anniversary::start(tx.clone());
     state.set_anniversary_sender(anniversary_tx);
     let icon_tx = shelf_icons::start(tx.clone());

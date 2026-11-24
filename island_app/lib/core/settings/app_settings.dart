@@ -18,6 +18,8 @@ class AppSettings {
     this.showAgentIndicator = true,
     this.showAgentBanner = true,
     this.autoCollapseOnMaximized = true,
+    this.autoCheckUpdates = true,
+    this.updateSnoozeDate = '',
     this.launchAtLogin = false,
     this.tabOrder = defaultTabOrder,
     this.hiddenTabs = const [],
@@ -151,6 +153,8 @@ class AppSettings {
       showAgentIndicator: json['showAgentIndicator'] != false,
       showAgentBanner: json['showAgentBanner'] != false,
       autoCollapseOnMaximized: json['autoCollapseOnMaximized'] != false,
+      autoCheckUpdates: json['autoCheckUpdates'] != false,
+      updateSnoozeDate: json['updateSnoozeDate']?.toString() ?? '',
       launchAtLogin: json['launchAtLogin'] == true,
       tabOrder: _normalizeOrder(json['tabOrder']),
       hiddenTabs: _normalizeHidden(json['hiddenTabs']),
@@ -245,6 +249,12 @@ class AppSettings {
 
   /// 前台窗口最大化时只保留一条横杠，点击后显示收起态。
   final bool autoCollapseOnMaximized;
+
+  /// 启动后与每天中午自动检查更新。
+  final bool autoCheckUpdates;
+
+  /// 用户选择「今日不再提醒」的本地日期，格式 `YYYY-MM-DD`。
+  final String updateSnoozeDate;
 
   /// 登录 Windows 后自动启动；真实状态来自注册表，不写入 config.json。
   final bool launchAtLogin;
@@ -397,6 +407,8 @@ class AppSettings {
     'showAgentIndicator': showAgentIndicator,
     'showAgentBanner': showAgentBanner,
     'autoCollapseOnMaximized': autoCollapseOnMaximized,
+    'autoCheckUpdates': autoCheckUpdates,
+    'updateSnoozeDate': updateSnoozeDate,
     'launchAtLogin': launchAtLogin,
     'tabOrder': tabOrder,
     'hiddenTabs': hiddenTabs,
@@ -455,6 +467,8 @@ class AppSettings {
     bool? showAgentIndicator,
     bool? showAgentBanner,
     bool? autoCollapseOnMaximized,
+    bool? autoCheckUpdates,
+    String? updateSnoozeDate,
     bool? launchAtLogin,
     List<String>? tabOrder,
     List<String>? hiddenTabs,
@@ -512,6 +526,8 @@ class AppSettings {
       showAgentBanner: showAgentBanner ?? this.showAgentBanner,
       autoCollapseOnMaximized:
           autoCollapseOnMaximized ?? this.autoCollapseOnMaximized,
+      autoCheckUpdates: autoCheckUpdates ?? this.autoCheckUpdates,
+      updateSnoozeDate: updateSnoozeDate ?? this.updateSnoozeDate,
       launchAtLogin: launchAtLogin ?? this.launchAtLogin,
       tabOrder: tabOrder ?? this.tabOrder,
       hiddenTabs: hiddenTabs ?? this.hiddenTabs,
@@ -744,6 +760,15 @@ class AppSettings {
     });
     return result;
   }
+}
+
+/// 「今日不再提醒」是否命中当前本地日期。
+bool updateSnoozedToday(AppSettings settings, {DateTime? now}) {
+  final current = now ?? DateTime.now();
+  final today =
+      '${current.year}-${current.month.toString().padLeft(2, '0')}-'
+      '${current.day.toString().padLeft(2, '0')}';
+  return settings.updateSnoozeDate == today;
 }
 
 /// 一个 New API 站点。凭据单独放在 Windows 凭据管理器。

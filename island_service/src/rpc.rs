@@ -65,6 +65,10 @@ pub const CAPABILITIES: &[&str] = &[
     "shelf.removeMany",
     "shelf.clear",
     "shelf.reveal",
+    "update.check",
+    "update.status",
+    "update.download",
+    "update.install",
 ];
 
 /// 一条未读提醒。`id` 是稳定键：任务栏提醒按账号，系统通知按通知编号。
@@ -127,6 +131,10 @@ pub struct State {
     pub anniversary_tx: Mutex<Option<std::sync::mpsc::Sender<crate::anniversary::Command>>>,
     /// 中转站读写队列。
     pub shelf_tx: Mutex<Option<std::sync::mpsc::Sender<crate::shelf::Command>>>,
+    /// 最近一次更新状态，下载中由 update 线程持续刷新。
+    pub update: Mutex<crate::update::UpdateSnapshot>,
+    /// 更新检查、下载与安装队列。
+    pub update_tx: Mutex<Option<std::sync::mpsc::Sender<crate::update::Command>>>,
 }
 
 impl Default for State {
@@ -167,6 +175,12 @@ impl State {
             alarm_tx: Mutex::new(None),
             anniversary_tx: Mutex::new(None),
             shelf_tx: Mutex::new(None),
+            update: Mutex::new(crate::update::UpdateSnapshot {
+                state: "idle".into(),
+                current_version: env!("CARGO_PKG_VERSION").into(),
+                ..Default::default()
+            }),
+            update_tx: Mutex::new(None),
         }
     }
 
@@ -233,6 +247,12 @@ impl State {
 
     pub fn set_shelf_sender(&self, sender: std::sync::mpsc::Sender<crate::shelf::Command>) {
         if let Ok(mut slot) = self.shelf_tx.lock() {
+            *slot = Some(sender);
+        }
+    }
+
+    pub fn set_update_sender(&self, sender: std::sync::mpsc::Sender<crate::update::Command>) {
+        if let Ok(mut slot) = self.update_tx.lock() {
             *slot = Some(sender);
         }
     }
@@ -668,6 +688,27 @@ pub fn handle(
                     params: params.clone(),
                 })
                 .map_err(|_| RpcError::new(ERR_INTERNAL, "shelf worker stopped"))?;
+            Ok(Action::Pending)
+        }
+        "update.status" => {
+            let snapshot = state
+                .update
+                .lock()
+                .map(|slot| slot.clone())
+                .unwrap_or_default();
+            Ok(Action::Respond(json!({ "snapshot": snapshot })))
+        }
+        "update.check" | "update.download" | "update.install" => {
+            let sender = state.update_tx.lock().ok().and_then(|slot| slot.clone());
+            let Some(sender) = sender else {
+                return Err(RpcError::new(ERR_INTERNAL, "update worker is not running"));
+            };
+            sender
+                .send(crate::update::Command {
+                    id: id.clone(),
+                    method: method.to_string(),
+                })
+                .map_err(|_| RpcError::new(ERR_INTERNAL, "update worker stopped"))?;
             Ok(Action::Pending)
         }
         "settings.get" => Ok(Action::Respond(json!({

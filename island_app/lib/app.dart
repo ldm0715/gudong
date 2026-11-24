@@ -32,6 +32,7 @@ import 'features/schedule/schedule_controller.dart';
 import 'features/settings/settings_window_launcher.dart';
 import 'features/shelf/shelf_controller.dart';
 import 'features/translate/translate_controller.dart';
+import 'features/update/update_controller.dart';
 import 'features/volume/volume_controller.dart';
 import 'features/weather/weather_controller.dart';
 
@@ -52,6 +53,7 @@ class AppScope {
     required this.schedule,
     required this.anniversary,
     required this.alarm,
+    required this.update,
     required this.volume,
     required this.agents,
     required this.shelf,
@@ -75,6 +77,7 @@ class AppScope {
   final ScheduleController schedule;
   final AnniversaryController anniversary;
   final AlarmController alarm;
+  final UpdateController update;
   final VolumeController volume;
   final AgentController agents;
   final ShelfController shelf;
@@ -99,6 +102,7 @@ class AppScope {
     schedule.dispose();
     anniversary.dispose();
     alarm.dispose();
+    update.dispose();
     volume.dispose();
     agents.dispose();
     shelf.dispose();
@@ -318,6 +322,7 @@ class _GudongAppState extends State<GudongApp> with WindowListener, TrayListener
                 schedule: widget.scope.schedule,
                 anniversary: widget.scope.anniversary,
                 alarm: widget.scope.alarm,
+                update: widget.scope.update,
                 volume: widget.scope.volume,
                 agents: widget.scope.agents,
                 shelf: widget.scope.shelf,

@@ -13,6 +13,7 @@ import 'core/input/keyboard_event_guard.dart';
 import 'core/ipc/sidecar_supervisor.dart';
 import 'core/log.dart';
 import 'core/logging/crash_handler.dart';
+import 'core/settings/app_settings.dart';
 import 'core/settings/settings_controller.dart';
 import 'core/window/app_window.dart';
 import 'core/window/single_instance.dart';
@@ -36,6 +37,7 @@ import 'features/schedule/anniversary_controller.dart';
 import 'features/schedule/schedule_controller.dart';
 import 'features/shelf/shelf_controller.dart';
 import 'features/translate/translate_controller.dart';
+import 'features/update/update_controller.dart';
 import 'features/volume/volume_controller.dart';
 import 'features/weather/weather_controller.dart';
 
@@ -82,6 +84,7 @@ Future<void> main(List<String> args) async {
   final translate = TranslateController(supervisor);
   final quota = QuotaController(supervisor);
   final metrics = MetricsController(supervisor);
+  final update = UpdateController(supervisor);
   final schedule = ScheduleController(supervisor);
   final anniversary = AnniversaryController(supervisor);
   final alarm = AlarmController(supervisor);
@@ -96,6 +99,7 @@ Future<void> main(List<String> args) async {
     mail: mail,
     schedule: schedule,
     alarm: alarm,
+    update: update,
     volume: volume,
     agents: agents,
   );
@@ -122,6 +126,9 @@ Future<void> main(List<String> args) async {
         island.showMailBanner ||
         island.showScheduleBanner ||
         island.showAlarmBanner ||
+        (island.showUpdateBanner &&
+            appSettings.autoCheckUpdates &&
+            !updateSnoozedToday(appSettings)) ||
         (appSettings.showAgentBanner && island.showAgentBanner) ||
         island.showVolumeBanner ||
         (appSettings.showImeBanner && ime.visible);
@@ -146,6 +153,7 @@ Future<void> main(List<String> args) async {
                   ime: ime,
                   schedule: schedule,
                   agents: agents,
+                  update: update,
                 ),
               ),
         inset: mini ? IslandLayout.miniEdgeInset : IslandLayout.edgeInset,
@@ -161,6 +169,7 @@ Future<void> main(List<String> args) async {
   ime.addListener(updateInteractiveRect);
   schedule.addListener(updateInteractiveRect);
   alarm.addListener(updateInteractiveRect);
+  update.addListener(updateInteractiveRect);
   agents.addListener(updateInteractiveRect);
   settings.addListener(updateInteractiveRect);
   windowPosition.addListener(updateInteractiveRect);
@@ -183,6 +192,7 @@ Future<void> main(List<String> args) async {
         schedule: schedule,
         anniversary: anniversary,
         alarm: alarm,
+        update: update,
         volume: volume,
         agents: agents,
         shelf: shelf,

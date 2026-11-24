@@ -1,3 +1,4 @@
+import '../../core/settings/app_settings.dart';
 import '../../core/settings/settings_controller.dart';
 import '../agents/agent_controller.dart';
 import '../ime/ime_controller.dart';
@@ -5,6 +6,7 @@ import '../mail/mail_controller.dart';
 import '../media/media_controller.dart';
 import '../messages/messages_controller.dart';
 import '../schedule/schedule_controller.dart';
+import '../update/update_controller.dart';
 import '../weather/weather_controller.dart';
 import 'island_layout.dart';
 
@@ -18,6 +20,7 @@ CollapsedContent collapsedContentOf({
   required ImeController ime,
   required ScheduleController schedule,
   required AgentController agents,
+  required UpdateController update,
   DateTime? now,
 }) {
   final config = settings.settings;
@@ -44,5 +47,9 @@ CollapsedContent collapsedContentOf({
     qq: messages.hasQq,
     mail: hasMailBadge,
     playing: config.showPlayingIndicator && media.available && media.playing,
+    update:
+        config.autoCheckUpdates &&
+        update.available &&
+        !updateSnoozedToday(config, now: current),
   );
 }

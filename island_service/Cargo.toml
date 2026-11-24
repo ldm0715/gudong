@@ -1,6 +1,6 @@
 [package]
 name = "island_service"
-version = "0.1.0"
+version = "0.0.0"
 edition = "2021"
 description = "gudong system sidecar"
 license = "AGPL-3.0-only"
@@ -18,6 +18,7 @@ mailparse = "0.18"
 imap-proto = "0.10"
 url = "2"
 regex = "1"
+sha2 = "0.10"
 image = { version = "0.25", default-features = false, features = ["png"] }
 zstd = "0.13"
 

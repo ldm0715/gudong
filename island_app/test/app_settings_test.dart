@@ -35,6 +35,8 @@ void main() {
       'showAgentIndicator': true,
       'showAgentBanner': true,
       'autoCollapseOnMaximized': true,
+      'autoCheckUpdates': true,
+      'updateSnoozeDate': '',
       'launchAtLogin': false,
       'tabOrder': [
         'messages',

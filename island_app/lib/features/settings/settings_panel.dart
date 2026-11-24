@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 
 import '../../core/app_info.dart';
 import '../../core/log.dart';
@@ -9,6 +10,7 @@ import '../../core/settings/app_settings.dart';
 import '../../core/settings/island_tabs.dart';
 import '../../core/theme/island_colors.dart';
 import '../../core/theme/island_motion.dart';
+import '../update/update_bridge.dart';
 import '../weather/weather_bridge.dart';
 import '../weather/weather_models.dart';
 
@@ -782,8 +784,108 @@ class _AboutHeader extends StatelessWidget {
   }
 }
 
-class AboutSettingsPage extends StatelessWidget {
-  const AboutSettingsPage({super.key});
+class AboutSettingsPage extends StatefulWidget {
+  const AboutSettingsPage({
+    super.key,
+    required this.settings,
+    required this.onSave,
+  });
+
+  final AppSettings settings;
+  final ValueChanged<AppSettings> onSave;
+
+  @override
+  State<AboutSettingsPage> createState() => _AboutSettingsPageState();
+}
+
+class _AboutSettingsPageState extends State<AboutSettingsPage> {
+  Timer? _timer;
+  Map<String, dynamic>? _snapshot;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_refresh());
+    // 下载进度由 sidecar 持续刷新，设置窗口定期拉取状态。
+    _timer = Timer.periodic(const Duration(milliseconds: 1200), (_) {
+      unawaited(_refresh());
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _refresh() async {
+    try {
+      final result = await updateChannel.invokeMethod('status');
+      if (!mounted) return;
+      final raw = result is Map ? result['snapshot'] : null;
+      // 跨窗口通道返回的是 Map<Object?, Object?>，需要显式转换。
+      if (raw is Map) {
+        setState(() => _snapshot = Map<String, dynamic>.from(raw));
+      }
+    } catch (_) {
+      // 设置窗口刚启动时主窗口可能还没就绪，下一轮重试。
+    }
+  }
+
+  Future<void> _check() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      final result = await updateChannel.invokeMethod('check');
+      // 直接用检查结果刷新，避免状态轮询尚未到达时看不到提示。
+      if (mounted && result is Map) {
+        final raw = result['snapshot'];
+        if (raw is Map) {
+          setState(() => _snapshot = Map<String, dynamic>.from(raw));
+        }
+      }
+      await _refresh();
+    } catch (error) {
+      AppLog.write('[settings] update check failed: $error');
+      _showError('检查更新失败，请查看日志');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  Future<void> _download() async {
+    try {
+      await updateChannel.invokeMethod('download');
+      await _refresh();
+    } catch (error) {
+      AppLog.write('[settings] update download failed: $error');
+      _showError('下载更新失败，请查看日志');
+    }
+  }
+
+  Future<void> _install() async {
+    try {
+      final result = await updateChannel.invokeMethod('install');
+      final ok = result is Map && result['ok'] == true;
+      if (!ok && mounted) {
+        final message = result is Map ? result['message']?.toString() : null;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message ?? '无法启动安装程序')),
+        );
+      }
+    } catch (error) {
+      AppLog.write('[settings] update install failed: $error');
+      _showError('无法启动安装程序');
+    }
+  }
 
   void _openLogDir() {
     final dir = AppLog.logDir;
@@ -803,16 +905,123 @@ class AboutSettingsPage extends StatelessWidget {
     }
   }
 
+  void _openRelease(String url) {
+    if (url.isEmpty) return;
+    try {
+      unawaited(Process.start('explorer.exe', [url]));
+    } catch (error) {
+      AppLog.write('[settings] open release failed: $error');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final colors = context.islandColors;
+    final snapshot = _snapshot;
+    final state = snapshot?['state']?.toString() ?? 'idle';
+    final available = snapshot?['updateAvailable'] == true;
+    final message = snapshot?['message']?.toString() ?? '';
+    final notes = snapshot?['notes']?.toString() ?? '';
+    final releaseUrl = snapshot?['releaseUrl']?.toString() ?? '';
+    final received = (snapshot?['receivedBytes'] as num?)?.toInt() ?? 0;
+    final total = (snapshot?['assetSize'] as num?)?.toInt() ?? 0;
+    final progress = total > 0 ? (received / total).clamp(0.0, 1.0) : null;
+    final downloading = state == 'downloading';
+    final checking = state == 'checking' || _busy;
+    final installed = snapshot?['installed'] == true;
+    final snoozed = widget.settings.updateSnoozeDate == _today();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const _AboutHeader(),
         const SizedBox(height: 18),
-        const SettingsSectionLabel('版本'),
-        const SettingsCard(
-          children: [SettingsInfoRow(title: '客户端', value: appVersion)],
+        const SettingsSectionLabel('更新'),
+        SettingsCard(
+          children: [
+            SettingsSwitchRow(
+              title: '自动检查更新',
+              subtitle: '启动后与每天中午检查一次',
+              value: widget.settings.autoCheckUpdates,
+              onChanged: (value) => widget.onSave(
+                widget.settings.copyWith(autoCheckUpdates: value),
+              ),
+            ),
+            if (message.isNotEmpty || downloading) ...[
+              const SettingsDivider(),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (message.isNotEmpty)
+                      Text(
+                        snoozed && available
+                            ? '$message · 今日已忽略自动提醒'
+                            : message,
+                        style: TextStyle(
+                          color: state == 'error'
+                              ? colors.warning
+                              : colors.muted,
+                          fontSize: 12,
+                        ),
+                      ),
+                    if (downloading) ...[
+                      if (message.isNotEmpty) const SizedBox(height: 8),
+                      LinearProgressIndicator(
+                        value: progress,
+                        minHeight: 6,
+                        borderRadius: BorderRadius.circular(3),
+                        backgroundColor: colors.cardStroke,
+                        color: colors.accent,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        progress == null
+                            ? _formatBytes(received)
+                            : '${(progress * 100).round()}% · '
+                                  '${_formatBytes(received)} / '
+                                  '${_formatBytes(total)}',
+                        style: TextStyle(color: colors.muted, fontSize: 11),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+        if (available && notes.isNotEmpty) ...[
+          const SizedBox(height: 18),
+          const SettingsSectionLabel('更新内容'),
+          SettingsCard(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: MarkdownBody(
+                  data: notes,
+                  selectable: true,
+                  styleSheet: _markdownStyle(colors),
+                ),
+              ),
+            ],
+          ),
+        ],
+        const SizedBox(height: 12),
+        SettingsCard(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: _actionsRow(
+                state: state,
+                available: available,
+                checking: checking,
+                installed: installed,
+                snoozed: snoozed,
+                releaseUrl: releaseUrl,
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 18),
         const SettingsSectionLabel('项目'),
@@ -859,5 +1068,113 @@ class AboutSettingsPage extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  void _snooze() {
+    widget.onSave(widget.settings.copyWith(updateSnoozeDate: _today()));
+  }
+
+  Widget _actionsRow({
+    required String state,
+    required bool available,
+    required bool checking,
+    required bool installed,
+    required bool snoozed,
+    required String releaseUrl,
+  }) {
+    final downloading = state == 'downloading';
+    final ready = state == 'ready';
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        TextButton(
+          onPressed: checking || downloading ? null : _check,
+          child: Text(checking ? '检查中…' : '检查更新'),
+        ),
+        if (available) ...[
+          if (!snoozed)
+            TextButton(
+              onPressed: _snooze,
+              child: const Text('今日不再提醒'),
+            ),
+          const SizedBox(width: 8),
+          FilledButton(
+            onPressed: downloading
+                ? null
+                : ready
+                ? _install
+                : installed
+                ? _download
+                : () => _openRelease(releaseUrl),
+            child: Text(
+              downloading
+                  ? '下载中'
+                  : ready
+                  ? '安装'
+                  : installed
+                  ? '下载并安装'
+                  : '前往下载页',
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  MarkdownStyleSheet _markdownStyle(IslandColors colors) {
+    return MarkdownStyleSheet(
+      p: TextStyle(color: colors.text, fontSize: 12, height: 1.6),
+      h1: TextStyle(
+        color: colors.text,
+        fontSize: 16,
+        fontWeight: FontWeight.w700,
+        height: 1.5,
+      ),
+      h2: TextStyle(
+        color: colors.text,
+        fontSize: 14,
+        fontWeight: FontWeight.w700,
+        height: 1.5,
+      ),
+      h3: TextStyle(
+        color: colors.text,
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        height: 1.5,
+      ),
+      listBullet: TextStyle(color: colors.text, fontSize: 12, height: 1.6),
+      strong: TextStyle(color: colors.text, fontWeight: FontWeight.w600),
+      code: TextStyle(
+        color: colors.accent,
+        fontFamily: 'Consolas',
+        fontSize: 11,
+      ),
+      blockquote: TextStyle(color: colors.muted, fontSize: 12),
+      blockquoteDecoration: BoxDecoration(
+        border: Border(left: BorderSide(color: colors.accent, width: 2)),
+      ),
+      a: TextStyle(color: colors.accent),
+    );
+  }
+
+  static String _today() {
+    final now = DateTime.now();
+    return '${now.year}-${now.month.toString().padLeft(2, '0')}-'
+        '${now.day.toString().padLeft(2, '0')}';
+  }
+
+  static String _formatBytes(int value) {
+    if (value <= 0) return '0 B';
+    const units = ['B', 'KB', 'MB', 'GB'];
+    var size = value.toDouble();
+    var index = 0;
+    while (size >= 1024 && index < units.length - 1) {
+      size /= 1024;
+      index++;
+    }
+    final text = size >= 100
+        ? size.round().toString()
+        : size.toStringAsFixed(1);
+    return '$text ${units[index]}';
   }
 }
