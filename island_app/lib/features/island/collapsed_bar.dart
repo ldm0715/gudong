@@ -7,6 +7,7 @@ import '../../core/theme/island_colors.dart';
 import '../../core/theme/island_metrics.dart';
 import '../../core/theme/island_motion.dart';
 import '../../core/theme/island_typography.dart';
+import '../../core/widgets/glyph_stack.dart';
 import '../agents/agent_controller.dart';
 import '../agents/agent_glyph.dart';
 import '../dashboard/metrics_controller.dart';
@@ -15,58 +16,40 @@ import '../ime/ime_controller.dart';
 import '../ime/ime_indicator.dart';
 import '../mail/mail_controller.dart';
 import '../mail/mail_provider_badge.dart';
-import '../media/media_controller.dart';
-import '../messages/messages_controller.dart';
-import '../schedule/schedule_controller.dart';
 import '../weather/weather_controller.dart';
-import '../weather/weather_models.dart';
 import '../weather/weather_widgets.dart';
 import 'client_glyph.dart';
+import 'island_layout.dart';
 
-/// 收起态：时间 + 天气 + 微信 / QQ 未读标识，播放中显示音波。
+/// 收起态：时间 + 天气 + 未读标识 + agent 叠放，播放中显示音波。
 ///
+/// [content] 已按宽度预算取舍，组件只渲染其中的元素，不再自行判断显隐。
 /// [vertical] 为真时按左右停靠的窄栏竖向排列，内容保持正向不旋转。
 class CollapsedBar extends StatefulWidget {
   const CollapsedBar({
     super.key,
-    required this.messages,
     required this.mail,
     required this.weather,
-    required this.media,
-    required this.schedule,
     required this.ime,
     required this.metrics,
     required this.agents,
-    required this.showAgents,
-    required this.showWeather,
-    required this.showPlayingIndicator,
-    required this.showImeIndicator,
-    required this.showScheduleIndicator,
-    required this.showUpdate,
-    required this.islandMetrics,
+    required this.content,
+    required this.metricIds,
     required this.size,
     this.vertical = false,
   });
 
-  final MessagesController messages;
   final MailController mail;
   final WeatherController weather;
-  final MediaController media;
-  final ScheduleController schedule;
   final ImeController ime;
   final MetricsController metrics;
   final AgentController agents;
-  final bool showAgents;
-  final bool showWeather;
-  final bool showPlayingIndicator;
-  final bool showImeIndicator;
-  final bool showScheduleIndicator;
 
-  /// 有新版本可用时显示更新图标。
-  final bool showUpdate;
+  /// 预算取舍后的可见元素。
+  final CollapsedContent content;
 
-  /// 收起态显示的指标 id，来自设置。
-  final List<String> islandMetrics;
+  /// 收起态候选指标，按顺序取前 [CollapsedContent.metricCount] 个。
+  final List<String> metricIds;
 
   /// 由外壳按实际内容算出的收起态尺寸。
   final Size size;
@@ -105,247 +88,268 @@ class _CollapsedBarState extends State<CollapsedBar> {
 
   @override
   Widget build(BuildContext context) {
+    return widget.vertical ? _buildVertical(context) : _buildHorizontal(context);
+  }
+
+  Widget _buildHorizontal(BuildContext context) {
     final colors = context.islandColors;
+    final content = widget.content;
     final now = DateTime.now();
     final time =
         '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
-    final snapshot = widget.showWeather ? widget.weather.snapshot : null;
-    final showWave =
-        widget.showPlayingIndicator &&
-        widget.media.available &&
-        widget.media.playing;
-    final showIme = widget.showImeIndicator && widget.ime.mode != null;
-    final hasScheduleToday =
-        widget.showScheduleIndicator && widget.schedule.hasPendingOn(now);
-    final unreadMail = widget.mail.items.where((item) => item.unread);
-    final latestUnread = unreadMail.isEmpty ? null : unreadMail.first;
-    final latestAccount = latestUnread == null
-        ? null
-        : widget.mail.accountFor(latestUnread.accountId);
-    final mailProvider = latestAccount?.provider;
-    final mailEmail = latestAccount?.email;
-    final mailColor = colors.accent;
-    final runningAgents = widget.showAgents
-        ? widget.agents.runningAgentIds
-        : const <String>[];
-    final agentIcons = runningAgents.take(2).toList(growable: false);
-    final extraAgents = runningAgents.length - agentIcons.length;
-    final size = widget.size;
-    if (widget.vertical) {
-      return _buildVertical(
-        colors,
-        time,
-        snapshot,
-        showWave,
-        showIme,
-        hasScheduleToday,
-        size,
-        mailProvider,
-        mailEmail,
-        mailColor,
-      );
-    }
+    final snapshot = content.weather ? widget.weather.snapshot : null;
+    final metricIds = widget.metricIds
+        .take(content.metricCount)
+        .toList(growable: false);
+    final mailProvider = _latestMailProvider();
+    final agentIds = widget.agents.runningAgentIds
+        .take(content.agentCount)
+        .toList(growable: false);
     return SizedBox(
-      width: size.width,
-      height: size.height,
-      child: Row(
-        children: [
-          const SizedBox(width: IslandMetrics.space10),
-          Expanded(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(time, style: IslandTypography.clock.tint(colors.text)),
-                  if (hasScheduleToday) ...[
-                    const SizedBox(width: IslandMetrics.space6),
-                    const _ScheduleGlyph(),
-                  ],
-                  if (widget.showUpdate) ...[
-                    const SizedBox(width: IslandMetrics.space6),
-                    const _UpdateGlyph(),
-                  ],
-                  if (snapshot != null) ...[
-                    const SizedBox(width: IslandMetrics.space7),
-                    WeatherChip(snapshot: snapshot),
-                  ],
-                  if (widget.islandMetrics.isNotEmpty) ...[
-                    const SizedBox(width: IslandMetrics.space6),
-                    MetricsIslandChips(
-                      controller: widget.metrics,
-                      metricIds: widget.islandMetrics,
-                    ),
-                  ],
-                  if (agentIcons.isNotEmpty) ...[
-                    const SizedBox(width: IslandMetrics.space6),
-                    for (var index = 0; index < agentIcons.length; index++) ...[
-                      if (index > 0)
-                        const SizedBox(width: IslandMetrics.space3),
-                      AgentGlyph(id: agentIcons[index], size: 18),
-                    ],
-                    if (extraAgents > 0) ...[
-                      const SizedBox(width: IslandMetrics.space2),
-                      Text(
-                        '+$extraAgents',
-                        style: IslandTypography.micro.tint(colors.muted),
-                      ),
-                    ],
-                  ],
-                  if (showIme) ...[
-                    const SizedBox(width: IslandMetrics.space6),
-                    ImeIndicator(chinese: widget.ime.chinese),
-                  ],
-                  if (widget.messages.hasWechat) ...[
-                    const SizedBox(width: IslandMetrics.space8),
-                    const ClientGlyph(source: 'wechat', size: 18),
-                  ],
-                  if (widget.messages.hasQq) ...[
-                    const SizedBox(width: IslandMetrics.space4),
-                    const ClientGlyph(source: 'qq', size: 18),
-                  ],
-                  if (mailProvider != null) ...[
-                    const SizedBox(width: IslandMetrics.space6),
-                    MailProviderBadge(
-                      provider: mailProvider,
-                      email: mailEmail,
-                      size: IslandMetrics.iconLG,
-                      color: mailColor,
-                    ),
-                  ],
-                ],
-              ),
-            ),
+      width: widget.size.width,
+      height: widget.size.height,
+      child: Align(
+        alignment: Alignment.center,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: IslandMetrics.space10,
           ),
-          if (showWave) ...[
-            const SizedBox(width: IslandMetrics.space6),
-            const _WaveBars(),
-          ],
-          const SizedBox(width: IslandMetrics.space10),
-        ],
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(time, style: IslandTypography.clock.tint(colors.text)),
+              if (content.schedule) ...[
+                const SizedBox(width: IslandMetrics.space6),
+                const _ScheduleGlyph(),
+              ],
+              if (content.update) ...[
+                const SizedBox(width: IslandMetrics.space6),
+                const _UpdateGlyph(),
+              ],
+              if (snapshot != null) ...[
+                const SizedBox(width: IslandMetrics.space7),
+                WeatherChip(snapshot: snapshot),
+              ],
+              if (metricIds.isNotEmpty) ...[
+                const SizedBox(width: IslandMetrics.space6),
+                MetricsIslandChips(
+                  controller: widget.metrics,
+                  metricIds: metricIds,
+                ),
+              ],
+              if (agentIds.isNotEmpty) ...[
+                const SizedBox(width: IslandMetrics.space6),
+                _AgentStack(
+                  ids: agentIds,
+                  extra: content.extraAgents,
+                  size: IslandMetrics.iconLG,
+                ),
+              ],
+              if (content.ime) ...[
+                const SizedBox(width: IslandMetrics.space6),
+                ImeIndicator(chinese: widget.ime.chinese),
+              ],
+              if (content.wechat) ...[
+                const SizedBox(width: IslandMetrics.space8),
+                const ClientGlyph(source: 'wechat', size: IslandMetrics.iconLG),
+              ],
+              if (content.qq) ...[
+                const SizedBox(width: IslandMetrics.space4),
+                const ClientGlyph(source: 'qq', size: IslandMetrics.iconLG),
+              ],
+              if (mailProvider != null) ...[
+                const SizedBox(width: IslandMetrics.space6),
+                MailProviderBadge(
+                  provider: mailProvider.provider,
+                  email: mailProvider.email,
+                  size: IslandMetrics.iconLG,
+                  color: colors.accent,
+                ),
+              ],
+              if (content.playing) ...[
+                const SizedBox(width: IslandMetrics.space6),
+                const _WaveBars(),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
 
   /// 竖屏窄栏：时间、天气、客户端标识和音波从上到下排列，文字保持正向。
-  Widget _buildVertical(
-    IslandColors colors,
-    String time,
-    WeatherSnapshot? snapshot,
-    bool showWave,
-    bool showIme,
-    bool hasScheduleToday,
-    Size size,
-    String? mailProvider,
-    String? mailEmail,
-    Color mailColor,
-  ) {
+  Widget _buildVertical(BuildContext context) {
+    final colors = context.islandColors;
+    final content = widget.content;
+    final now = DateTime.now();
+    final time =
+        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
     // 窄栏放不下 "HH:MM"，拆成小时在上、分钟在下。
     final parts = time.split(':');
     final clock = parts.length == 2 ? '${parts[0]}\n${parts[1]}' : time;
-    // 竖排时所有图标统一用同一尺寸，避免天气、指标、客户端图标大小不一。
+    // 竖排时所有图标统一用同一尺寸，避免大小不一。
     const iconSize = IslandMetrics.iconLG;
-    final runningAgents = widget.showAgents
-        ? widget.agents.runningAgentIds
-        : const <String>[];
-    final agentIcons = runningAgents.take(2).toList(growable: false);
-    final extraAgents = runningAgents.length - agentIcons.length;
+    final snapshot = content.weather ? widget.weather.snapshot : null;
+    final metricIds = widget.metricIds
+        .take(content.metricCount)
+        .toList(growable: false);
+    final mailProvider = _latestMailProvider();
+    final agentIds = widget.agents.runningAgentIds
+        .take(content.agentCount)
+        .toList(growable: false);
     return SizedBox(
-      width: size.width,
-      height: size.height,
-      child: Column(
-        children: [
-          const SizedBox(height: IslandMetrics.space10),
-          Expanded(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    clock,
-                    textAlign: TextAlign.center,
-                    style: IslandTypography.clockCompact.tint(colors.text),
-                  ),
-                  if (hasScheduleToday) ...[
-                    const SizedBox(height: IslandMetrics.space6),
-                    const _ScheduleGlyph(size: iconSize),
-                  ],
-                  if (widget.showUpdate) ...[
-                    const SizedBox(height: IslandMetrics.space6),
-                    const _UpdateGlyph(size: iconSize),
-                  ],
-                  if (snapshot != null) ...[
-                    const SizedBox(height: IslandMetrics.space6),
-                    Icon(
-                      weatherIcon(snapshot.kind, snapshot.isDay),
-                      size: iconSize,
-                      color: weatherColor(colors, snapshot.kind),
-                    ),
-                    const SizedBox(height: IslandMetrics.space2),
-                    Text(
-                      '${snapshot.roundedTemp}°',
-                      style: IslandTypography.microStrong.tint(colors.text),
-                    ),
-                  ],
-                  if (widget.islandMetrics.isNotEmpty) ...[
-                    const SizedBox(height: IslandMetrics.space4),
-                    MetricsIslandChips(
-                      controller: widget.metrics,
-                      metricIds: widget.islandMetrics,
-                      vertical: true,
-                      iconSize: iconSize,
-                    ),
-                  ],
-                  if (agentIcons.isNotEmpty) ...[
-                    const SizedBox(height: IslandMetrics.space4),
-                    for (var index = 0; index < agentIcons.length; index++) ...[
-                      if (index > 0)
-                        const SizedBox(height: IslandMetrics.space3),
-                      AgentGlyph(id: agentIcons[index], size: iconSize),
-                    ],
-                    if (extraAgents > 0) ...[
-                      const SizedBox(height: IslandMetrics.space2),
-                      Text(
-                        '+$extraAgents',
-                        style: IslandTypography.micro.tint(colors.muted),
-                      ),
-                    ],
-                  ],
-                  if (showIme) ...[
-                    const SizedBox(height: IslandMetrics.space6),
-                    ImeIndicator(chinese: widget.ime.chinese),
-                  ],
-                  if (widget.messages.hasWechat) ...[
-                    const SizedBox(height: IslandMetrics.space6),
-                    const ClientGlyph(source: 'wechat', size: iconSize),
-                  ],
-                  if (widget.messages.hasQq) ...[
-                    const SizedBox(height: IslandMetrics.space4),
-                    const ClientGlyph(source: 'qq', size: iconSize),
-                  ],
-                  if (mailProvider != null) ...[
-                    const SizedBox(height: IslandMetrics.space4),
-                    MailProviderBadge(
-                      provider: mailProvider,
-                      email: mailEmail,
-                      size: iconSize,
-                      color: mailColor,
-                    ),
-                  ],
-                ],
+      width: widget.size.width,
+      height: widget.size.height,
+      child: Align(
+        alignment: Alignment.center,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: IslandMetrics.space10),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                clock,
+                textAlign: TextAlign.center,
+                style: IslandTypography.clockCompact.tint(colors.text),
               ),
-            ),
+              if (content.schedule) ...[
+                const SizedBox(height: IslandMetrics.space6),
+                const _ScheduleGlyph(size: iconSize),
+              ],
+              if (content.update) ...[
+                const SizedBox(height: IslandMetrics.space6),
+                const _UpdateGlyph(size: iconSize),
+              ],
+              if (snapshot != null) ...[
+                const SizedBox(height: IslandMetrics.space6),
+                Icon(
+                  weatherIcon(snapshot.kind, snapshot.isDay),
+                  size: iconSize,
+                  color: weatherColor(colors, snapshot.kind),
+                ),
+                const SizedBox(height: IslandMetrics.space2),
+                Text(
+                  '${snapshot.roundedTemp}°',
+                  style: IslandTypography.microStrong.tint(colors.text),
+                ),
+              ],
+              if (metricIds.isNotEmpty) ...[
+                const SizedBox(height: IslandMetrics.space4),
+                MetricsIslandChips(
+                  controller: widget.metrics,
+                  metricIds: metricIds,
+                  vertical: true,
+                  iconSize: iconSize,
+                ),
+              ],
+              if (agentIds.isNotEmpty) ...[
+                const SizedBox(height: IslandMetrics.space4),
+                _AgentStack(
+                  ids: agentIds,
+                  extra: content.extraAgents,
+                  size: iconSize,
+                  vertical: true,
+                ),
+              ],
+              if (content.ime) ...[
+                const SizedBox(height: IslandMetrics.space6),
+                ImeIndicator(chinese: widget.ime.chinese),
+              ],
+              if (content.wechat) ...[
+                const SizedBox(height: IslandMetrics.space6),
+                const ClientGlyph(source: 'wechat', size: iconSize),
+              ],
+              if (content.qq) ...[
+                const SizedBox(height: IslandMetrics.space4),
+                const ClientGlyph(source: 'qq', size: iconSize),
+              ],
+              if (mailProvider != null) ...[
+                const SizedBox(height: IslandMetrics.space4),
+                MailProviderBadge(
+                  provider: mailProvider.provider,
+                  email: mailProvider.email,
+                  size: iconSize,
+                  color: colors.accent,
+                ),
+              ],
+              if (content.playing) ...[
+                const SizedBox(height: IslandMetrics.space4),
+                const _WaveBars(),
+              ],
+            ],
           ),
-          // 与横向版本贴右边一致：音波固定在窄栏最下方。
-          if (showWave) ...[
-            const SizedBox(height: IslandMetrics.space4),
-            const _WaveBars(),
-          ],
-          const SizedBox(height: IslandMetrics.space10),
-        ],
+        ),
       ),
+    );
+  }
+
+  ({String provider, String email})? _latestMailProvider() {
+    for (final item in widget.mail.items) {
+      if (!item.unread) continue;
+      final account = widget.mail.accountFor(item.accountId);
+      if (account == null) continue;
+      return (provider: account.provider, email: account.email);
+    }
+    return null;
+  }
+}
+
+/// agent 图标叠放：首个完整可见，超出部分显示 `+N`。
+class _AgentStack extends StatelessWidget {
+  const _AgentStack({
+    required this.ids,
+    required this.extra,
+    required this.size,
+    this.vertical = false,
+  });
+
+  final List<String> ids;
+  final int extra;
+  final double size;
+  final bool vertical;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.islandColors;
+    final stack = GlyphStack(
+      size: size,
+      vertical: vertical,
+      semanticsLabel: '${ids.length + extra} 个 agent 运行中',
+      children: [
+        for (final id in ids) AgentGlyph(id: id, size: size),
+      ],
+    );
+    final badge = extra > 0
+        ? Text('+$extra', style: IslandTypography.micro.tint(colors.muted))
+        : null;
+    // 竖排时数量放在叠放下方，与窄栏纵向布局一致。
+    final group = vertical
+        ? Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              stack,
+              if (badge != null) ...[
+                const SizedBox(height: IslandMetrics.space2),
+                badge,
+              ],
+            ],
+          )
+        : Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              stack,
+              if (badge != null) ...[
+                const SizedBox(width: IslandMetrics.space2),
+                badge,
+              ],
+            ],
+          );
+    // 叠放与数量合并成一个语义节点。
+    return Semantics(
+      label: '${ids.length + extra} 个 agent 运行中',
+      excludeSemantics: true,
+      child: group,
     );
   }
 }

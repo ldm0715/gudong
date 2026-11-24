@@ -5,11 +5,25 @@ import 'package:island_app/features/island/island_layout.dart';
 
 const _clockOnly = CollapsedContent();
 
+const _allOn = CollapsedContent(
+  schedule: true,
+  weather: true,
+  metricCount: 2,
+  agentCount: 3,
+  extraAgents: 2,
+  ime: true,
+  wechat: true,
+  qq: true,
+  mail: true,
+  playing: true,
+  update: true,
+);
+
 void main() {
   test('top dock anchors the island to the top center', () {
     final rect = IslandLayout.rectFor(
       DockEdge.top,
-      IslandLayout.collapsedSizeFor(DockEdge.top, _clockOnly),
+      IslandLayout.planFor(DockEdge.top, _clockOnly).size,
     );
     expect(rect.top, IslandLayout.edgeInset);
     expect(rect.center.dx, appWindowSize.width / 2);
@@ -34,50 +48,82 @@ void main() {
   });
 
   test('collapsed island starts at the minimum width with only the clock', () {
-    final size = IslandLayout.collapsedSizeFor(DockEdge.top, _clockOnly);
+    final size = IslandLayout.planFor(DockEdge.top, _clockOnly).size;
     expect(size.width, IslandLayout.minCollapsedWidth);
     expect(size.height, IslandLayout.collapsedThickness);
   });
 
   test('collapsed island grows with each visible element', () {
-    final base = IslandLayout.collapsedSizeFor(DockEdge.top, _clockOnly);
-    final weather = IslandLayout.collapsedSizeFor(
+    final base = IslandLayout.planFor(DockEdge.top, _clockOnly).size;
+    final weather = IslandLayout.planFor(
       DockEdge.top,
       const CollapsedContent(weather: true),
-    );
-    final crowded = IslandLayout.collapsedSizeFor(
+    ).size;
+    final crowded = IslandLayout.planFor(
       DockEdge.top,
       const CollapsedContent(
         weather: true,
         schedule: true,
         metricCount: 2,
-        agentCount: 2,
+        agentCount: 3,
         ime: true,
         wechat: true,
         qq: true,
         mail: true,
         playing: true,
       ),
-    );
+    ).size;
     expect(weather.width, greaterThan(base.width));
     expect(crowded.width, greaterThan(weather.width));
     expect(crowded.width, lessThanOrEqualTo(appWindowSize.width));
   });
 
-  test('collapsed island caps at the canvas width', () {
-    final crowded = IslandLayout.collapsedSizeFor(
+  test('horizontal budget never exceeds the canvas', () {
+    final plan = IslandLayout.planFor(
       DockEdge.top,
       const CollapsedContent(metricCount: 20),
     );
-    expect(crowded.width, IslandLayout.maxCollapsedSize.width);
+    expect(plan.size.width, lessThanOrEqualTo(IslandLayout.maxCollapsedSize.width));
+    expect(plan.content.metricCount, lessThan(20));
+  });
+
+  test('horizontal worst case keeps unread, metrics and agents', () {
+    final plan = IslandLayout.planFor(DockEdge.top, _allOn);
+    expect(plan.size.width, lessThanOrEqualTo(IslandLayout.maxCollapsedSize.width));
+    expect(plan.content.wechat, isTrue);
+    expect(plan.content.qq, isTrue);
+    expect(plan.content.mail, isTrue);
+    expect(plan.content.playing, isTrue);
+    expect(plan.content.metricCount, 2);
+    expect(plan.content.agentCount, 3);
+    expect(plan.content.extraAgents, 2);
+    // 低优先级的天气与输入法先让位。
+    expect(plan.content.weather, isFalse);
+    expect(plan.content.ime, isFalse);
+  });
+
+  test('vertical worst case keeps agents and fits the canvas', () {
+    final plan = IslandLayout.planFor(DockEdge.left, _allOn);
+    expect(
+      plan.size.height,
+      lessThanOrEqualTo(IslandLayout.maxCollapsedSize.height),
+    );
+    expect(plan.content.wechat, isTrue);
+    expect(plan.content.qq, isTrue);
+    expect(plan.content.mail, isTrue);
+    expect(plan.content.agentCount, 3);
+    // 竖向空间更紧，指标放不下后截断天气与输入法。
+    expect(plan.content.metricCount, 0);
+    expect(plan.content.weather, isFalse);
+    expect(plan.content.ime, isFalse);
   });
 
   test('vertical collapsed island grows in height only', () {
-    final base = IslandLayout.collapsedSizeFor(DockEdge.left, _clockOnly);
-    final three = IslandLayout.collapsedSizeFor(
+    final base = IslandLayout.planFor(DockEdge.left, _clockOnly).size;
+    final three = IslandLayout.planFor(
       DockEdge.left,
       const CollapsedContent(metricCount: 3),
-    );
+    ).size;
     expect(three.width, base.width);
     expect(three.height, greaterThan(base.height));
     expect(three.height, lessThanOrEqualTo(appWindowSize.height));

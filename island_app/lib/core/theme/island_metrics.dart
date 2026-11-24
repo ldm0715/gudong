@@ -1,6 +1,6 @@
 /// 岛体尺寸常量：圆角、间距、图标与命中区。
 ///
-/// 岛体空间受 380×260 限制，所有尺寸按此比例取值，不要就地写字面量。
+/// 岛体空间受窗口画布 420×300 限制，所有尺寸按此比例取值，不要就地写字面量。
 abstract final class IslandMetrics {
   // 圆角
 
@@ -69,6 +69,12 @@ abstract final class IslandMetrics {
   static const double handleWidth = 36;
   static const double handleHeight = 4;
   static const double waveBarWidth = 2.5;
+
+  /// 叠放图标的相互偏移，后一个压住前一个的多少像素。
+  static const double stackOverlap = 6;
+
+  /// 叠放图标之间用背景色描边的宽度，用于区分层次。
+  static const double stackRing = 1.5;
 
   /// 鼠标命中区下限，可点区域小于此值时用内边距补足。
   static const double hitTargetMin = 28;

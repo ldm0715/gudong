@@ -256,16 +256,19 @@ class _IslandShellState extends State<IslandShell> {
                     ? _tab
                     : (tabs.isEmpty ? null : tabs.first);
                 final mini = island.mini(settings.autoCollapseOnMaximized);
-                final collapsedContent = collapsedContentOf(
-                  settings: widget.settings,
-                  messages: widget.messages,
-                  mail: widget.mail,
-                  weather: widget.weather,
-                  media: widget.media,
-                  ime: widget.ime,
-                  schedule: widget.schedule,
-                  agents: widget.agents,
-                  update: widget.update,
+                final collapsedPlan = IslandLayout.planFor(
+                  side,
+                  collapsedContentOf(
+                    settings: widget.settings,
+                    messages: widget.messages,
+                    mail: widget.mail,
+                    weather: widget.weather,
+                    media: widget.media,
+                    ime: widget.ime,
+                    schedule: widget.schedule,
+                    agents: widget.agents,
+                    update: widget.update,
+                  ),
                 );
                 final size = mini
                     ? IslandLayout.miniBarHitSizeFor(side)
@@ -273,7 +276,7 @@ class _IslandShellState extends State<IslandShell> {
                     ? IslandLayout.expandedSizeFor(side)
                     : activeBanner
                     ? IslandLayout.bannerSizeFor(side)
-                    : IslandLayout.collapsedSizeFor(side, collapsedContent);
+                    : collapsedPlan.size;
                 final radius = mini
                     ? IslandMetrics.pill(size.height)
                     : expanded
@@ -445,26 +448,13 @@ class _IslandShellState extends State<IslandShell> {
                               : showIme
                               ? ImeBanner(chinese: widget.ime.chinese)
                               : CollapsedBar(
-                                  messages: widget.messages,
                                   mail: widget.mail,
                                   weather: widget.weather,
-                                  media: widget.media,
-                                  schedule: widget.schedule,
                                   ime: widget.ime,
                                   metrics: widget.metrics,
                                   agents: widget.agents,
-                                  showAgents: settings.showAgentIndicator,
-                                  showWeather: settings.showWeather,
-                                  showPlayingIndicator:
-                                      settings.showPlayingIndicator,
-                                  showImeIndicator: settings.showImeIndicator,
-                                  showScheduleIndicator:
-                                      settings.showScheduleIndicator,
-                                  showUpdate:
-                                      settings.autoCheckUpdates &&
-                                      widget.update.available &&
-                                      !updateSnoozedToday(settings),
-                                  islandMetrics: settings.islandMetrics,
+                                  content: collapsedPlan.content,
+                                  metricIds: settings.islandMetrics,
                                   size: size,
                                   vertical: side.isVertical,
                                 ),

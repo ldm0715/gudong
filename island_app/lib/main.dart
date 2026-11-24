@@ -142,7 +142,7 @@ Future<void> main(List<String> args) async {
             ? IslandLayout.expandedSizeFor(side)
             : showBanner
             ? IslandLayout.bannerSizeFor(side)
-            : IslandLayout.collapsedSizeFor(
+            : IslandLayout.planFor(
                 side,
                 collapsedContentOf(
                   settings: settings,
@@ -155,7 +155,7 @@ Future<void> main(List<String> args) async {
                   agents: agents,
                   update: update,
                 ),
-              ),
+              ).size,
         inset: mini ? IslandLayout.miniEdgeInset : IslandLayout.edgeInset,
       ),
     );

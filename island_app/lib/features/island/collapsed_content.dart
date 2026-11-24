@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import '../../core/settings/app_settings.dart';
 import '../../core/settings/settings_controller.dart';
 import '../agents/agent_controller.dart';
@@ -28,7 +30,7 @@ CollapsedContent collapsedContentOf({
   final runningAgents = config.showAgentIndicator
       ? agents.runningAgentIds.length
       : 0;
-  final visibleAgents = runningAgents > 2 ? 2 : runningAgents;
+  final visibleAgents = math.min(runningAgents, IslandLayout.maxCollapsedAgents);
   // 收起态只显示第一封未读邮件的服务商图标，且必须能匹配到账号。
   var hasMailBadge = false;
   for (final item in mail.items) {

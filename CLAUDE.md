@@ -37,7 +37,7 @@ Windows 桌面灵动岛。`island_app`（Flutter）负责岛体、动画与设�
 ### 4. 界面与主题
 
 - 颜色只从 `IslandColors`（ThemeExtension）取，皮肤由 `themeId` 决定（`midnight` / `daylight`）；禁止硬编码色值。
-- 岛体（380×260 内）采用 macOS 桌面风格，以自绘为主；字阶、字重、字距、圆角、间距、动效曲线统一取自 `IslandTypography` / `IslandMetrics` / `IslandMotion`（`core/theme/`），禁止硬编码字号、圆角、时长。
+- 岛体（420×300 画布内，展开 404×284）采用 macOS 桌面风格，以自绘为主；字阶、字重、字距、圆角、间距、动效曲线统一取自 `IslandTypography` / `IslandMetrics` / `IslandMotion`（`core/theme/`），禁止硬编码字号、圆角、时长。
 - 岛体可选用 Cupertino 叶子控件（如 `CupertinoSlidingSegmentedControl`），但 `CupertinoThemeData` 必须由上述 token 与 `IslandColors` 派生；禁止使用 `CupertinoColors` 默认值、Cupertino 默认字体族与默认尺寸；依赖 `CupertinoLocalizations` 的控件须先注册 delegate。
 - 设置窗口继续使用 Material 3 组件（`FilledButton` / `OutlinedButton` / `TextButton` / `TextField` / `DropdownMenu` / `Switch` / `Dialog` 等），但关闭 M3 视觉签名：`surfaceTintColor` 透明、无 ripple、无 tonal elevation。
 - 岛体自绘控件必须补齐 hover / pressed / focus / semantics / 键盘可达，高度、圆角、字体、配色与同屏其他控件一致。
