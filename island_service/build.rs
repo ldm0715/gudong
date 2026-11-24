@@ -11,8 +11,8 @@ use std::process::Command;
 const RESOURCE: &str = r#"1 ICON "gudong.ico"
 
 1 VERSIONINFO
-FILEVERSION 0,0,0,0
-PRODUCTVERSION 0,0,0,0
+FILEVERSION __VERSION_NUMERIC__
+PRODUCTVERSION __VERSION_NUMERIC__
 FILEFLAGSMASK 0x3fL
 FILEFLAGS 0x0L
 FILEOS 0x40004L
@@ -25,11 +25,11 @@ BEGIN
     BEGIN
       VALUE "CompanyName", "gudong"
       VALUE "FileDescription", "gudong"
-      VALUE "FileVersion", "0.0.0.0"
+      VALUE "FileVersion", "__VERSION_DOTTED__"
       VALUE "InternalName", "island_service"
       VALUE "OriginalFilename", "island_service.exe"
       VALUE "ProductName", "gudong"
-      VALUE "ProductVersion", "0.0.0.0"
+      VALUE "ProductVersion", "__VERSION_DOTTED__"
     END
   END
   BLOCK "VarFileInfo"
@@ -65,7 +65,11 @@ fn main() {
 
     let rc_file = out.join("gudong.rc");
     let res_file = out.join("gudong.res");
-    if let Err(error) = fs::write(&rc_file, RESOURCE) {
+    let (major, minor, patch) = version_parts(&env::var("CARGO_PKG_VERSION").unwrap_or_default());
+    let resource = RESOURCE
+        .replace("__VERSION_NUMERIC__", &format!("{major},{minor},{patch},0"))
+        .replace("__VERSION_DOTTED__", &format!("{major}.{minor}.{patch}.0"));
+    if let Err(error) = fs::write(&rc_file, resource) {
         println!("cargo:warning=写入资源脚本失败: {error}");
         return;
     }
@@ -84,6 +88,17 @@ fn main() {
         Ok(status) => println!("cargo:warning=rc.exe 执行失败: {status}"),
         Err(error) => println!("cargo:warning=无法启动 rc.exe: {error}"),
     }
+}
+
+/// 把 `0.2.0` 这类版本号拆成三段，预发布后缀忽略。
+fn version_parts(version: &str) -> (u64, u64, u64) {
+    let core = version.split(['-', '+']).next().unwrap_or(version);
+    let mut parts = core.split('.').map(|part| part.parse::<u64>().unwrap_or(0));
+    (
+        parts.next().unwrap_or(0),
+        parts.next().unwrap_or(0),
+        parts.next().unwrap_or(0),
+    )
 }
 
 /// 优先用 PATH 里的 rc.exe，其次从 Windows SDK 目录里找。

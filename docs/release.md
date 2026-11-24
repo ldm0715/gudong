@@ -21,13 +21,22 @@ git log "$(git describe --tags --abbrev=0)..HEAD" --pretty=format:"%h %s"
 
 ## 2. 同步版本号
 
-把 `island_app/pubspec.yaml` 的 `version` 改成同一版本号（构建时也会用 tag 覆盖，
-但保持文件一致便于本地排查）。
+以下位置必须一起改成同一版本号：
+
+- `island_app/pubspec.yaml` 的 `version`（形如 `0.2.0+1`，构建时会被 tag 覆盖，但保持文件一致便于本地排查）
+- `island_app/lib/core/app_info.dart` 的 `appVersion`（设置页、诊断页与更新横幅显示）
+- `island_service/Cargo.toml` 的 `version`（`update.check` 用它和线上版本比较，必须改）
+- `installer/gudong.nsi` 的默认 `VERSION`（工作流会传 `-DVERSION` 覆盖，仅本地打包时生效）
+
+改完 `Cargo.toml` 后运行 `cargo build --release` 刷新 `Cargo.lock`
+（CI 用 `cargo build --locked`，锁文件不同步会直接失败）。`build.rs` 里 exe 的版本资源
+已从 `CARGO_PKG_VERSION` 派生，不需要手改。
 
 ## 3. 提交并打 tag
 
 ```powershell
-git add changeslog.md island_app/pubspec.yaml
+git add changeslog.md island_app/pubspec.yaml island_app/lib/core/app_info.dart `
+  island_service/Cargo.toml island_service/Cargo.lock installer/gudong.nsi
 git commit -m "chore(release): prepare v0.1.0"
 git tag v0.1.0
 git push origin main --tags
