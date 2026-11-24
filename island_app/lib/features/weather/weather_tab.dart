@@ -163,7 +163,7 @@ class _CurrentWeatherPage extends StatelessWidget {
       snapshot.place.isEmpty ? '当地' : snapshot.place,
       ?highLow,
     ].join(' · ');
-    final metrics = [
+    final details = [
       if (snapshot.feelsLikeC != null) '体感 ${snapshot.feelsLikeC!.round()}°',
       if (snapshot.humidity != null) '湿度 ${snapshot.humidity}%',
       if (snapshot.windKph != null) '风 ${snapshot.windKph!.round()} km/h',
@@ -248,11 +248,11 @@ class _CurrentWeatherPage extends StatelessWidget {
         ),
         const SizedBox(height: IslandMetrics.space7),
         Divider(height: 1, color: colors.divider),
-        if (metrics.isNotEmpty) ...[
+        if (details.isNotEmpty) ...[
           const SizedBox(height: IslandMetrics.space7),
           Row(
             children: [
-              for (final metric in metrics)
+              for (final metric in details)
                 Expanded(
                   child: Text(
                     metric,
@@ -276,41 +276,47 @@ class _CurrentWeatherPage extends StatelessWidget {
                     style: IslandTypography.caption.tint(colors.muted),
                   ),
                 )
-              : Align(
-                  alignment: Alignment.topCenter,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: IslandMetrics.space6,
-                      horizontal: IslandMetrics.space2,
+              : Container(
+                  // 预报卡片撑满剩余高度，随面板加高一起舒展。
+                  padding: const EdgeInsets.symmetric(
+                    vertical: IslandMetrics.space8,
+                    horizontal: IslandMetrics.space6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: colors.surface,
+                    borderRadius: BorderRadius.circular(
+                      IslandMetrics.radiusCard,
                     ),
-                    decoration: BoxDecoration(
-                      color: colors.surface,
-                      borderRadius: BorderRadius.circular(
-                        IslandMetrics.radiusPill,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        for (
-                          var index = 0;
-                          index < snapshot.days.length;
-                          index++
-                        ) ...[
-                          if (index > 0)
-                            Container(
-                              width: 1,
-                              height: 40,
-                              color: colors.divider,
+                    border: Border.all(color: colors.divider),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (
+                        var index = 0;
+                        index < snapshot.days.length;
+                        index++
+                      ) ...[
+                        if (index > 0)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: IslandMetrics.space4,
                             ),
-                          Expanded(
+                            child: Container(width: 1, color: colors.divider),
+                          ),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: IslandMetrics.space4,
+                            ),
                             child: _WeatherDayCell(
                               day: snapshot.days[index],
                               index: index,
                             ),
                           ),
-                        ],
+                        ),
                       ],
-                    ),
+                    ],
                   ),
                 ),
         ),
@@ -620,49 +626,40 @@ class _WeatherDayCell extends StatelessWidget {
     final rain = day.precipProbability;
     final showRain = rain != null && rain >= 20;
     return Column(
-      mainAxisAlignment: MainAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
+        Text(
+          dayLabel(index, day.date),
+          style: IslandTypography.micro.tint(colors.muted),
+        ),
+        Icon(
+          weatherIcon(day.kind, true),
+          size: IslandMetrics.iconXL,
+          color: weatherColor(colors, day.kind),
+        ),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            '${day.highC.round()}° / ${day.lowC.round()}°',
+            maxLines: 1,
+            style: IslandTypography.microStrong.tint(colors.text),
+          ),
+        ),
+        // 单行定高，长描述按宽度缩小，避免各列高度不一致。
         SizedBox(
           height: 12,
-          child: Center(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
             child: Text(
-              dayLabel(index, day.date),
+              day.description,
+              maxLines: 1,
               style: IslandTypography.micro.tint(colors.muted),
             ),
           ),
         ),
-        const SizedBox(height: IslandMetrics.space3),
-        SizedBox(
-          height: 20,
-          child: Center(
-            child: Icon(
-              weatherIcon(day.kind, true),
-              size: IslandMetrics.iconLG,
-              color: weatherColor(colors, day.kind),
-            ),
-          ),
-        ),
-        const SizedBox(height: IslandMetrics.space3),
-        SizedBox(
-          height: 14,
-          child: Center(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                '${day.highC.round()}° / ${day.lowC.round()}°',
-                style: IslandTypography.microStrong.tint(colors.text),
-              ),
-            ),
-          ),
-        ),
-        SizedBox(
-          height: 11,
-          child: Center(
-            child: Text(
-              showRain ? '$rain%' : '',
-              style: IslandTypography.micro.tint(colors.rain),
-            ),
-          ),
+        Text(
+          showRain ? '$rain%' : '',
+          style: IslandTypography.micro.tint(colors.rain),
         ),
       ],
     );
