@@ -850,14 +850,9 @@ class _MailDetailView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // 标题左对齐并占满左侧；返回改成右侧关闭图标，避免单独占一行工具栏。
         Row(
           children: [
-            _IconTap(
-              icon: Icons.arrow_back_rounded,
-              tooltip: '返回收件箱',
-              onTap: controller.closeDetail,
-            ),
-            const SizedBox(width: IslandMetrics.space4),
             Expanded(
               child: Text(
                 detail.summary.subject,
@@ -896,6 +891,11 @@ class _MailDetailView extends StatelessWidget {
                 tooltip: '在网页邮箱打开',
                 onTap: () => unawaited(controller.openWebmail(account)),
               ),
+            _IconTap(
+              icon: Icons.close_rounded,
+              tooltip: '返回收件箱',
+              onTap: controller.closeDetail,
+            ),
           ],
         ),
         const SizedBox(height: IslandMetrics.space2),
