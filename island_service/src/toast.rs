@@ -27,7 +27,9 @@ fn run(receiver: Receiver<Toast>) {
     use std::sync::mpsc::RecvTimeoutError;
     use std::time::Instant;
 
-    use windows::core::w;
+    use windows::core::{w, PCWSTR};
+    use windows::Win32::Foundation::HINSTANCE;
+    use windows::Win32::System::LibraryLoader::GetModuleHandleW;
     use windows::Win32::UI::Shell::{
         Shell_NotifyIconW, NIF_ICON, NIF_INFO, NIF_TIP, NIIF_INFO, NIM_ADD, NIM_DELETE, NIM_MODIFY,
         NOTIFYICONDATAW,
@@ -58,7 +60,10 @@ fn run(receiver: Receiver<Toast>) {
         data.cbSize = std::mem::size_of::<NOTIFYICONDATAW>() as u32;
         data.hWnd = hwnd;
         data.uID = 1;
-        data.hIcon = LoadIconW(None, IDI_INFORMATION).unwrap_or_default();
+        // 用构建脚本嵌进 exe 的应用图标，缺失时退回系统信息图标。
+        let instance = GetModuleHandleW(None).unwrap_or_default();
+        data.hIcon = LoadIconW(HINSTANCE(instance.0), PCWSTR(1 as *const u16))
+            .unwrap_or_else(|_| LoadIconW(None, IDI_INFORMATION).unwrap_or_default());
         set_text(&mut data.szTip, "gudong");
 
         // 通知期间临时显示托盘图标，10 秒后删除，避免常驻第二个图标。

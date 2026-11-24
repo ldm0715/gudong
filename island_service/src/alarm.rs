@@ -97,7 +97,7 @@ fn fire_due(
     for item in due {
         let _ = toast_tx.send(crate::toast::Toast {
             title: "闹钟".into(),
-            body: format!("{:02}:{:02} {}", item.hour, item.minute, item.title),
+            body: item.title.clone(),
         });
         let _ = tx.send(rpc::event(json!({
             "type": "alarm.fired",

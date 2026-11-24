@@ -93,7 +93,7 @@ fn run(tx: Sender<Value>, toast_tx: Sender<crate::toast::Toast>, commands: Recei
             for item in due {
                 let _ = toast_tx.send(crate::toast::Toast {
                     title: "日程提醒".into(),
-                    body: format!("{} {}", time_label(item.at_ms), item.title),
+                    body: item.title.clone(),
                 });
                 let _ = tx.send(rpc::event(json!({
                     "type": "schedule.fired",
@@ -393,15 +393,6 @@ fn default_path() -> Option<PathBuf> {
 
 fn now_ms() -> i64 {
     chrono::Utc::now().timestamp_millis()
-}
-
-fn time_label(at_ms: i64) -> String {
-    use chrono::TimeZone;
-    chrono::Local
-        .timestamp_millis_opt(at_ms)
-        .single()
-        .map(|value| value.format("%m-%d %H:%M").to_string())
-        .unwrap_or_default()
 }
 
 fn new_id() -> String {
