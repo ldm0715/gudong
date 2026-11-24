@@ -8,6 +8,11 @@ import '../../core/theme/island_motion.dart';
 import '../../core/theme/island_typography.dart';
 import 'media_controller.dart';
 
+/// 媒体页尺寸。展开面板放大后，左栏、封面与歌词行同步放大一档。
+const double _mediaLeftWidth = 150;
+const double _mediaArtworkSize = 72;
+const double _lyricRowHeight = 22;
+
 /// 媒体页：左栏曲目与控制，右栏歌词，底部通栏进度。
 class MediaTab extends StatefulWidget {
   const MediaTab({super.key, required this.controller});
@@ -33,20 +38,20 @@ class _MediaTabState extends State<MediaTab> {
           child: Row(
             children: [
               SizedBox(
-                width: 132,
+                width: _mediaLeftWidth,
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     _Artwork(bytes: media.artwork, colors: colors),
-                    const SizedBox(height: IslandMetrics.space6),
+                    const SizedBox(height: IslandMetrics.space8),
                     Text(
                       media.title ?? '未知曲目',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
-                      style: IslandTypography.bodyStrong.tint(colors.text),
+                      style: IslandTypography.subhead.tint(colors.text),
                     ),
-                    const SizedBox(height: IslandMetrics.space2),
+                    const SizedBox(height: IslandMetrics.space3),
                     Text(
                       [
                         media.artist?.isNotEmpty == true
@@ -57,9 +62,9 @@ class _MediaTabState extends State<MediaTab> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
-                      style: IslandTypography.micro.tint(colors.muted),
+                      style: IslandTypography.caption.tint(colors.muted),
                     ),
-                    const SizedBox(height: IslandMetrics.space8),
+                    const SizedBox(height: IslandMetrics.space12),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -68,12 +73,12 @@ class _MediaTabState extends State<MediaTab> {
                           tooltip: '上一首',
                           onTap: media.previous,
                         ),
-                        const SizedBox(width: IslandMetrics.space8),
+                        const SizedBox(width: IslandMetrics.space10),
                         _PlayButton(
                           playing: media.playing,
                           onTap: media.toggle,
                         ),
-                        const SizedBox(width: IslandMetrics.space8),
+                        const SizedBox(width: IslandMetrics.space10),
                         _ControlButton(
                           icon: Icons.skip_next_rounded,
                           tooltip: '下一首',
@@ -109,10 +114,10 @@ class _MediaTabState extends State<MediaTab> {
             return Row(
               children: [
                 SizedBox(
-                  width: 34,
+                  width: 40,
                   child: Text(
                     _time(current),
-                    style: IslandTypography.micro.copyWith(
+                    style: IslandTypography.caption.copyWith(
                       color: colors.muted,
                       fontFeatures: IslandTypography.tabularFigures,
                     ),
@@ -121,20 +126,20 @@ class _MediaTabState extends State<MediaTab> {
                 Expanded(
                   child: SliderTheme(
                     data: SliderThemeData(
-                      trackHeight: 3,
+                      trackHeight: 4,
                       activeTrackColor: colors.accent,
                       inactiveTrackColor: colors.chip,
                       thumbColor: colors.accent,
                       thumbShape: const RoundSliderThumbShape(
-                        enabledThumbRadius: 4.5,
+                        enabledThumbRadius: 5,
                       ),
                       overlayShape: const RoundSliderOverlayShape(
-                        overlayRadius: 9,
+                        overlayRadius: 10,
                       ),
                       overlayColor: colors.accent.withValues(alpha: 0.12),
                     ),
                     child: SizedBox(
-                      height: 16,
+                      height: 18,
                       child: Slider(
                         value: current,
                         max: max,
@@ -152,11 +157,11 @@ class _MediaTabState extends State<MediaTab> {
                   ),
                 ),
                 SizedBox(
-                  width: 34,
+                  width: 40,
                   child: Text(
                     media.duration > 0 ? _time(media.duration) : '--:--',
                     textAlign: TextAlign.right,
-                    style: IslandTypography.micro.copyWith(
+                    style: IslandTypography.caption.copyWith(
                       color: colors.muted,
                       fontFeatures: IslandTypography.tabularFigures,
                     ),
@@ -191,8 +196,8 @@ class _LyricsView extends StatefulWidget {
 
 class _LyricsViewState extends State<_LyricsView>
     with SingleTickerProviderStateMixin {
-  static const double _rowHeight = 17;
-  static const int _visibleRows = 7;
+  static const double _rowHeight = _lyricRowHeight;
+  static const int _visibleRows = 8;
   static const double _viewportHeight = _rowHeight * _visibleRows;
   static const double _centerOffset = _viewportHeight / 2 - _rowHeight / 2;
 
@@ -322,7 +327,7 @@ class _LyricRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final alpha = highlighted ? 1.0 : (distance <= 1 ? 0.7 : 0.42);
     return SizedBox(
-      height: 17,
+      height: _lyricRowHeight,
       child: Center(
         child: Text(
           text,
@@ -330,13 +335,13 @@ class _LyricRow extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           textAlign: TextAlign.center,
           style:
-              (highlighted ? IslandTypography.caption : IslandTypography.micro)
+              (highlighted ? IslandTypography.body : IslandTypography.caption)
                   .copyWith(
                     color: highlighted
                         ? colors.accent
                         : colors.muted.withValues(alpha: alpha),
                     fontWeight: highlighted ? FontWeight.w600 : FontWeight.w400,
-                    height: 1.25,
+                    height: 1.3,
                   ),
         ),
       ),
@@ -356,22 +361,22 @@ class _Artwork extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(IslandMetrics.radiusControl),
       child: Container(
-        width: 52,
-        height: 52,
+        width: _mediaArtworkSize,
+        height: _mediaArtworkSize,
         color: colors.chip,
         child: image == null
             ? Icon(
                 Icons.music_note_rounded,
-                size: IslandMetrics.iconXL,
+                size: IslandMetrics.icon3XL,
                 color: colors.muted,
               )
             : Image.memory(
                 image,
-                width: 52,
-                height: 52,
+                width: _mediaArtworkSize,
+                height: _mediaArtworkSize,
                 // 封面原图常有 640–1000px，按显示尺寸解码，避免图片缓存常驻几十 MB。
-                cacheWidth: 104,
-                cacheHeight: 104,
+                cacheWidth: (_mediaArtworkSize * 2).round(),
+                cacheHeight: (_mediaArtworkSize * 2).round(),
                 fit: BoxFit.cover,
                 gaplessPlayback: true,
                 filterQuality: FilterQuality.medium,
@@ -397,15 +402,15 @@ class _PlayButton extends StatelessWidget {
         onTap: onTap,
         customBorder: const CircleBorder(),
         child: Container(
-          width: 30,
-          height: 30,
+          width: 36,
+          height: 36,
           decoration: BoxDecoration(
             color: colors.accent,
             shape: BoxShape.circle,
           ),
           child: Icon(
             playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
-            size: IslandMetrics.iconLG,
+            size: IslandMetrics.iconXL,
             color: colors.background,
           ),
         ),
@@ -436,7 +441,7 @@ class _ControlButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(IslandMetrics.radiusCover),
         child: Padding(
           padding: const EdgeInsets.all(IslandMetrics.space5),
-          child: Icon(icon, size: IslandMetrics.iconLG, color: colors.text),
+          child: Icon(icon, size: IslandMetrics.iconXL, color: colors.text),
         ),
       ),
     );
